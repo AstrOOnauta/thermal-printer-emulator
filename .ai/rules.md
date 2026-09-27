@@ -149,11 +149,12 @@ them with `grep -rn "ponytail:" src src-tauri/src`.
 | ------------------------------------------------------ | -------------------------- |
 | a command, an event, capabilities, the CSP             | `conventions/bridge.md`    |
 | tray, window, single instance, autostart, Dock, logs   | `flows/app-lifecycle.md`   |
+| the listener, connections, jobs, their limits          | `flows/print-job.md`       |
 | a Rust module, a plugin, a security rule               | `conventions/rust-core.md` |
 | translations or locale resolution                      | `conventions/i18n.md`      |
 | tokens, theme, `cn()`, a UI primitive, window size     | `design-system.md`         |
 | a dependency, the layout, CI/release, a phase finished | `stack.md`                 |
 | a rule in this file                                    | `rules.md`                 |
 
-New flows (the print job path, settings, history) get a doc in `flows/` when they land,
-plus a row in this table.
+New flows (settings, history) get a doc in `flows/` when they land, plus a row in this
+table.

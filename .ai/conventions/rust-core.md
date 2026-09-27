@@ -5,12 +5,14 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 
 ## Modules (one responsibility each)
 
-| Module      | Owns                                                                                                           |
-| ----------- | -------------------------------------------------------------------------------------------------------------- |
-| `main.rs`   | Entry point, only calls `lib::run`. `windows_subsystem = "windows"` hides the console in release               |
-| `lib.rs`    | `Builder`: plugin order, macOS app menu, `setup` (tray, first show), window events, command handlers, `Reopen` |
-| `ui.rs`     | Commands, tray, macOS app menu, window show/hide + Dock visibility. **No emulator logic**                      |
-| `locale.rs` | OS language → `Locale` (cached in a `OnceLock`), native menu labels                                            |
+| Module        | Owns                                                                                                                          |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `main.rs`     | Entry point, only calls `lib::run`. `windows_subsystem = "windows"` hides the console in release                              |
+| `lib.rs`      | `Builder`: plugin order, macOS app menu, `setup` (tray, first show), window events, command handlers, `Reopen`                |
+| `ui.rs`       | Commands, tray, macOS app menu, window show/hide + Dock visibility. **No emulator logic**                                     |
+| `locale.rs`   | OS language → `Locale` (cached in a `OnceLock`), native menu labels                                                           |
+| `listener.rs` | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
+| `jobs.rs`     | Jobs in memory: limits, eviction, `JobSummary` (`flows/print-job.md`)                                                         |
 
 The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator_lib`. The
 `_lib` suffix keeps the lib name distinct from the bin name (cargo#8519 on Windows).
@@ -50,7 +52,10 @@ context. **Never** log receipt bytes or text: they can carry customer data.
 
 - Unit tests next to the code (`#[cfg(test)] mod tests`), e.g. `locale::tests`.
 - Integration tests in `src-tauri/tests/` against real sockets on `127.0.0.1`, with an
-  ephemeral port (`:0`) so they run in parallel.
+  ephemeral port (`:0`) so they run in parallel. Modules they use are `pub` in `lib.rs`;
+  the rest stay private.
+- Timeouts and limits come from a struct (`listener::Limits`, `Jobs::new`) so tests run
+  them in milliseconds. Production values live next to the code, not in tests.
 
 ## Platform
 

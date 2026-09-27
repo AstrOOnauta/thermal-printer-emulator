@@ -1,9 +1,14 @@
+pub mod jobs;
+pub mod listener;
 mod locale;
 mod ui;
+
+use std::sync::Arc;
 
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
+use tokio::sync::mpsc;
 
 /// Passed by the OS login item; such a launch starts hidden in the tray.
 const AUTOSTART_ARG: &str = "--autostart";
@@ -47,6 +52,16 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
             ui::build_tray(handle)?;
+
+            let shared = Arc::new(listener::Shared::new(jobs::Jobs::default()));
+            app.manage(Arc::clone(&shared));
+            let (events, _received) = mpsc::unbounded_channel();
+            tauri::async_runtime::spawn(listener::run(
+                listener::DEFAULT_ADDR,
+                listener::Limits::PRODUCTION,
+                shared,
+                events,
+            ));
 
             // The window is created hidden (tauri.conf.json) so a login launch never flashes it.
             let autostart = std::env::args().any(|arg| arg == AUTOSTART_ARG);

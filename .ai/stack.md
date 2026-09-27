@@ -115,6 +115,9 @@ src-tauri/                   # Rust core
   src/lib.rs                 # Builder: plugins, setup, window events, handlers
   src/ui.rs                  # commands, tray, app menu, window show/hide
   src/locale.rs              # OS language → Locale, native menu labels
+  src/listener.rs            # TCP 9100: bind, accept, one task per connection
+  src/jobs.rs                # jobs in memory, limits
+  tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)
   capabilities/main.json     # what the `main` window may call
   tauri.conf.json            # window, CSP, bundle targets, version source
