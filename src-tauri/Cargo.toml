@@ -1,0 +1,34 @@
+[package]
+name = "thermal-printer-emulator"
+version = "0.1.0"
+description = "Thermal printer emulator and virtual thermal printer for ESC/POS"
+authors = ["Willian Barbosa Lima do Nascimento"]
+license = "MIT"
+repository = "https://github.com/AstrOOnauta/thermal-printer-emulator"
+edition = "2021"
+publish = false
+
+[lib]
+# `_lib` keeps the lib name distinct from the bin name (cargo#8519 on Windows).
+name = "thermal_printer_emulator_lib"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-log = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sys-locale = "0.3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

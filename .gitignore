@@ -1,0 +1,37 @@
+# dependencies
+/node_modules
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# build
+/dist
+/coverage
+*.tsbuildinfo
+
+# env
+.env*
+!.env.example
+
+# logs
+*.log
+logs/
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+Thumbs.db
+
+# local notes
+docs/
+
+# AI: local files only. Shared context (.ai/, AGENTS.md, CLAUDE.md) is versioned.
+.claude
+CLAUDE.local.md
+.cursor
+.impeccable

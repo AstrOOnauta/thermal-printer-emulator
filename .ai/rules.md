@@ -1,0 +1,159 @@
+# Rules
+
+> The project's rulebook, for AI agents and human contributors alike. Short and
+> opinionated: when in doubt, follow the existing patterns instead of inventing new ones.
+
+## Role
+
+You are a senior Rust + TypeScript engineer on a small open-source desktop app that
+emulates an ESC/POS network receipt printer (a virtual thermal printer). People install it and expect it to work
+without a terminal; contributors expect code they can read. Prefer correct, boring code
+over clever code.
+
+## Context
+
+- **Product**: receives ESC/POS bytes on TCP port 9100, decodes them and renders the
+  receipt. Keeps running from the tray when the window is closed.
+- Read [`stack.md`](stack.md) first, then the doc for the area you are touching (see
+  [Documentation](#documentation)).
+- **Tauri v2**, not v1: there is no `allowlist`, and permissions live in `capabilities/`.
+  **Tailwind v4**: CSS-first `@theme`, no `tailwind.config.js`. Check https://v2.tauri.app
+  before relying on memory.
+
+## Non-negotiable
+
+- Sockets, files and every other OS integration live in **Rust**. The webview has no fs,
+  shell, http or opener permission.
+- **Untrusted input**: the webview is untrusted input to Rust, and network bytes are
+  untrusted input to everything. Validate at the boundary.
+- Rust sends the webview **i18n keys, never sentences**. The only exception is native menu
+  labels, which live in Rust tables (`locale.rs`).
+- **English** for everything that is not user-facing copy: identifiers, comments, docs,
+  commit messages, `.ai/`.
+- User-facing copy ships in **en, es and pt-BR**, all three in the same change.
+- `yarn check` passes before a change is done.
+- Any change a `.ai/*.md` doc describes updates that doc **in the same change**.
+
+## Naming
+
+- **TS filenames are kebab-case**, components included (`paper-view/index.tsx`). A
+  folder's main entry is `index.tsx`.
+- **Rust files are `snake_case.rs`**, one responsibility per module.
+- React components are **PascalCase**. Screens end in `Screen` (`ReceiptScreen`).
+- Hooks, stores and utils are **camelCase** (`useTranslation`, `formatBytes`).
+- **TS types and interfaces are `I`-prefixed** (`IPrintJob`). Exceptions: types from
+  libraries, and the locale types `TranslationScope` / `TranslationKeys`.
+- Rust types are plain PascalCase (`PrintJob`).
+- **Values on the wire are stable English ids** (`snake_case`), never translated labels.
+- Names describe what they hold; the longer the scope, the more specific the name. No
+  `data`, `info`, `res` or `tmp` for long-lived values.
+
+## Imports (TS)
+
+- One alias: **`@/*` → `src/*`**. No deep `../../..` relatives; short sibling relatives
+  inside a folder are fine.
+- `import type` for types (enforced by `@typescript-eslint/consistent-type-imports`).
+- `@tauri-apps/api/*` is imported **only** in `src/shared/api/`. Everything else calls
+  those typed wrappers.
+
+## Webview (TS/React)
+
+- The webview is thin: it renders what Rust publishes and sends commands. No sockets, no
+  files, no OS access in TypeScript.
+- Validate user input in TS for UX and **again in Rust**.
+- Local UI state uses `useState`. Add a store only when state is shared across screens,
+  and record it in `stack.md`.
+- Accessibility basics: labels tied to inputs, `role="alert"` on errors, `role="status"`
+  on live status, and status shown with text, never color alone.
+
+## Rust core
+
+- See [`conventions/rust-core.md`](conventions/rust-core.md).
+- `unwrap()` / `expect()` only for invariants (a poisoned lock, a compile-time resource),
+  always with an `expect` message. Anything from the network, the OS or the user is a
+  `Result`.
+- Blocking calls never run on the main thread or on a bare async task: use
+  `tauri::async_runtime` and `spawn_blocking`.
+- No trait with a single implementation.
+- Logs use `key=value` fields: `log::info!("job_done id={id} bytes={len}")`. Receipts can
+  carry customer data: **log sizes and ids, never the printed bytes or text**.
+
+## ESC/POS decoder
+
+- **Written from scratch** from Epson's public ESC/POS command reference. Don't copy or
+  port code from other emulators or decoders (virtual-thermal-printer included), whatever
+  their license: the design and the license stay ours.
+- **Never panics, whatever the bytes.** Allocations are bounded by the bytes actually
+  received (an image header cannot claim more than the job limit). Unknown commands are
+  skipped by their documented length, so the rest of the stream stays aligned.
+- **Streaming**: a command split across TCP reads decodes exactly like one sent in a single
+  read.
+- Every supported command has a unit test that names it (`GS V`, `ESC a`, …), and a
+  random-bytes test proves the no-panic rule.
+- A crate only where the domain is complex and the crate is mature: QR encoding uses
+  `qrcode`. Barcode symbologies and code page tables are ours: small, table-driven, and
+  tested against published vectors (code pages are generated from the Unicode
+  Consortium's mapping files).
+
+## Code quality
+
+- A new dependency needs a reason that std or an existing dependency can't cover. Record
+  it in `stack.md`.
+
+- Keep logic local; three similar lines beat a premature helper. No scaffolding "for
+  later".
+- Delete dead code; don't comment it out.
+- Don't handle cases that can't happen. Validate at the boundaries (webview → Rust,
+  network → Rust, OS → Rust).
+- Files over ~400 lines are a smell: split them by responsibility.
+
+## Comments
+
+**Default: no comment.** Write one only for what the code cannot say: an OS or library
+constraint, a protocol rule (cite the ESC/POS command, e.g. `GS V`), or an ordering
+requirement that a refactor would break.
+
+Deliberate shortcuts with a known limit get `// ponytail: <limit>, <upgrade path>`. List
+them with `grep -rn "ponytail:" src src-tauri/src`.
+
+## Tests
+
+- Webview: pure branchy logic first (colocated `*.test.ts`). Components are checked by the
+  build and a manual run.
+- Rust: unit tests next to the code (`#[cfg(test)] mod tests`). Integration tests go in
+  `src-tauri/tests/`, against real sockets on `127.0.0.1`.
+- A bug fix starts with a test that fails without the fix.
+
+## Commits
+
+- [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`,
+  `refactor:`, `build:`, `ci:`, `docs:`, `test:`, `chore:` (`init:` only for the first
+  commit).
+- Imperative, lowercase subject of at most 72 characters (`feat: accept jobs on tcp 9100`).
+- One logical change per commit. Bumping the Rust toolchain or a major dependency gets a
+  commit of its own.
+
+## Before calling a change done
+
+- `yarn check` is green: tsc, eslint (0 warnings), prettier, vitest, clippy `-D warnings`
+  and cargo test.
+- If you touched the window, tray, capabilities, CSP or `Info.plist`, run `yarn tauri dev`
+  and look at it.
+- New user-facing text exists in all three locales.
+- Grep the diff: no receipt bytes or text in a `log::` call.
+- Every `.ai/*.md` the change touched is updated.
+
+## Documentation
+
+| If you touched…                                        | Update                     |
+| ------------------------------------------------------ | -------------------------- |
+| a command, an event, capabilities, the CSP             | `conventions/bridge.md`    |
+| tray, window, single instance, autostart, Dock, logs   | `flows/app-lifecycle.md`   |
+| a Rust module, a plugin, a security rule               | `conventions/rust-core.md` |
+| translations or locale resolution                      | `conventions/i18n.md`      |
+| tokens, theme, `cn()`, a UI primitive, window size     | `design-system.md`         |
+| a dependency, the layout, CI/release, a phase finished | `stack.md`                 |
+| a rule in this file                                    | `rules.md`                 |
+
+New flows (the print job path, settings, history) get a doc in `flows/` when they land,
+plus a row in this table.

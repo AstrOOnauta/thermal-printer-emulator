@@ -1,0 +1,67 @@
+name: Release
+
+# Pushing a tag `vX.Y.Z` builds the installers on the three OSes and attaches them to a
+# draft GitHub Release. Review the draft, then publish it by hand.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  LINUX_DEPS: libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: ''
+          - os: macos-latest
+            args: --target universal-apple-darwin
+          # Oldest supported runner: the .deb/.AppImage then run on older glibc too.
+          - os: ubuntu-22.04
+            args: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      # package.json is the app version (tauri.conf.json reads it); a mismatched tag would
+      # publish installers named after the wrong version.
+      - name: Check tag matches package.json
+        shell: bash
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json $version"
+            exit 1
+          fi
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: rustup toolchain install
+      - if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+      - run: yarn install --immutable
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Thermal Printer Emulator ${{ github.ref_name }}
+          releaseBody: |
+            Download the installer for your system below.
+
+            The app is not code-signed, so the OS asks for confirmation on first launch.
+            See [Installation](https://github.com/AstrOOnauta/thermal-printer-emulator#installation).
+          releaseDraft: true
+          args: ${{ matrix.args }}

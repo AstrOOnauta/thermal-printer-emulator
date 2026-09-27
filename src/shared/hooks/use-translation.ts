@@ -1,0 +1,64 @@
+import { getAppLocale } from '@/shared/api/app';
+import en, { type TranslationKeys } from '@/shared/translations/en';
+import es from '@/shared/translations/es';
+import ptBR from '@/shared/translations/pt-BR';
+
+type DotNotation<T, Prefix extends string = ''> = {
+  [K in keyof T]: T[K] extends object
+    ? DotNotation<T[K], `${Prefix}${Prefix extends '' ? '' : '.'}${string & K}`>
+    : `${Prefix}${Prefix extends '' ? '' : '.'}${string & K}`;
+}[keyof T];
+
+export type TranslationScope = DotNotation<TranslationKeys>;
+
+/** Keyed by the tags Rust's `app_locale` returns. */
+const LOCALES: Record<string, TranslationKeys> = { en, es, 'pt-BR': ptBR };
+
+let messages: TranslationKeys = en;
+
+/** Switches the active locale and returns the tag in effect: unknown tags fall back to English. */
+export function setLocale(tag: string): string {
+  const found = LOCALES[tag];
+  messages = found ?? en;
+  return found ? tag : 'en';
+}
+
+/**
+ * Asks Rust for the OS language, so the webview matches the native tray menu.
+ * Outside Tauri (`yarn dev` in a browser) there is no IPC: stays English.
+ */
+export async function initLocale(): Promise<void> {
+  let tag = 'en';
+  try {
+    tag = await getAppLocale();
+  } catch {
+    // Not running inside Tauri.
+  }
+  document.documentElement.lang = setLocale(tag);
+}
+
+/** Resolves a key; an unknown key renders as the key itself. */
+export function translate(
+  scope: TranslationScope,
+  params?: Record<string, string | number>,
+): string {
+  const resolved = scope
+    .split('.')
+    .reduce<unknown>(
+      (node, part) =>
+        node && typeof node === 'object'
+          ? (node as Record<string, unknown>)[part]
+          : undefined,
+      messages,
+    );
+  const template = typeof resolved === 'string' ? resolved : scope;
+  return template.replace(/%\{(\w+)\}/g, (match, name: string) =>
+    params?.[name] != null ? String(params[name]) : match,
+  );
+}
+
+// ponytail: the locale is fixed for the process (Rust reads the OS once), so no store or
+// re-render on change. Add a store when the UI gets a language picker.
+export function useTranslation() {
+  return { t: translate };
+}
