@@ -5,14 +5,15 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 
 ## Modules (one responsibility each)
 
-| Module        | Owns                                                                                                                          |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `main.rs`     | Entry point, only calls `lib::run`. `windows_subsystem = "windows"` hides the console in release                              |
-| `lib.rs`      | `Builder`: plugin order, macOS app menu, `setup` (tray, first show), window events, command handlers, `Reopen`                |
-| `ui.rs`       | Commands, tray, macOS app menu, window show/hide + Dock visibility. **No emulator logic**                                     |
-| `locale.rs`   | OS language → `Locale` (cached in a `OnceLock`), native menu labels                                                           |
-| `listener.rs` | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
-| `jobs.rs`     | Jobs in memory: limits, eviction, `JobSummary` (`flows/print-job.md`)                                                         |
+| Module             | Owns                                                                                                                          |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `main.rs`          | Entry point, only calls `lib::run`. `windows_subsystem = "windows"` hides the console in release                              |
+| `lib.rs`           | `Builder`: plugin order, macOS app menu, `setup` (tray, first show), window events, command handlers, `Reopen`                |
+| `ui.rs`            | Commands, tray, macOS app menu, window show/hide + Dock visibility. **No emulator logic**                                     |
+| `locale.rs`        | OS language → `Locale` (cached in a `OnceLock`), native menu labels                                                           |
+| `listener.rs`      | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
+| `jobs.rs`          | Jobs in memory: limits, eviction, `JobSummary` (`flows/print-job.md`)                                                         |
+| `escpos/parser.rs` | ESC/POS bytes → `Command`, streaming (`conventions/escpos.md`)                                                                |
 
 The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator_lib`. The
 `_lib` suffix keeps the lib name distinct from the bin name (cargo#8519 on Windows).

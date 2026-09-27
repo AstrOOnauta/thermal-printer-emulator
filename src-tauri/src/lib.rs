@@ -1,3 +1,4 @@
+pub mod escpos;
 pub mod jobs;
 pub mod listener;
 mod locale;
