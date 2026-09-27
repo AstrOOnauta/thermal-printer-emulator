@@ -3,7 +3,7 @@ fn main() {
     // capabilities/, instead of being callable by default from every window.
     tauri_build::try_build(
         tauri_build::Attributes::new()
-            .app_manifest(tauri_build::AppManifest::new().commands(&["app_locale"])),
+            .app_manifest(tauri_build::AppManifest::new().commands(&["app_locale", "get_jobs"])),
     )
     .expect("failed to run tauri-build");
 }

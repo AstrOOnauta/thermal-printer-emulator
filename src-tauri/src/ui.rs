@@ -1,14 +1,18 @@
 //! UI bridge: tray, app menu, window show/hide and the webview's commands. No emulator
 //! logic here.
 
+use std::sync::Arc;
 #[cfg(target_os = "macos")]
 use tauri::menu::Submenu;
+
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_opener::OpenerExt as _;
 
+use crate::jobs::JobSummary;
+use crate::listener::{self, Event, Shared};
 use crate::locale::Locale;
 
 const PRODUCT_NAME: &str = "Thermal Printer Emulator";
@@ -17,6 +21,23 @@ const PRODUCT_NAME: &str = "Thermal Printer Emulator";
 #[tauri::command]
 pub fn app_locale() -> &'static str {
     Locale::current().tag()
+}
+
+/// Received jobs, oldest first. Same list as the `jobs` event.
+#[tauri::command]
+pub fn get_jobs(shared: State<'_, Arc<Shared>>) -> Vec<JobSummary> {
+    listener::lock(&shared.jobs).summaries()
+}
+
+/// Hands a listener event to the webview.
+pub fn forward(app: &AppHandle, event: Event) {
+    let emitted = match event {
+        Event::Jobs(jobs) => app.emit("jobs", jobs),
+        Event::Status(_) => Ok(()),
+    };
+    if let Err(error) = emitted {
+        log::error!("emit failed: {error}");
+    }
 }
 
 /// macOS: the Dock icon exists only while the window is open, like the Windows taskbar button.

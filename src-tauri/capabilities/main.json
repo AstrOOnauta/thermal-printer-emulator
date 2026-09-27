@@ -3,5 +3,5 @@
   "identifier": "main",
   "description": "The main window may only listen to events and call the app's own commands. No fs, shell, http, opener or dialog: the Rust side does those.",
   "windows": ["main"],
-  "permissions": ["core:event:default", "allow-app-locale"]
+  "permissions": ["core:event:default", "allow-app-locale", "allow-get-jobs"]
 }

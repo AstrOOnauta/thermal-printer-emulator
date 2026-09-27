@@ -8,13 +8,27 @@ Nothing else: no plugin APIs, no direct OS access.
 | Command      | Args | Returns                   | Notes                                                                                                           |
 | ------------ | ---- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `app_locale` | none | `'en' \| 'es' \| 'pt-BR'` | Resolved once per process from the OS (`conventions/i18n.md`). Called by `initLocale()` before the first render |
+| `get_jobs`   | none | `IJobSummary[]`           | Received jobs, oldest first. Same list as the `jobs` event                                                      |
 
-Wrappers: `src/shared/api/app.ts` (`getAppLocale`). Components never call `invoke`.
+Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/emulator.ts`
+(`getJobs`, `onJobs`). Components never call `invoke` or `listen`.
 
 ## Events
 
-None yet. The listener (P1) introduces them. Document each one here: name, payload type,
-when it fires, and the TS interface that mirrors it.
+| Event  | Payload         | Fires when                                                                                                                                 |
+| ------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `jobs` | `IJobSummary[]` | A job starts or ends. The **whole list**, oldest first (≤ 100 small items): the webview replaces its copy, so it can never drift from Rust |
+
+`IJobSummary` (`src/shared/interfaces/emulator.ts`) mirrors `jobs::JobSummary`:
+`{ id, peer: "ip:port", started_at, ended_at: number | null, state, size }`, times in unix
+ms, `state` one of `receiving`, `done`, `idle_timeout`, `too_large`, `connection_error`.
+Never the job's bytes.
+
+The listener sends its changes on an `mpsc` channel; one forwarder task in `lib.rs`
+(`ui::forward`) emits them, so events reach the webview in the order they happened.
+
+**Sync rule** (`use-jobs.ts`): subscribe first, then read (`get_jobs`). Once an event has
+arrived, the read's answer is ignored: it may be older.
 
 Rules for the wire:
 

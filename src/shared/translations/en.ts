@@ -7,6 +7,19 @@ const en = {
     name: 'Thermal Printer Emulator',
     tagline: 'Virtual thermal printer for ESC/POS',
   },
+  jobs: {
+    title: 'Received jobs',
+    empty: 'Waiting for print jobs',
+    emptyHint: 'Send ESC/POS jobs to port %{port} of this computer.',
+    from: 'from %{host}',
+    state: {
+      receiving: 'Receiving…',
+      done: 'Received',
+      idle_timeout: 'Timed out',
+      too_large: 'Too large',
+      connection_error: 'Connection lost',
+    },
+  },
 };
 
 export type TranslationKeys = typeof en;

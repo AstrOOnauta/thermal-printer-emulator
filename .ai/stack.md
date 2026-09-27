@@ -104,10 +104,13 @@ Made on 2026-10-06. Changing one is a product decision: update this list.
 .ai/                         # AI + contributor context (this folder); AGENTS.md / CLAUDE.md point here
 src/                         # Webview (React)
   main.tsx                   # initLocale() → createRoot
-  app/index.tsx              # root component
+  app/index.tsx              # header + screen
+  screens/jobs/              # P1: list of received jobs (+ job-row/)
   shared/
-    api/app.ts               # the ONLY @tauri-apps/api imports (typed invoke wrappers)
-    hooks/use-translation.ts # t(), setLocale, initLocale (+ test)
+    api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts
+    interfaces/emulator.ts   # bridge types (mirror of jobs.rs / listener.rs)
+    hooks/                   # use-translation (t, locale), use-jobs (event + read)
+    utils/format.ts          # bytes, peer host (+ test)
     styles/                  # globals.css (tokens), cn.ts
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts
 src-tauri/                   # Rust core

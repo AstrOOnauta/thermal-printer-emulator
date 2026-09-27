@@ -55,7 +55,14 @@ pub fn run() {
 
             let shared = Arc::new(listener::Shared::new(jobs::Jobs::default()));
             app.manage(Arc::clone(&shared));
-            let (events, _received) = mpsc::unbounded_channel();
+            let (events, mut received) = mpsc::unbounded_channel();
+            let forwarder = handle.clone();
+            // One consumer, so the webview sees events in the order the listener made them.
+            tauri::async_runtime::spawn(async move {
+                while let Some(event) = received.recv().await {
+                    ui::forward(&forwarder, event);
+                }
+            });
             tauri::async_runtime::spawn(listener::run(
                 listener::DEFAULT_ADDR,
                 listener::Limits::PRODUCTION,
@@ -82,7 +89,7 @@ pub fn run() {
                 ui::hide_main_window(window.app_handle());
             }
         })
-        .invoke_handler(tauri::generate_handler![ui::app_locale])
+        .invoke_handler(tauri::generate_handler![ui::app_locale, ui::get_jobs])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {

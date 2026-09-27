@@ -68,6 +68,13 @@ The server closes the connection in every case except `done`.
 - `JobSummary` (`id`, `peer`, `started_at` / `ended_at` in unix ms, `state`, `size`) is what
   leaves Rust. Never the bytes.
 
+## Webview (P1)
+
+`JobsScreen` lists the jobs newest first: local time, client IP (`peerHost` drops the
+port), size (`—` while receiving: there are no progress events) and the state as a colored
+dot plus text. Empty list: "Waiting for print jobs". P2 replaces this screen with the
+rendered receipts. Bridge details in `conventions/bridge.md`.
+
 ## Concurrency
 
 - One Tokio task per connection on `tauri::async_runtime`. The connection cap is a

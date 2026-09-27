@@ -15,12 +15,19 @@ export type TranslationScope = DotNotation<TranslationKeys>;
 const LOCALES: Record<string, TranslationKeys> = { en, es, 'pt-BR': ptBR };
 
 let messages: TranslationKeys = en;
+let currentTag = 'en';
 
 /** Switches the active locale and returns the tag in effect: unknown tags fall back to English. */
 export function setLocale(tag: string): string {
   const found = LOCALES[tag];
   messages = found ?? en;
-  return found ? tag : 'en';
+  currentTag = found ? tag : 'en';
+  return currentTag;
+}
+
+/** The active locale tag, for `Intl` formatting. */
+export function getLocale(): string {
+  return currentTag;
 }
 
 /**
