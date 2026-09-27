@@ -138,8 +138,10 @@ async fn closes_an_idle_connection() {
 async fn stops_a_job_over_the_size_limit() {
     let mut harness = Harness::start(FAST, Jobs::new(10, 1024, 16)).await;
     let mut stream = harness.connect().await;
-    // Two reads at most: the first 16 bytes fit, the rest goes over.
-    stream.write_all(&[b'x'; 64]).await.expect("writes");
+    // A valid opening, then more than the 16-byte limit.
+    let mut job = b"\x1b@".to_vec();
+    job.extend([b'x'; 62]);
+    stream.write_all(&job).await.expect("writes");
 
     let jobs = harness.jobs_when_last_is(JobState::TooLarge).await;
     assert!(jobs[0].size <= 16);
@@ -202,4 +204,46 @@ async fn retries_until_the_port_is_free() {
         *listener::lock(&shared.status),
         ListenerStatus::Listening { port: addr.port() }
     );
+}
+
+#[tokio::test]
+async fn rejects_connections_that_are_not_escpos() {
+    let mut harness = Harness::start(FAST, Jobs::default()).await;
+    for opening in [
+        &b"GET / HTTP/1.1\r\nHost: printer\r\n\r\n"[..],
+        b"\x16\x03\x01\x02\x00",
+        b"\x1b%-12345X@PJL INFO STATUS\r\n",
+        b"Hello\n",
+    ] {
+        let mut stream = harness.connect().await;
+        stream.write_all(opening).await.expect("writes");
+        assert!(closed_by_server(&mut stream).await, "{opening:02x?}");
+    }
+    harness.send_job(b"\x1b@ok").await;
+
+    let jobs = harness.jobs_when_last_is(JobState::Done).await;
+    assert_eq!(jobs.len(), 1, "rejected connections leave no job");
+    assert_eq!(jobs[0].size, 4);
+}
+
+#[tokio::test]
+async fn accepts_a_status_query_opening() {
+    let mut harness = Harness::start(FAST, Jobs::default()).await;
+    harness.send_job(b"\x10\x04\x01").await;
+    let jobs = harness.jobs_when_last_is(JobState::Done).await;
+    assert_eq!(jobs[0].size, 3);
+}
+
+#[tokio::test]
+async fn keeps_an_esc_split_from_its_at() {
+    let mut harness = Harness::start(FAST, Jobs::default()).await;
+    let mut stream = harness.connect().await;
+    stream.set_nodelay(true).expect("sets nodelay");
+    stream.write_all(b"\x1b").await.expect("writes");
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    stream.write_all(b"@Hi").await.expect("writes");
+    stream.shutdown().await.expect("closes");
+
+    let jobs = harness.jobs_when_last_is(JobState::Done).await;
+    assert_eq!(jobs[0].size, 4, "the held ESC is part of the job");
 }

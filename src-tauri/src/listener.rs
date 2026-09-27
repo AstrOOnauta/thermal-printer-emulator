@@ -148,8 +148,34 @@ pub async fn run(
     }
 }
 
-/// Reads one connection to its end. The job starts with the first byte: a connection that
-/// closes without sending anything leaves no job behind.
+const ESC: u8 = 0x1b;
+const DLE: u8 = 0x10;
+const GS: u8 = 0x1d;
+/// `ESC @`: initialize printer.
+const INITIALIZE: u8 = b'@';
+
+#[derive(Debug, PartialEq, Eq)]
+enum Verdict {
+    Accept,
+    Reject,
+    /// Only a lone `ESC` so far: the next byte decides.
+    Incomplete,
+}
+
+/// Decision 5: a print job opens with `ESC @` (every ESC/POS library sends it first), or
+/// with a status query or command (`DLE …`, `GS …`). Port scanners probing 9100 open with
+/// something else: HTTP `G`, TLS `0x16`, PJL `@PJL`, PJL's UEL `ESC %-12345X`, Redis `*`,
+/// a null byte. Requiring `@` after `ESC` is what turns the UEL away.
+fn classify(head: &[u8]) -> Verdict {
+    match head {
+        [] | [ESC] => Verdict::Incomplete,
+        [ESC, INITIALIZE, ..] | [DLE, ..] | [GS, ..] => Verdict::Accept,
+        _ => Verdict::Reject,
+    }
+}
+
+/// Reads one connection to its end. The job starts once the first bytes pass `classify`:
+/// a connection that closes without sending anything, or is rejected, leaves no job.
 async fn receive(
     mut stream: TcpStream,
     peer: SocketAddr,
@@ -160,6 +186,8 @@ async fn receive(
     let started = Instant::now();
     let mut buffer = vec![0u8; READ_BUFFER_BYTES];
     let mut job: Option<u64> = None;
+    // Bytes read before the verdict: a lone `ESC` at most, plus the read that decides.
+    let mut head: Vec<u8> = Vec::new();
 
     let state = loop {
         let read = match timeout(idle_timeout, stream.read(&mut buffer)).await {
@@ -171,9 +199,19 @@ async fn receive(
                 break JobState::ConnectionError;
             }
         };
-        let id = match job {
-            Some(id) => id,
+        let chunk = match job {
+            Some(id) => (id, &buffer[..read]),
             None => {
+                head.extend_from_slice(&buffer[..read]);
+                match classify(&head) {
+                    Verdict::Incomplete => continue,
+                    Verdict::Reject => {
+                        let first = &head[..head.len().min(4)];
+                        log::info!("connection_rejected peer={peer} first_bytes={first:02x?}");
+                        return;
+                    }
+                    Verdict::Accept => {}
+                }
                 let id = {
                     let mut jobs = lock(&shared.jobs);
                     let id = jobs.start(peer).id;
@@ -182,10 +220,10 @@ async fn receive(
                 };
                 log::info!("job_started id={id} peer={peer}");
                 job = Some(id);
-                id
+                (id, head.as_slice())
             }
         };
-        if lock(&shared.jobs).append(id, &buffer[..read]).is_err() {
+        if lock(&shared.jobs).append(chunk.0, chunk.1).is_err() {
             break JobState::TooLarge;
         }
     };
@@ -219,4 +257,38 @@ fn set_status(
     *current = status.clone();
     let _ = events.send(Event::Status(status));
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{classify, Verdict};
+
+    #[test]
+    fn accepts_escpos_openings() {
+        for head in [&b"\x1b@"[..], b"\x1b@Hello", b"\x10\x04\x01", b"\x1dV\x00"] {
+            assert_eq!(classify(head), Verdict::Accept, "{head:02x?}");
+        }
+    }
+
+    #[test]
+    fn waits_for_the_byte_after_esc() {
+        assert_eq!(classify(b""), Verdict::Incomplete);
+        assert_eq!(classify(b"\x1b"), Verdict::Incomplete);
+    }
+
+    #[test]
+    fn rejects_other_protocols_and_plain_text() {
+        for head in [
+            &b"GET / HTTP/1.1\r\n"[..],
+            b"\x16\x03\x01",
+            b"@PJL INFO STATUS",
+            b"\x1b%-12345X@PJL",
+            b"*1\r\n$4\r\nPING",
+            b"\x00",
+            b"Hello\n",
+            b"\x1bt\x02",
+        ] {
+            assert_eq!(classify(head), Verdict::Reject, "{head:02x?}");
+        }
+    }
 }

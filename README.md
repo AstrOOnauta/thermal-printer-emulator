@@ -22,6 +22,14 @@ From the POS software, add a network (TCP/IP, "RAW" or "Socket") printer at:
 - `127.0.0.1:9100` when the POS runs on the same computer, or
 - `<this computer's LAN IP>:9100` from another device on the network.
 
+A job must open like ESC/POS, with `ESC @` (initialize), as every ESC/POS library does.
+Other traffic on port 9100, such as port scanners or plain text, is ignored. To try it
+from a terminal:
+
+```bash
+printf '\x1b@Hello, printer!\n' | nc 127.0.0.1 9100
+```
+
 ## Installation
 
 Download the installer for your system from the

@@ -36,8 +36,9 @@ The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator
   terminals on other machines). Rules for that code:
   - parse bytes as untrusted: bounded buffers, a size limit per job, an idle timeout per
     connection, and a cap on concurrent connections;
-  - reject connections that do not start with `ESC @`. Port scanners probe 9100 with
-    other protocols (see virtual-thermal-printer's `escpos.ts`);
+  - turn away connections that do not open like ESC/POS (`listener::classify`, see
+    `flows/print-job.md` § Connection filter): port scanners probe 9100 with other
+    protocols;
   - a failing connection never takes the app down: the release profile uses
     `panic = "unwind"`, so a panic in a connection task ends that task only;
   - never log job bytes or decoded text.
