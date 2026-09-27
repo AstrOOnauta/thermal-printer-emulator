@@ -14,7 +14,7 @@ web-based emulator; **no code is taken from it** (see `rules.md` § ESC/POS deco
 | Shell             | **Tauri v2** (2.12): tray + one window, single process                                                |
 | Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`: networking and OS integration     |
 | Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` (Rust side only) |
-| Rust crates       | `sys-locale` (OS language), `serde`, `log`                                                            |
+| Rust crates       | `tokio` (sockets, timers; Tauri's runtime), `sys-locale` (OS language), `serde`, `log`                |
 | Webview           | **React 19** + **TypeScript 6** (strict, `noUncheckedIndexedAccess`)                                  |
 | Bundler           | **Vite 8** (dev server on fixed port 1420)                                                            |
 | UI                | **Tailwind CSS v4** via `@tailwindcss/vite`, neutral tokens that follow the OS theme                  |

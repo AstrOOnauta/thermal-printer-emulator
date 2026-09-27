@@ -25,10 +25,16 @@ log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sys-locale = "0.3"
+# Same major as Tauri's runtime: tasks run on `tauri::async_runtime`.
+tokio = { version = "1", features = ["net", "io-util", "time", "sync", "rt"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [profile.release]
 codegen-units = 1
 lto = true
 opt-level = "s"
-panic = "abort"
+# A panic in a connection task must drop that connection, not the whole app.
+panic = "unwind"
 strip = true

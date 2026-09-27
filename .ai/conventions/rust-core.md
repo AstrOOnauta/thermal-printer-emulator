@@ -36,9 +36,8 @@ The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator
     connection, and a cap on concurrent connections;
   - reject connections that do not start with `ESC @`. Port scanners probe 9100 with
     other protocols (see virtual-thermal-printer's `escpos.ts`);
-  - a failing connection never takes the app down. Before the listener lands, switch the
-    release profile to `panic = "unwind"` (today it is `abort`), so a panic in a connection
-    task drops that connection only;
+  - a failing connection never takes the app down: the release profile uses
+    `panic = "unwind"`, so a panic in a connection task ends that task only;
   - never log job bytes or decoded text.
 
 ## Logging
@@ -68,5 +67,5 @@ context. **Never** log receipt bytes or text: they can carry customer data.
 ## Cargo
 
 - Release profile: LTO, `codegen-units = 1`, `opt-level = "s"`, stripped,
-  `panic = "abort"` (to be changed to `unwind` in P1, see above).
+  **`panic = "unwind"`**: with `abort`, a panic in any connection task would kill the app.
 - Dependencies use caret versions (`"2"`); `Cargo.lock` is committed and pins them.
