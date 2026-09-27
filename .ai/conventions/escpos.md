@@ -36,3 +36,22 @@ Guarantees:
 | Page mode, NV/user images, macros, Kanji, sensors, counters                        | `Ignored` (skipped by length)                        |
 
 Other control bytes (`0x00–0x1F`, `0x7F`) are `Ignored`, one byte each.
+
+## Code pages (`codepage.rs`)
+
+| `ESC t n` | Table | `ESC t n` | Table   |
+| --------- | ----- | --------- | ------- |
+| 0         | CP437 | 16        | WPC1252 |
+| 2         | CP850 | 17        | CP866   |
+| 3         | CP860 | 18        | CP852   |
+| 4         | CP863 | 19        | CP858   |
+| 5         | CP865 |           |         |
+
+- Default **CP437** until `ESC t` (decision 4); `ESC @` goes back to it. P3 makes the
+  default configurable (Brazilian printers often ship with CP850).
+- An unsupported `n` (Katakana, Thai, …) keeps the current table, as the printer does.
+- Bytes `0x20–0x7E` are ASCII in every table. The upper half is generated:
+  `python3 scripts/codepages.py > src/escpos/codepage_tables.rs` (from `src-tauri/`), from
+  Python's codecs, which are built from the Unicode Consortium's mapping files. Never edit
+  the generated file by hand; `#[rustfmt::skip]` keeps it identical to the script output.
+- Bytes a table leaves undefined (5 in WPC1252) decode to U+FFFD.
