@@ -13,3 +13,12 @@ export interface IJobSummary {
   state: IJobState;
   size: number;
 }
+
+/** Mirrors `listener::BindError`. */
+export type IBindError = 'port_in_use' | 'permission_denied' | 'other';
+
+/** Mirrors `listener::ListenerStatus` (tagged by `state`). */
+export type IListenerStatus =
+  | { state: 'starting' }
+  | { state: 'listening'; port: number }
+  | { state: 'failed'; port: number; error: IBindError };

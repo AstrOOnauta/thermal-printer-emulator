@@ -12,8 +12,8 @@ use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_opener::OpenerExt as _;
 
 use crate::jobs::JobSummary;
-use crate::listener::{self, Event, Shared};
-use crate::locale::Locale;
+use crate::listener::{self, BindError, Event, ListenerStatus, Shared};
+use crate::locale::{Locale, Strings};
 
 const PRODUCT_NAME: &str = "Thermal Printer Emulator";
 
@@ -29,15 +29,45 @@ pub fn get_jobs(shared: State<'_, Arc<Shared>>) -> Vec<JobSummary> {
     listener::lock(&shared.jobs).summaries()
 }
 
-/// Hands a listener event to the webview.
+/// Whether the emulator is listening, and on which port.
+#[tauri::command]
+pub fn get_listener_status(shared: State<'_, Arc<Shared>>) -> ListenerStatus {
+    listener::lock(&shared.status).clone()
+}
+
+/// The tray's first, disabled item: the listener status line.
+struct TrayStatus(MenuItem<tauri::Wry>);
+
+/// Hands a listener event to the webview (and the tray, for the status).
 pub fn forward(app: &AppHandle, event: Event) {
     let emitted = match event {
         Event::Jobs(jobs) => app.emit("jobs", jobs),
-        Event::Status(_) => Ok(()),
+        Event::Status(status) => {
+            if let Some(item) = app.try_state::<TrayStatus>() {
+                let label = status_label(Locale::current().strings(), &status);
+                if let Err(error) = item.0.set_text(label) {
+                    log::error!("tray status failed: {error}");
+                }
+            }
+            app.emit("listener_status", status)
+        }
     };
     if let Err(error) = emitted {
         log::error!("emit failed: {error}");
     }
+}
+
+fn status_label(text: &Strings, status: &ListenerStatus) -> String {
+    let (template, port) = match status {
+        ListenerStatus::Starting => return text.starting.to_owned(),
+        ListenerStatus::Listening { port } => (text.listening, port),
+        ListenerStatus::Failed { port, error } => match error {
+            BindError::PortInUse => (text.port_in_use, port),
+            BindError::PermissionDenied => (text.port_denied, port),
+            BindError::Other => (text.port_failed, port),
+        },
+    };
+    template.replace("{port}", &port.to_string())
 }
 
 /// macOS: the Dock icon exists only while the window is open, like the Windows taskbar button.
@@ -131,6 +161,7 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let text = Locale::current().strings();
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
 
+    let status = MenuItem::with_id(app, "status", text.starting, false, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", text.open, true, None::<&str>)?;
     let autostart = CheckMenuItem::with_id(
         app,
@@ -145,6 +176,8 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(
         app,
         &[
+            &status,
+            &PredefinedMenuItem::separator(app)?,
             &open,
             &autostart,
             &logs,
@@ -152,6 +185,7 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             &quit,
         ],
     )?;
+    app.manage(TrayStatus(status));
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip(PRODUCT_NAME)
@@ -169,4 +203,46 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     }
     tray.build(app)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::status_label;
+    use crate::listener::{BindError, ListenerStatus};
+    use crate::locale::Locale;
+
+    #[test]
+    fn labels_every_status_with_its_port() {
+        let text = Locale::En.strings();
+        for (status, expected) in [
+            (ListenerStatus::Starting, "Starting…"),
+            (
+                ListenerStatus::Listening { port: 9100 },
+                "Listening on port 9100",
+            ),
+            (
+                ListenerStatus::Failed {
+                    port: 9100,
+                    error: BindError::PortInUse,
+                },
+                "Port 9100 is in use",
+            ),
+            (
+                ListenerStatus::Failed {
+                    port: 9101,
+                    error: BindError::PermissionDenied,
+                },
+                "Port 9101 is blocked",
+            ),
+            (
+                ListenerStatus::Failed {
+                    port: 9102,
+                    error: BindError::Other,
+                },
+                "Can't open port 9102",
+            ),
+        ] {
+            assert_eq!(status_label(text, &status), expected);
+        }
+    }
 }

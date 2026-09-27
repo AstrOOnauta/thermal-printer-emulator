@@ -70,6 +70,12 @@ pub struct Strings {
     pub copy: &'static str,
     pub paste: &'static str,
     pub select_all: &'static str,
+    /// Listener status line. `{port}` is replaced by the port number.
+    pub starting: &'static str,
+    pub listening: &'static str,
+    pub port_in_use: &'static str,
+    pub port_denied: &'static str,
+    pub port_failed: &'static str,
 }
 
 const EN: Strings = Strings {
@@ -86,6 +92,11 @@ const EN: Strings = Strings {
     copy: "Copy",
     paste: "Paste",
     select_all: "Select all",
+    starting: "Starting…",
+    listening: "Listening on port {port}",
+    port_in_use: "Port {port} is in use",
+    port_denied: "Port {port} is blocked",
+    port_failed: "Can't open port {port}",
 };
 
 const ES: Strings = Strings {
@@ -102,6 +113,11 @@ const ES: Strings = Strings {
     copy: "Copiar",
     paste: "Pegar",
     select_all: "Seleccionar todo",
+    starting: "Iniciando…",
+    listening: "Escuchando en el puerto {port}",
+    port_in_use: "El puerto {port} está en uso",
+    port_denied: "El puerto {port} está bloqueado",
+    port_failed: "No se puede abrir el puerto {port}",
 };
 
 const PT_BR: Strings = Strings {
@@ -118,6 +134,11 @@ const PT_BR: Strings = Strings {
     copy: "Copiar",
     paste: "Colar",
     select_all: "Selecionar tudo",
+    starting: "Iniciando…",
+    listening: "Escutando na porta {port}",
+    port_in_use: "A porta {port} está em uso",
+    port_denied: "A porta {port} está bloqueada",
+    port_failed: "Não foi possível abrir a porta {port}",
 };
 
 #[cfg(test)]

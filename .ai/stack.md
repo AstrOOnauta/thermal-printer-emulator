@@ -60,10 +60,10 @@ install. That is safe because the package is `private` and never published.
   hide-on-close window, Dock only while the window is open, single instance, rotating logs,
   autostart, capability lockdown, CSP, en/es/pt-BR, CI, release workflow, Dependabot,
   provisional icon.
-- **P1 Listener: next.** TCP 9100 in Rust (`0.0.0.0`), connection filter, limits, jobs kept
+- **P1 Listener: done.** TCP 9100 in Rust (`0.0.0.0`), connection filter, limits, jobs kept
   in memory and pushed to the webview, tray status, port-in-use error. The window shows a
   temporary list of received jobs (time, peer, size).
-- **P2 Decoder + receipt: planned.** Our own ESC/POS parser and printer state machine in
+- **P2 Decoder + receipt: next.** Our own ESC/POS parser and printer state machine in
   Rust, emitting a print model (lines, images, cuts) that the webview draws on a canvas at
   1:1 dots; code pages, raster images, QR and barcodes, status replies, receipt split on
   cut, 58/80 mm paper.
@@ -104,12 +104,13 @@ Made on 2026-10-06. Changing one is a product decision: update this list.
 .ai/                         # AI + contributor context (this folder); AGENTS.md / CLAUDE.md point here
 src/                         # Webview (React)
   main.tsx                   # initLocale() → createRoot
-  app/index.tsx              # header + screen
+  app/index.tsx              # header (status badge) + failure hint + screen
+  app/listener-status/       # status badge, failure hint
   screens/jobs/              # P1: list of received jobs (+ job-row/)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts
     interfaces/emulator.ts   # bridge types (mirror of jobs.rs / listener.rs)
-    hooks/                   # use-translation (t, locale), use-jobs (event + read)
+    hooks/                   # use-translation (t, locale), use-synced (event + read)
     utils/format.ts          # bytes, peer host (+ test)
     styles/                  # globals.css (tokens), cn.ts
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts

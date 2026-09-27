@@ -89,7 +89,11 @@ pub fn run() {
                 ui::hide_main_window(window.app_handle());
             }
         })
-        .invoke_handler(tauri::generate_handler![ui::app_locale, ui::get_jobs])
+        .invoke_handler(tauri::generate_handler![
+            ui::app_locale,
+            ui::get_jobs,
+            ui::get_listener_status
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {

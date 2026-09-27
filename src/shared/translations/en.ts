@@ -7,6 +7,22 @@ const en = {
     name: 'Thermal Printer Emulator',
     tagline: 'Virtual thermal printer for ESC/POS',
   },
+  listener: {
+    starting: 'Starting…',
+    listening: 'Listening on port %{port}',
+    failed: {
+      port_in_use: 'Port %{port} is in use',
+      permission_denied: 'Port %{port} is blocked',
+      other: "Can't open port %{port}",
+    },
+    hint: {
+      port_in_use:
+        'Another app is using this port. Close it and the emulator starts on its own.',
+      permission_denied:
+        "The system doesn't allow this port. The emulator keeps trying.",
+      other: 'The emulator keeps trying.',
+    },
+  },
   jobs: {
     title: 'Received jobs',
     empty: 'Waiting for print jobs',

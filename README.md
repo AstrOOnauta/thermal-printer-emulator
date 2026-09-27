@@ -7,9 +7,8 @@ and see the receipt on screen. No paper, no hardware, no terminal.
 Use it to develop and test receipt printing without a physical printer, on Windows,
 macOS and Linux.
 
-> **Status: early development.** The app shell (window, tray, launch at login,
-> translations, installers) is in place. The TCP 9100 listener and the receipt
-> renderer are next.
+> **Status: early development.** The app receives ESC/POS jobs on TCP port 9100 and
+> lists them. Decoding and drawing the receipt is next.
 
 ## How it works
 

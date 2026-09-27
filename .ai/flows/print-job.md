@@ -68,6 +68,14 @@ The server closes the connection in every case except `done`.
 - `JobSummary` (`id`, `peer`, `started_at` / `ended_at` in unix ms, `state`, `size`) is what
   leaves Rust. Never the bytes.
 
+## Status in the UI
+
+- Header badge (`src/app/listener-status/`): colored dot + "Listening on port N" /
+  "Port N is in use" / "Port N is blocked" / "Can't open port N".
+- While failed, a banner under the header says what to do ("Close the other app; the
+  emulator starts on its own"): the bind retry makes it recover without a click.
+- The tray's first item shows the same line (`flows/app-lifecycle.md`).
+
 ## Webview (P1)
 
 `JobsScreen` lists the jobs newest first: local time, client IP (`peerHost` drops the

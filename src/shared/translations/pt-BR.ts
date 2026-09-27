@@ -5,6 +5,22 @@ const ptBR: TranslationKeys = {
     name: 'Thermal Printer Emulator',
     tagline: 'Impressora térmica virtual para ESC/POS',
   },
+  listener: {
+    starting: 'Iniciando…',
+    listening: 'Escutando na porta %{port}',
+    failed: {
+      port_in_use: 'A porta %{port} está em uso',
+      permission_denied: 'A porta %{port} está bloqueada',
+      other: 'Não foi possível abrir a porta %{port}',
+    },
+    hint: {
+      port_in_use:
+        'Outro app está usando esta porta. Feche-o e o emulador inicia sozinho.',
+      permission_denied:
+        'O sistema não permite esta porta. O emulador continua tentando.',
+      other: 'O emulador continua tentando.',
+    },
+  },
   jobs: {
     title: 'Impressões recebidas',
     empty: 'Aguardando impressões',

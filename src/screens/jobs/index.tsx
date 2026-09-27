@@ -1,13 +1,20 @@
 import { JobRow } from '@/screens/jobs/job-row';
-import { useJobs } from '@/shared/hooks/use-jobs';
+import { getJobs, onJobs } from '@/shared/api/emulator';
+import { useSynced } from '@/shared/hooks/use-synced';
 import { useTranslation } from '@/shared/hooks/use-translation';
+import type { IJobSummary } from '@/shared/interfaces/emulator';
+
+const NO_JOBS: IJobSummary[] = [];
+
+interface IJobsScreenProps {
+  /** For the empty-state hint. */
+  port: number;
+}
 
 // ponytail: P1 screen, a plain list of jobs. P2 replaces it with the rendered receipts.
-const PORT = 9100;
-
-export function JobsScreen() {
+export function JobsScreen({ port }: IJobsScreenProps) {
   const { t } = useTranslation();
-  const jobs = useJobs();
+  const jobs = useSynced(onJobs, getJobs, NO_JOBS);
 
   if (jobs === null) return null;
 
@@ -18,9 +25,7 @@ export function JobsScreen() {
         className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center"
       >
         <p className="font-medium text-ink">{t('jobs.empty')}</p>
-        <p className="text-sm text-muted">
-          {t('jobs.emptyHint', { port: PORT })}
-        </p>
+        <p className="text-sm text-muted">{t('jobs.emptyHint', { port })}</p>
       </div>
     );
   }
