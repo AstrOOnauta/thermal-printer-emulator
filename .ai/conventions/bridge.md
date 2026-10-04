@@ -12,11 +12,13 @@ Nothing else: no plugin APIs, no direct OS access.
 | `get_receipt`         | `{ id }`       | `IReceiptView \| null`    | One receipt with its print model, to draw. `null` once dropped from memory                                      |
 | `get_listener_status` | none           | `IListenerStatus`         | Same value as the `listener_status` event                                                                       |
 | `get_settings`        | none           | `ISettings`               |                                                                                                                 |
+| `get_lan_address`     | none           | `string \| null`          | This computer's LAN IPv4, `null` offline. Asked again whenever the listener (re)starts                          |
 | `set_settings`        | `{ settings }` | `ISettings` or `UiError`  | Validates, saves, applies (`flows/settings.md`)                                                                 |
 
 Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/settings.ts`
 (`getSettings`, `setSettings`), `src/shared/api/emulator.ts`
-(`getReceipts`, `onReceipts`, `getListenerStatus`, `onListenerStatus`). Components never call
+(`getReceipts`, `onReceipts`, `getReceipt`, `getListenerStatus`, `onListenerStatus`,
+`getLanAddress`). Components never call
 `invoke` or `listen`.
 
 ## Events

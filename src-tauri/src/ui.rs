@@ -58,6 +58,12 @@ pub async fn restart_listener(app: &AppHandle) {
     *lock(&app.state::<ListenerTask>().0) = Some(task);
 }
 
+/// This computer's LAN IPv4 address (`network.rs`), `None` offline.
+#[tauri::command]
+pub fn get_lan_address() -> Option<String> {
+    crate::network::lan_ipv4().map(|ip| ip.to_string())
+}
+
 #[tauri::command]
 pub fn get_settings(shared: State<'_, Arc<Shared>>) -> Settings {
     lock(&shared.settings).clone()

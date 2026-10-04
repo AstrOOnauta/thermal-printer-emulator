@@ -8,6 +8,7 @@ fn main() {
             "get_receipt",
             "get_listener_status",
             "get_settings",
+            "get_lan_address",
             "set_settings",
         ]),
     ))

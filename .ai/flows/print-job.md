@@ -93,6 +93,12 @@ The server closes the connection in every case except a client close.
 - While failed, a banner under the header says what to do ("Close the other app; the
   emulator starts on its own"): the bind retry makes it recover without a click.
 - The tray's first item shows the same line (`flows/app-lifecycle.md`).
+- While listening, a bar under the header says where to print, with a "Copy" button
+  (`src/app/connection-bar/`): "Point your POS at `192.168.1.20:9100`" (LAN, from
+  `get_lan_address`), "Only this computer can print, at `127.0.0.1:9100`" (`bind: local`),
+  or "No network found…" with `127.0.0.1` when there is no LAN address.
+- The empty list's hint ("Send ESC/POS jobs to `ip:port`") uses the same address and is
+  hidden while the port is not open, so it never contradicts the banner.
 
 ## Webview: receipts on paper
 

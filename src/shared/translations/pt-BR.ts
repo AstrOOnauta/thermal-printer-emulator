@@ -55,6 +55,13 @@ const ptBR: TranslationKeys = {
   errors: {
     unexpected: 'Algo deu errado. Tente de novo.',
   },
+  connection: {
+    lan: 'Configure seu PDV para',
+    local: 'Só este computador pode imprimir, em',
+    offline: 'Nenhuma rede encontrada. Este computador pode imprimir em',
+    copy: 'Copiar',
+    copied: 'Copiado',
+  },
   listener: {
     starting: 'Iniciando…',
     listening: 'Escutando na porta %{port}',
@@ -74,8 +81,7 @@ const ptBR: TranslationKeys = {
   receipts: {
     title: 'Cupons',
     empty: 'Aguardando cupons',
-    emptyHint:
-      'Envie impressões ESC/POS para a porta %{port} deste computador.',
+    emptyHint: 'Envie impressões ESC/POS para %{address}.',
     from: 'de %{host}',
     drawer: 'Gaveta aberta',
     beeps: 'Bipe ×%{count}',

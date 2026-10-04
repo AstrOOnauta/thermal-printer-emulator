@@ -39,3 +39,8 @@ export function onListenerStatus(
     handler(event.payload),
   );
 }
+
+/** This computer's LAN IPv4 address, `null` offline. */
+export function getLanAddress(): Promise<string | null> {
+  return invoke<string | null>('get_lan_address');
+}

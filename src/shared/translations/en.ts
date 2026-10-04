@@ -57,6 +57,13 @@ const en = {
   errors: {
     unexpected: 'Something went wrong. Try again.',
   },
+  connection: {
+    lan: 'Point your POS at',
+    local: 'Only this computer can print, at',
+    offline: 'No network found. This computer can print at',
+    copy: 'Copy',
+    copied: 'Copied',
+  },
   listener: {
     starting: 'Starting…',
     listening: 'Listening on port %{port}',
@@ -76,7 +83,7 @@ const en = {
   receipts: {
     title: 'Receipts',
     empty: 'Waiting for receipts',
-    emptyHint: 'Send ESC/POS jobs to port %{port} of this computer.',
+    emptyHint: 'Send ESC/POS jobs to %{address}.',
     from: 'from %{host}',
     drawer: 'Drawer opened',
     beeps: 'Beep ×%{count}',

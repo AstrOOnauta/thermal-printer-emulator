@@ -9,12 +9,12 @@ import type { IReceiptSummary } from '@/shared/interfaces/emulator';
 const NO_RECEIPTS: IReceiptSummary[] = [];
 
 interface IReceiptsScreenProps {
-  /** For the empty-state hint. */
-  port: number;
+  /** Where to print, for the empty-state hint; `null` while the port is not open. */
+  address: string | null;
 }
 
 /** The printed receipts on paper, newest first. */
-export function ReceiptsScreen({ port }: IReceiptsScreenProps) {
+export function ReceiptsScreen({ address }: IReceiptsScreenProps) {
   const { t } = useTranslation();
   const receipts = useSynced(onReceipts, getReceipts, NO_RECEIPTS);
   // State, not a ref: the cards' observers need the element once it exists.
@@ -29,9 +29,12 @@ export function ReceiptsScreen({ port }: IReceiptsScreenProps) {
         className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center"
       >
         <p className="font-medium text-ink">{t('receipts.empty')}</p>
-        <p className="text-sm text-muted">
-          {t('receipts.emptyHint', { port })}
-        </p>
+        {/* While the port is not open, the banner above says why: no hint here. */}
+        {address && (
+          <p className="text-sm text-muted">
+            {t('receipts.emptyHint', { address })}
+          </p>
+        )}
       </div>
     );
   }

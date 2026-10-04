@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 
+import { ConnectionBar } from '@/app/connection-bar';
 import {
   ListenerFailureHint,
   ListenerStatusBadge,
 } from '@/app/listener-status';
 import { ReceiptsScreen } from '@/screens/receipts';
 import { SettingsScreen } from '@/screens/settings';
-import { getListenerStatus, onListenerStatus } from '@/shared/api/emulator';
+import {
+  getLanAddress,
+  getListenerStatus,
+  onListenerStatus,
+} from '@/shared/api/emulator';
 import { getSettings } from '@/shared/api/settings';
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTranslation } from '@/shared/hooks/use-translation';
@@ -21,6 +26,7 @@ export function App() {
     useSynced(onListenerStatus, getListenerStatus, STARTING) ?? STARTING;
   const [settings, setSettings] = useState<ISettings | null>(null);
   const [screen, setScreen] = useState<'receipts' | 'settings'>('receipts');
+  const [lanAddress, setLanAddress] = useState<string | null>(null);
 
   useEffect(() => {
     getSettings()
@@ -30,8 +36,20 @@ export function App() {
       });
   }, []);
 
-  const port =
-    status.state === 'starting' ? (settings?.port ?? 9100) : status.port;
+  const listening = status.state === 'listening';
+
+  // The network may change while the app runs: ask again whenever the listener (re)starts.
+  useEffect(() => {
+    if (!listening) return;
+    getLanAddress()
+      .then(setLanAddress)
+      .catch(() => setLanAddress(null));
+  }, [listening, status]);
+
+  const local = settings?.bind === 'local';
+  const host = local ? '127.0.0.1' : (lanAddress ?? '127.0.0.1');
+  const address = listening ? `${host}:${status.port}` : null;
+  const kind = local ? 'local' : lanAddress ? 'lan' : 'offline';
 
   return (
     <main className="flex h-full flex-col">
@@ -56,10 +74,11 @@ export function App() {
         </div>
       </header>
       <ListenerFailureHint status={status} />
+      {address && <ConnectionBar address={address} kind={kind} />}
       {screen === 'settings' && settings ? (
         <SettingsScreen settings={settings} onSaved={setSettings} />
       ) : (
-        <ReceiptsScreen port={port} />
+        <ReceiptsScreen address={address} />
       )}
     </main>
   );

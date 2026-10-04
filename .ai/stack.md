@@ -106,6 +106,7 @@ src/                         # Webview (React)
   main.tsx                   # initLocale() → createRoot
   app/index.tsx              # header (status badge) + failure hint + screen
   app/listener-status/       # status badge, failure hint
+  app/connection-bar/        # "Point your POS at ip:port" + copy
   screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/ (canvas slices)
   screens/settings/          # settings form (saved and applied at once)
   shared/
@@ -124,6 +125,7 @@ src-tauri/                   # Rust core
   src/capture.rs             # one connection → receipts (split on cut)
   src/receipts.rs            # receipts in memory, limits
   src/settings.rs            # settings.json: defaults, validation, load/save
+  src/network.rs             # LAN IPv4 for "point your POS at…"
   src/escpos/                # our ESC/POS decoder: parser, codepage, printer, bitmap, barcode
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)

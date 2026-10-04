@@ -55,6 +55,13 @@ const es: TranslationKeys = {
   errors: {
     unexpected: 'Algo salió mal. Inténtalo de nuevo.',
   },
+  connection: {
+    lan: 'Configura tu POS para',
+    local: 'Solo esta computadora puede imprimir, en',
+    offline: 'No se encontró ninguna red. Esta computadora puede imprimir en',
+    copy: 'Copiar',
+    copied: 'Copiado',
+  },
   listener: {
     starting: 'Iniciando…',
     listening: 'Escuchando en el puerto %{port}',
@@ -74,7 +81,7 @@ const es: TranslationKeys = {
   receipts: {
     title: 'Recibos',
     empty: 'Esperando recibos',
-    emptyHint: 'Envía trabajos ESC/POS al puerto %{port} de esta computadora.',
+    emptyHint: 'Envía trabajos ESC/POS a %{address}.',
     from: 'desde %{host}',
     drawer: 'Cajón abierto',
     beeps: 'Pitido ×%{count}',

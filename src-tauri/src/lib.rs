@@ -2,6 +2,7 @@ mod capture;
 pub mod escpos;
 pub mod listener;
 mod locale;
+mod network;
 pub mod receipts;
 pub mod settings;
 mod ui;
@@ -101,6 +102,7 @@ pub fn run() {
             ui::get_receipt,
             ui::get_listener_status,
             ui::get_settings,
+            ui::get_lan_address,
             ui::set_settings
         ])
         .build(tauri::generate_context!())
