@@ -9,6 +9,7 @@ fn main() {
             "get_listener_status",
             "get_settings",
             "get_lan_address",
+            "print_test_receipt",
             "set_settings",
         ]),
     ))

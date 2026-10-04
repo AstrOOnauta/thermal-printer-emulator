@@ -11,6 +11,7 @@
     "allow-get-listener-status",
     "allow-get-settings",
     "allow-get-lan-address",
+    "allow-print-test-receipt",
     "allow-set-settings"
   ]
 }

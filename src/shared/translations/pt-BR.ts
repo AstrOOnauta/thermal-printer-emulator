@@ -62,6 +62,13 @@ const ptBR: TranslationKeys = {
     copy: 'Copiar',
     copied: 'Copiado',
   },
+  testReceipt: {
+    print: 'Imprimir cupom de teste',
+    errors: {
+      notListening: 'O emulador ainda não está escutando.',
+      send: 'Não foi possível enviar o cupom de teste.',
+    },
+  },
   listener: {
     starting: 'Iniciando…',
     listening: 'Escutando na porta %{port}',

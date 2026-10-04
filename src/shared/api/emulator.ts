@@ -44,3 +44,8 @@ export function onListenerStatus(
 export function getLanAddress(): Promise<string | null> {
   return invoke<string | null>('get_lan_address');
 }
+
+/** Sends the test receipt to our own listener; rejects with an `IUiError`. */
+export function printTestReceipt(): Promise<void> {
+  return invoke<void>('print_test_receipt');
+}

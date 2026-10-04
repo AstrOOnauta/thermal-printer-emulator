@@ -41,7 +41,37 @@ impl CodePage {
         if byte < 0x80 {
             return char::from(byte);
         }
-        let upper = match self {
+        self.upper()[usize::from(byte - 0x80)]
+    }
+
+    /// The byte for `character` in this table, `?` when the table does not have it.
+    pub fn encode(self, character: char) -> u8 {
+        if (' '..='~').contains(&character) {
+            return character as u8;
+        }
+        self.upper()
+            .iter()
+            .position(|&candidate| candidate == character)
+            .map_or(b'?', |index| 0x80 + index as u8)
+    }
+
+    /// Short name for people: `CP437`, `WPC1252`…
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Cp437 => "CP437",
+            Self::Cp850 => "CP850",
+            Self::Cp860 => "CP860",
+            Self::Cp863 => "CP863",
+            Self::Cp865 => "CP865",
+            Self::Wpc1252 => "WPC1252",
+            Self::Cp866 => "CP866",
+            Self::Cp852 => "CP852",
+            Self::Cp858 => "CP858",
+        }
+    }
+
+    fn upper(self) -> &'static [char; 128] {
+        match self {
             Self::Cp437 => &tables::CP437,
             Self::Cp850 => &tables::CP850,
             Self::Cp860 => &tables::CP860,
@@ -51,8 +81,7 @@ impl CodePage {
             Self::Cp866 => &tables::CP866,
             Self::Cp852 => &tables::CP852,
             Self::Cp858 => &tables::CP858,
-        };
-        upper[usize::from(byte - 0x80)]
+        }
     }
 }
 
@@ -104,5 +133,28 @@ mod tests {
         assert_eq!(CodePage::Wpc1252.decode(0x81), '\u{fffd}');
         assert_eq!(CodePage::from_table(1), None, "Katakana is not supported");
         assert_eq!(CodePage::from_table(b'0'), None);
+    }
+
+    #[test]
+    fn encodes_back_to_the_same_bytes() {
+        for page in [
+            CodePage::Cp437,
+            CodePage::Cp850,
+            CodePage::Wpc1252,
+            CodePage::Cp866,
+        ] {
+            for byte in (0x20..0x7f).chain(0x80..=0xff) {
+                let character = page.decode(byte);
+                if character != '\u{fffd}' {
+                    assert_eq!(
+                        page.decode(page.encode(character)),
+                        character,
+                        "{page:?} {byte:#x}"
+                    );
+                }
+            }
+        }
+        assert_eq!(CodePage::Cp437.encode('€'), b'?', "CP437 has no euro sign");
+        assert_eq!(CodePage::Cp858.encode('€'), 0xd5);
     }
 }

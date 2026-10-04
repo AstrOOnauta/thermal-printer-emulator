@@ -62,6 +62,13 @@ const es: TranslationKeys = {
     copy: 'Copiar',
     copied: 'Copiado',
   },
+  testReceipt: {
+    print: 'Imprimir recibo de prueba',
+    errors: {
+      notListening: 'El emulador todavía no está escuchando.',
+      send: 'No se pudo enviar el recibo de prueba.',
+    },
+  },
   listener: {
     starting: 'Iniciando…',
     listening: 'Escuchando en el puerto %{port}',

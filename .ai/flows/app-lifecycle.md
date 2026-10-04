@@ -54,13 +54,14 @@ without a Dock icon, so a login launch with a hidden window never shows one.
 
 ## Tray
 
-| Item              | Behaviour                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------- |
-| Status (disabled) | Listener status line: "Listening on port 9100", "Port 9100 is in use"… (`ui::status_label`) |
-| Open              | `show_main_window` (unminimize, show, focus)                                                |
-| Launch at login   | Toggles autostart and reads the OS state back. Off by default                               |
-| Show logs         | Opens `app_log_dir()` in the file manager                                                   |
-| Quit              | `app.exit(0)`                                                                               |
+| Item               | Behaviour                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| Status (disabled)  | Listener status line: "Listening on port 9100", "Port 9100 is in use"… (`ui::status_label`) |
+| Open               | `show_main_window` (unminimize, show, focus)                                                |
+| Print test receipt | Same as the window's button (`flows/print-job.md` § Test receipt); errors only logged       |
+| Launch at login    | Toggles autostart and reads the OS state back. Off by default                               |
+| Show logs          | Opens `app_log_dir()` in the file manager                                                   |
+| Quit               | `app.exit(0)`                                                                               |
 
 Labels come from `locale.rs` (en/es/pt-BR). The tray icon is the app icon. The status item
 is managed as `TrayStatus` and updated by `ui::forward` on every `Event::Status`.

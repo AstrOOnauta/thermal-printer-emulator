@@ -59,10 +59,13 @@ body {
   font-family: var(--font-sans);
   /* A desktop tool, not a page: no rubber-band scroll, no text selection on chrome. */
   overscroll-behavior: none;
+  /* WebKit (macOS, Linux) still needs the prefix: without it, ⌘A selects the whole UI. */
+  -webkit-user-select: none;
   user-select: none;
 }
 
 input {
+  -webkit-user-select: text;
   user-select: text;
 }
 

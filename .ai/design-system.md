@@ -39,8 +39,9 @@ font, sized so that 48 columns (font A) fill 80 mm paper (P2).
 
 - 680×820 by default, resizable, minimum 640×480, centered. The width fits 80 mm paper
   (576 dots) plus margins.
-- A desktop tool, not a page: `user-select: none` on the chrome (inputs turn it back on)
-  and no overscroll bounce.
+- A desktop tool, not a page: `-webkit-user-select` + `user-select: none` on the chrome
+  (WebKit ignores the unprefixed one, and ⌘A would select the whole UI); inputs and
+  `select-text` elements (the address to copy) turn it back on. No overscroll bounce.
 - Status uses a colored dot **plus** text, never color alone.
 
 ## Receipt rendering (`src/shared/utils/draw-receipt.ts`)

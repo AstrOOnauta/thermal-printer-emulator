@@ -76,6 +76,17 @@ pub struct Strings {
     pub port_in_use: &'static str,
     pub port_denied: &'static str,
     pub port_failed: &'static str,
+    /// Tray item and the test receipt's own text.
+    pub print_test: &'static str,
+    pub test_title: &'static str,
+    pub test_working: &'static str,
+    pub test_port: &'static str,
+    pub test_paper: &'static str,
+    pub test_code_page: &'static str,
+    pub test_bold: &'static str,
+    pub test_underline: &'static str,
+    pub test_reverse: &'static str,
+    pub test_font_b: &'static str,
 }
 
 const EN: Strings = Strings {
@@ -97,6 +108,16 @@ const EN: Strings = Strings {
     port_in_use: "Port {port} is in use",
     port_denied: "Port {port} is blocked",
     port_failed: "Can't open port {port}",
+    print_test: "Print test receipt",
+    test_title: "TEST RECEIPT",
+    test_working: "The emulator is working.",
+    test_port: "Port:",
+    test_paper: "Paper:",
+    test_code_page: "Code page:",
+    test_bold: "Bold",
+    test_underline: "Underline",
+    test_reverse: "Reverse",
+    test_font_b: "Font B: smaller, more columns per line.",
 };
 
 const ES: Strings = Strings {
@@ -118,6 +139,16 @@ const ES: Strings = Strings {
     port_in_use: "El puerto {port} está en uso",
     port_denied: "El puerto {port} está bloqueado",
     port_failed: "No se puede abrir el puerto {port}",
+    print_test: "Imprimir recibo de prueba",
+    test_title: "RECIBO DE PRUEBA",
+    test_working: "El emulador funciona.",
+    test_port: "Puerto:",
+    test_paper: "Papel:",
+    test_code_page: "Página de códigos:",
+    test_bold: "Negrita",
+    test_underline: "Subrayado",
+    test_reverse: "Inverso",
+    test_font_b: "Fuente B: más pequeña, más columnas por línea.",
 };
 
 const PT_BR: Strings = Strings {
@@ -139,6 +170,16 @@ const PT_BR: Strings = Strings {
     port_in_use: "A porta {port} está em uso",
     port_denied: "A porta {port} está bloqueada",
     port_failed: "Não foi possível abrir a porta {port}",
+    print_test: "Imprimir cupom de teste",
+    test_title: "CUPOM DE TESTE",
+    test_working: "O emulador está funcionando.",
+    test_port: "Porta:",
+    test_paper: "Papel:",
+    test_code_page: "Página de código:",
+    test_bold: "Negrito",
+    test_underline: "Sublinhado",
+    test_reverse: "Reverso",
+    test_font_b: "Fonte B: menor, mais colunas por linha.",
 };
 
 #[cfg(test)]

@@ -16,6 +16,7 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `capture.rs`         | One connection's bytes → receipts: start on visible output, split on cut (`flows/print-job.md`)                               |
 | `settings.rs`        | `Settings`: defaults, validation, load (defaults on any problem), atomic save (`flows/settings.md`)                           |
 | `network.rs`         | This computer's LAN IPv4 (UDP "connect" to TEST-NET-1, nothing sent)                                                          |
+| `test_receipt.rs`    | The test receipt's bytes (UI language, configured code page and paper) and sending them to our own port                       |
 | `escpos/mod.rs`      | `Decoder`: parser + printer for one connection, outputs tagged with stream offsets                                            |
 | `escpos/parser.rs`   | ESC/POS bytes → `Command`, streaming (`conventions/escpos.md`)                                                                |
 | `escpos/codepage.rs` | `ESC t` tables → `char`; tables generated into `codepage_tables.rs` by `scripts/codepages.py`                                 |

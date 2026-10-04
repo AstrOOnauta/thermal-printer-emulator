@@ -116,6 +116,24 @@ paper, white in both themes, with a torn edge when the receipt was cut. Drawing 
   strip: there are no progress events.
 - A receipt dropped from memory (`get_receipt` → `null`) shows "No longer in memory".
 
+## Test receipt (`test_receipt.rs`)
+
+"Print test receipt" (tray, the empty list, the toolbar above the receipts) builds a sample
+receipt and **sends it through our own socket** to `127.0.0.1:<port>`, like a POS would,
+so it proves the listener is up. It then shows up in the list like any receipt.
+
+- Content: title, "the emulator is working", port, paper and code page, a line of accents
+  and symbols (`Ação Café Ñandú Ü € £ ½ ─│┌┐`), bold, underline, reverse, font B, a
+  CODE128 with HRI, a QR code to the repository, partial cut.
+- Text is in the UI language (`Strings.test_*` in `locale.rs`) and encoded in the
+  **configured default code page** (`CodePage::encode`, `?` for missing characters), and
+  the rules fit the paper (48 or 32 columns). With CP437 the accents line prints `Aç?o`
+  and `?` for `€`: the receipt shows why the code page setting matters.
+- Errors: not listening → `testReceipt.errors.notListening`; connect/write failure (5 s
+  timeout) → `testReceipt.errors.send`, logged as `test_receipt_failed`.
+- Unit tests decode the built bytes with our own decoder: no unknown command, a barcode
+  and a QR, the cut, the code page and paper honored.
+
 ## Concurrency
 
 - One Tokio task per connection on `tauri::async_runtime`. The connection cap is a

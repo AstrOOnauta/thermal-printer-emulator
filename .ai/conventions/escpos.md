@@ -61,6 +61,8 @@ Other control bytes (`0x00–0x1F`, `0x7F`) are `Ignored`, one byte each.
   Python's codecs, which are built from the Unicode Consortium's mapping files. Never edit
   the generated file by hand; `#[rustfmt::skip]` keeps it identical to the script output.
 - Bytes a table leaves undefined (5 in WPC1252) decode to U+FFFD.
+- `CodePage::encode(char)` goes the other way (test receipt); a character the table lacks
+  becomes `?`. `CodePage::name` gives `CP437`, `WPC1252`…
 
 ## Printer (`printer.rs`)
 

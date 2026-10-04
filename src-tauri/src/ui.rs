@@ -58,6 +58,30 @@ pub async fn restart_listener(app: &AppHandle) {
     *lock(&app.state::<ListenerTask>().0) = Some(task);
 }
 
+/// Builds the test receipt and sends it to our own listener, like a POS would.
+#[tauri::command]
+pub async fn print_test_receipt(app: AppHandle) -> Result<(), UiError> {
+    send_test_receipt(&app).await
+}
+
+async fn send_test_receipt(app: &AppHandle) -> Result<(), UiError> {
+    let (port, bytes) = {
+        let shared = app.state::<Arc<Shared>>();
+        let ListenerStatus::Listening { port } = *lock(&shared.status) else {
+            return Err(UiError::new("testReceipt.errors.notListening"));
+        };
+        let bytes =
+            crate::test_receipt::build(&lock(&shared.settings), Locale::current().strings());
+        (port, bytes)
+    };
+    crate::test_receipt::send(port, &bytes)
+        .await
+        .map_err(|error| {
+            log::warn!("test_receipt_failed port={port} error={error}");
+            UiError::new("testReceipt.errors.send")
+        })
+}
+
 /// This computer's LAN IPv4 address (`network.rs`), `None` offline.
 #[tauri::command]
 pub fn get_lan_address() -> Option<String> {
@@ -261,6 +285,7 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
     let status = MenuItem::with_id(app, "status", text.starting, false, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", text.open, true, None::<&str>)?;
+    let test = MenuItem::with_id(app, "test", text.print_test, true, None::<&str>)?;
     let autostart = CheckMenuItem::with_id(
         app,
         "autostart",
@@ -277,6 +302,7 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             &status,
             &PredefinedMenuItem::separator(app)?,
             &open,
+            &test,
             &autostart,
             &logs,
             &PredefinedMenuItem::separator(app)?,
@@ -290,6 +316,12 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .on_menu_event(move |app, event| match event.id.as_ref() {
             "open" => show_main_window(app),
+            "test" => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = send_test_receipt(&app).await;
+                });
+            }
             // The OS flips the check mark on click; read it back rather than assume.
             "autostart" => set_autostart(app, autostart.is_checked().unwrap_or(false)),
             "logs" => open_logs(app),

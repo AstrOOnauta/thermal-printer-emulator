@@ -64,6 +64,13 @@ const en = {
     copy: 'Copy',
     copied: 'Copied',
   },
+  testReceipt: {
+    print: 'Print test receipt',
+    errors: {
+      notListening: 'The emulator is not listening yet.',
+      send: "Couldn't send the test receipt.",
+    },
+  },
   listener: {
     starting: 'Starting…',
     listening: 'Listening on port %{port}',

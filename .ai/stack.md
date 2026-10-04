@@ -107,7 +107,7 @@ src/                         # Webview (React)
   app/index.tsx              # header (status badge) + failure hint + screen
   app/listener-status/       # status badge, failure hint
   app/connection-bar/        # "Point your POS at ip:port" + copy
-  screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/ (canvas slices)
+  screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/, test-receipt-button/
   screens/settings/          # settings form (saved and applied at once)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
@@ -126,6 +126,7 @@ src-tauri/                   # Rust core
   src/receipts.rs            # receipts in memory, limits
   src/settings.rs            # settings.json: defaults, validation, load/save
   src/network.rs             # LAN IPv4 for "point your POS at…"
+  src/test_receipt.rs        # sample receipt sent to our own port
   src/escpos/                # our ESC/POS decoder: parser, codepage, printer, bitmap, barcode
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)

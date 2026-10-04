@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { ReceiptCard } from '@/screens/receipts/receipt-card';
+import { TestReceiptButton } from '@/screens/receipts/test-receipt-button';
 import { getReceipts, onReceipts } from '@/shared/api/emulator';
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTranslation } from '@/shared/hooks/use-translation';
@@ -31,9 +32,14 @@ export function ReceiptsScreen({ address }: IReceiptsScreenProps) {
         <p className="font-medium text-ink">{t('receipts.empty')}</p>
         {/* While the port is not open, the banner above says why: no hint here. */}
         {address && (
-          <p className="text-sm text-muted">
-            {t('receipts.emptyHint', { address })}
-          </p>
+          <>
+            <p className="text-sm text-muted">
+              {t('receipts.emptyHint', { address })}
+            </p>
+            <div className="mt-4">
+              <TestReceiptButton />
+            </div>
+          </>
         )}
       </div>
     );
@@ -45,6 +51,9 @@ export function ReceiptsScreen({ address }: IReceiptsScreenProps) {
       aria-label={t('receipts.title')}
       className="flex-1 overflow-y-auto px-6 py-6"
     >
+      <div className="mb-6 flex justify-end">
+        <TestReceiptButton />
+      </div>
       <ol className="flex flex-col items-center gap-8">
         {[...receipts].reverse().map((receipt) => (
           <ReceiptCard key={receipt.id} receipt={receipt} root={scroller} />
