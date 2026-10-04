@@ -48,6 +48,12 @@ pub struct ReceiptSummary {
     pub beeps: u16,
     /// Raw bytes received for this receipt.
     pub size: usize,
+    pub paper: Paper,
+    /// Printable width in dots.
+    pub width: u16,
+    /// Paper length so far, in dots. With `width`, lets the webview reserve the space
+    /// before drawing.
+    pub height: u32,
 }
 
 /// A receipt to draw: its summary plus the print model.
@@ -55,14 +61,11 @@ pub struct ReceiptSummary {
 pub struct ReceiptView {
     #[serde(flatten)]
     pub summary: ReceiptSummary,
-    pub paper: Paper,
-    pub width: u16,
     pub blocks: Vec<Block>,
 }
 
 struct Receipt {
     summary: ReceiptSummary,
-    paper: Paper,
     raw: Vec<u8>,
     blocks: Vec<Block>,
     /// Bytes this receipt counts against the store's limit.
@@ -139,8 +142,10 @@ impl Receipts {
                 drawer: false,
                 beeps: 0,
                 size: raw.len(),
+                paper,
+                width: paper.dots(),
+                height: 0,
             },
-            paper,
             weight: raw.len(),
             raw,
             blocks: Vec::new(),
@@ -160,11 +165,16 @@ impl Receipts {
         if let (Block::Feed { height: more }, Some(receipt)) = (&block, self.printing_mut(id)) {
             if let Some(Block::Feed { height }) = receipt.blocks.last_mut() {
                 *height = height.saturating_add(*more);
+                receipt.summary.height += u32::from(*more);
                 return Ok(());
             }
         }
         let size = weight(&block);
-        self.grow(id, size, |receipt| receipt.blocks.push(block))
+        let block_height = u32::from(block.height());
+        self.grow(id, size, |receipt| {
+            receipt.blocks.push(block);
+            receipt.summary.height += block_height;
+        })
     }
 
     pub fn drawer(&mut self, id: u64) {
@@ -202,8 +212,6 @@ impl Receipts {
             .find(|receipt| receipt.summary.id == id)?;
         Some(ReceiptView {
             summary: receipt.summary.clone(),
-            paper: receipt.paper,
-            width: receipt.paper.dots(),
             blocks: receipt.blocks.clone(),
         })
     }
@@ -308,6 +316,7 @@ mod tests {
             .expect("fits");
         receipts.add_raw(id, b"Hi\n").expect("fits");
         receipts.add_block(id, feed(30)).expect("fits");
+        receipts.add_block(id, feed(10)).expect("merges");
         receipts.drawer(id);
         receipts.beep(id);
         receipts.finish(id, ReceiptState::Done, Some(Cut::Partial));
@@ -318,8 +327,9 @@ mod tests {
         assert_eq!(view.summary.cut, Some(Cut::Partial));
         assert!(view.summary.drawer);
         assert_eq!(view.summary.beeps, 1);
-        assert_eq!((view.paper, view.width), (Paper::Mm58, 384));
-        assert_eq!(view.blocks, vec![feed(30)]);
+        assert_eq!((view.summary.paper, view.summary.width), (Paper::Mm58, 384));
+        assert_eq!(view.blocks, vec![feed(40)], "consecutive feeds merge");
+        assert_eq!(view.summary.height, 40);
         assert_eq!(receipts.raw(id), Some(&b"\x1b@Hi\n"[..]));
     }
 

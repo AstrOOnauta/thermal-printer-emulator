@@ -28,6 +28,9 @@ const en = {
     empty: 'Waiting for receipts',
     emptyHint: 'Send ESC/POS jobs to port %{port} of this computer.',
     from: 'from %{host}',
+    drawer: 'Drawer opened',
+    beeps: 'Beep ×%{count}',
+    unavailable: 'No longer in memory',
     state: {
       printing: 'Printing…',
       done: 'Printed',

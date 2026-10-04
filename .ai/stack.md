@@ -63,11 +63,11 @@ install. That is safe because the package is `private` and never published.
 - **P1 Listener: done.** TCP 9100 in Rust (`0.0.0.0`), connection filter, limits, jobs kept
   in memory and pushed to the webview, tray status, port-in-use error. The window shows a
   temporary list of received jobs (time, peer, size).
-- **P2 Decoder + receipt: next.** Our own ESC/POS parser and printer state machine in
+- **P2 Decoder + receipt: done.** Our own ESC/POS parser and printer state machine in
   Rust, emitting a print model (lines, images, cuts) that the webview draws on a canvas at
   1:1 dots; code pages, raster images, QR and barcodes, status replies, receipt split on
-  cut, 58/80 mm paper.
-- **P3 App: planned.** "Point your POS at `IP:9100`" panel, test receipt (tray + window),
+  cut, 58/80 mm geometry (the 58 mm choice is a P3 setting).
+- **P3 App: next.** "Point your POS at `IP:9100`" panel, test receipt (tray + window),
   settings (port, LAN or local only, paper width, default code page, sound) in a JSON file
   written by Rust, history (clear, export raw `.bin`).
 - **P4 Distribution: planned.** NSIS `perMachine` (UAC at install) with a Windows Firewall
@@ -106,12 +106,12 @@ src/                         # Webview (React)
   main.tsx                   # initLocale() → createRoot
   app/index.tsx              # header (status badge) + failure hint + screen
   app/listener-status/       # status badge, failure hint
-  screens/receipts/          # receipt list (+ receipt-row/); the renderer draws them next
+  screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/ (canvas slices)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts
     interfaces/emulator.ts   # bridge types (mirror of receipts.rs / listener.rs)
-    hooks/                   # use-translation (t, locale), use-synced (event + read)
-    utils/format.ts          # bytes, peer host (+ test)
+    hooks/                   # use-translation, use-synced (event + read), use-near-viewport
+    utils/                   # format (+ test), receipt-layout (+ test), draw-receipt (canvas)
     styles/                  # globals.css (tokens), cn.ts
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts
 src-tauri/                   # Rust core

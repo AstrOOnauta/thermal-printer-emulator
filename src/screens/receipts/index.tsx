@@ -1,4 +1,6 @@
-import { ReceiptRow } from '@/screens/receipts/receipt-row';
+import { useState } from 'react';
+
+import { ReceiptCard } from '@/screens/receipts/receipt-card';
 import { getReceipts, onReceipts } from '@/shared/api/emulator';
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTranslation } from '@/shared/hooks/use-translation';
@@ -11,10 +13,12 @@ interface IReceiptsScreenProps {
   port: number;
 }
 
-// ponytail: a plain list of receipts until the renderer draws them on paper.
+/** The printed receipts on paper, newest first. */
 export function ReceiptsScreen({ port }: IReceiptsScreenProps) {
   const { t } = useTranslation();
   const receipts = useSynced(onReceipts, getReceipts, NO_RECEIPTS);
+  // State, not a ref: the cards' observers need the element once it exists.
+  const [scroller, setScroller] = useState<HTMLElement | null>(null);
 
   if (receipts === null) return null;
 
@@ -34,15 +38,13 @@ export function ReceiptsScreen({ port }: IReceiptsScreenProps) {
 
   return (
     <section
-      aria-labelledby="receipts-title"
-      className="flex-1 overflow-y-auto px-6 py-4"
+      ref={setScroller}
+      aria-label={t('receipts.title')}
+      className="flex-1 overflow-y-auto px-6 py-6"
     >
-      <h2 id="receipts-title" className="mb-3 text-sm font-semibold text-muted">
-        {t('receipts.title')}
-      </h2>
-      <ol className="divide-y divide-border rounded-lg border border-border">
+      <ol className="flex flex-col items-center gap-8">
         {[...receipts].reverse().map((receipt) => (
-          <ReceiptRow key={receipt.id} receipt={receipt} />
+          <ReceiptCard key={receipt.id} receipt={receipt} root={scroller} />
         ))}
       </ol>
     </section>

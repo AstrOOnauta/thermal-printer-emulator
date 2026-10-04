@@ -40,3 +40,19 @@ font, sized so that 48 columns (font A) fill 80 mm paper (P2).
 - A desktop tool, not a page: `user-select: none` on the chrome (inputs turn it back on)
   and no overscroll bounce.
 - Status uses a colored dot **plus** text, never color alone.
+
+## Receipt rendering (`src/shared/utils/draw-receipt.ts`)
+
+- **One dot = one CSS pixel**: an 80 mm receipt is 576 px wide, inside 16 px of paper
+  margin. Canvases are sized at `devicePixelRatio`, so text and bitmaps stay sharp.
+- **Text**: each character is drawn in its own printer cell (font A 12×24, font B 9×17
+  dots, times the size multipliers): the system monospace glyph (`ui-monospace`, SF Mono,
+  Menlo, Consolas, Liberation/DejaVu Mono) is stretched to the cell, so columns line up
+  whatever font the OS has. Glyph bottoms sit on the line's `ascent`. Bold uses weight 700;
+  reverse paints the cell black and the glyph white; underline is a 1 or 2 dot bar.
+- **Bitmaps** go through an offscreen canvas (`ImageData`, black or transparent) and are
+  drawn with smoothing off.
+- **Slices**: receipts taller than 4096 dots are drawn on several canvases
+  (`receipt-layout.ts`), under the canvas size limits of WebKit and Chromium.
+- Ink is always `#000` on the white `paper` token; it never follows the theme.
+- Cut receipts end with `.paper-cut` (globals.css), a row of paper-colored teeth.

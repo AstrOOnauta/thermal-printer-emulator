@@ -8,7 +8,8 @@ Use it to develop and test receipt printing without a physical printer, on Windo
 macOS and Linux.
 
 > **Status: early development.** The app receives ESC/POS jobs on TCP port 9100 and
-> lists them. Decoding and drawing the receipt is next.
+> draws the receipts: text styles, code pages, images, barcodes and QR codes. Settings
+> (port, paper width, code page) and history tools are next.
 
 ## How it works
 

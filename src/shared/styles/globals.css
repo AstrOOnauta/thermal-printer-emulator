@@ -65,3 +65,14 @@ body {
 input {
   user-select: text;
 }
+
+/* Torn edge under a cut receipt: paper-colored teeth pointing down. */
+.paper-cut {
+  height: 6px;
+  background: conic-gradient(
+      from -45deg at bottom,
+      var(--paper) 90deg,
+      transparent 0
+    )
+    0 0 / 12px 100%;
+}

@@ -94,6 +94,16 @@ pub enum Block {
     Feed { height: u16 },
 }
 
+impl Block {
+    /// Paper it takes, in dots.
+    pub fn height(&self) -> u16 {
+        match self {
+            Self::Line { height, .. } | Self::Feed { height } => *height,
+            Self::Image(placed) => placed.bitmap.height,
+        }
+    }
+}
+
 /// What applying a command produced.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Output {

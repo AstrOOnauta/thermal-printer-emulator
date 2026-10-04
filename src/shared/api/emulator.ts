@@ -2,13 +2,19 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 import type {
-  IReceiptSummary,
   IListenerStatus,
+  IReceiptSummary,
+  IReceiptView,
 } from '@/shared/interfaces/emulator';
 
 /** Printed receipts, oldest first. */
 export function getReceipts(): Promise<IReceiptSummary[]> {
   return invoke<IReceiptSummary[]>('get_receipts');
+}
+
+/** One receipt with its print model; `null` once dropped from memory. */
+export function getReceipt(id: number): Promise<IReceiptView | null> {
+  return invoke<IReceiptView | null>('get_receipt', { id });
 }
 
 /** The whole list again, whenever a receipt starts or ends. */

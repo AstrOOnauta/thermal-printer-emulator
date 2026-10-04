@@ -26,6 +26,9 @@ const es: TranslationKeys = {
     empty: 'Esperando recibos',
     emptyHint: 'Envía trabajos ESC/POS al puerto %{port} de esta computadora.',
     from: 'desde %{host}',
+    drawer: 'Cajón abierto',
+    beeps: 'Pitido ×%{count}',
+    unavailable: 'Ya no está en memoria',
     state: {
       printing: 'Imprimiendo…',
       done: 'Impreso',

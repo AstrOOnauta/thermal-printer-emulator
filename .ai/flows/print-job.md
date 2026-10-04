@@ -94,12 +94,21 @@ The server closes the connection in every case except a client close.
   emulator starts on its own"): the bind retry makes it recover without a click.
 - The tray's first item shows the same line (`flows/app-lifecycle.md`).
 
-## Webview
+## Webview: receipts on paper
 
-`ReceiptsScreen` lists the receipts newest first: local time, client IP (`peerHost` drops
-the port), size (`—` while printing) and the state as a colored dot plus text. Empty list:
-"Waiting for receipts". The renderer (next P2 commit) draws them on paper. Bridge details
-in `conventions/bridge.md`.
+`ReceiptsScreen` shows the receipts newest first, each as a `ReceiptCard`: a header (local
+time, client IP, size, state when not `done`, "Drawer opened" / "Beep ×n" badges) and the
+paper, white in both themes, with a torn edge when the receipt was cut. Drawing details in
+`design-system.md` § Receipt rendering.
+
+- **Only receipts near the visible area are drawn** (`useNearViewport`, an
+  `IntersectionObserver` on the scrolling section with a 1500 px margin). Far ones keep a
+  placeholder of their exact `width × height`, so scrolling never jumps and 100 tall
+  canvases never sit in memory at once.
+- A receipt's print model is fetched (`get_receipt`) once it is no longer `printing`, when
+  its card comes near; the card then draws it. While printing, the card shows an empty
+  strip: there are no progress events.
+- A receipt dropped from memory (`get_receipt` → `null`) shows "No longer in memory".
 
 ## Concurrency
 

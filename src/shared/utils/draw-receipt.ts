@@ -1,0 +1,152 @@
+import type {
+  IBlock,
+  IFont,
+  IPlaced,
+  ISegment,
+} from '@/shared/interfaces/emulator';
+import {
+  blocksIn,
+  decodeBase64,
+  type IPositionedBlock,
+} from '@/shared/utils/receipt-layout';
+
+/** Character cells in dots, as in `printer::Font::cell`. */
+const CELL: Record<IFont, { width: number; height: number }> = {
+  a: { width: 12, height: 24 },
+  b: { width: 9, height: 17 },
+};
+
+/** The paper is white in both themes, so its ink is always black. */
+const INK = '#000000';
+const PAPER = '#ffffff';
+const MONOSPACE =
+  'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace';
+
+/** Advance of one glyph of `font` at its natural size, measured once. */
+const advances = new Map<string, number>();
+
+function fontFor(segment: ISegment): string {
+  return `${segment.bold ? 700 : 400} ${CELL[segment.font].height}px ${MONOSPACE}`;
+}
+
+function advanceOf(context: CanvasRenderingContext2D, font: string): number {
+  let advance = advances.get(font);
+  if (advance === undefined) {
+    context.font = font;
+    advance = context.measureText('M').width || 1;
+    advances.set(font, advance);
+  }
+  return advance;
+}
+
+/**
+ * Draws one character per cell: the system monospace glyph is stretched to the printer's
+ * cell (`cell × width/height` dots), so columns line up whatever font the OS has.
+ */
+function drawSegment(
+  context: CanvasRenderingContext2D,
+  segment: ISegment,
+  baseline: number,
+) {
+  const cell = CELL[segment.font];
+  const glyphWidth = cell.width * segment.width;
+  const glyphHeight = cell.height * segment.height;
+  const font = fontFor(segment);
+  const scaleX = glyphWidth / advanceOf(context, font);
+
+  context.font = font;
+  context.textBaseline = 'bottom';
+  [...segment.text].forEach((character, index) => {
+    const x = segment.x + index * segment.advance;
+    if (segment.reverse) {
+      context.fillStyle = INK;
+      context.fillRect(x, baseline - glyphHeight, segment.advance, glyphHeight);
+    }
+    context.fillStyle = segment.reverse ? PAPER : INK;
+    context.save();
+    context.translate(x, baseline);
+    context.scale(scaleX, segment.height);
+    context.fillText(character, 0, 0);
+    context.restore();
+    if (segment.underline > 0) {
+      context.fillStyle = segment.reverse ? PAPER : INK;
+      context.fillRect(
+        x,
+        baseline - segment.underline,
+        segment.advance,
+        segment.underline,
+      );
+    }
+  });
+}
+
+/** Paints a 1-bit bitmap through an offscreen canvas, so it scales without blur. */
+function drawBitmap(
+  context: CanvasRenderingContext2D,
+  placed: IPlaced,
+  top: number,
+) {
+  if (placed.width === 0 || placed.height === 0) return;
+  const bits = decodeBase64(placed.data);
+  const stride = Math.ceil(placed.width / 8);
+  const pixels = new ImageData(placed.width, placed.height);
+  // One 32-bit write per pixel: opaque black where the bit is set, transparent elsewhere.
+  // Little-endian (every desktop CPU Tauri targets): 0xff000000 is the bytes R,G,B,A =
+  // 0, 0, 0, 255.
+  const words = new Uint32Array(pixels.data.buffer);
+  const black = 0xff000000;
+  for (let y = 0; y < placed.height; y += 1) {
+    for (let x = 0; x < placed.width; x += 1) {
+      const byte = bits[y * stride + (x >> 3)] ?? 0;
+      if (byte & (0x80 >> (x & 7))) words[y * placed.width + x] = black;
+    }
+  }
+  const offscreen = document.createElement('canvas');
+  offscreen.width = placed.width;
+  offscreen.height = placed.height;
+  offscreen.getContext('2d')?.putImageData(pixels, 0, 0);
+  context.imageSmoothingEnabled = false;
+  context.drawImage(offscreen, placed.x, top);
+}
+
+function drawBlock(
+  context: CanvasRenderingContext2D,
+  block: IBlock,
+  top: number,
+) {
+  // Feeds are blank paper: nothing to draw.
+  if (block.type === 'line') {
+    for (const image of block.images ?? []) drawBitmap(context, image, top);
+    for (const segment of block.segments) {
+      drawSegment(context, segment, top + block.ascent);
+    }
+  } else if (block.type === 'image') {
+    drawBitmap(context, block, top);
+  }
+}
+
+/**
+ * Draws the slice `[sliceTop, sliceBottom)` of a receipt onto `canvas`, one dot per CSS
+ * pixel, at the device's pixel ratio.
+ */
+export function drawSlice(
+  canvas: HTMLCanvasElement,
+  positioned: IPositionedBlock[],
+  width: number,
+  sliceTop: number,
+  sliceBottom: number,
+) {
+  const ratio = window.devicePixelRatio || 1;
+  const height = sliceBottom - sliceTop;
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  context.setTransform(ratio, 0, 0, ratio, 0, -sliceTop * ratio);
+  context.clearRect(0, sliceTop, width, height);
+  for (const { y, block } of blocksIn(positioned, sliceTop, sliceBottom)) {
+    drawBlock(context, block, y);
+  }
+}

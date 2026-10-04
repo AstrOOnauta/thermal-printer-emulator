@@ -20,6 +20,56 @@ export interface IReceiptSummary {
   beeps: number;
   /** Raw bytes received. */
   size: number;
+  paper: IPaper;
+  /** Printable width in dots. */
+  width: number;
+  /** Paper length so far, in dots. */
+  height: number;
+}
+
+/** Mirrors `printer::Font`. */
+export type IFont = 'a' | 'b';
+
+/** Mirrors `printer::Segment`: character `i` sits at `x + i × advance` (dots). */
+export interface ISegment {
+  x: number;
+  text: string;
+  font: IFont;
+  /** Size multipliers, 1–8. */
+  width: number;
+  height: number;
+  advance: number;
+  bold: boolean;
+  underline: 0 | 1 | 2;
+  reverse: boolean;
+}
+
+/** Mirrors `printer::Placed`: a 1-bit bitmap, rows MSB-first, 1 = black, base64. */
+export interface IPlaced {
+  x: number;
+  width: number;
+  height: number;
+  data: string;
+}
+
+/** Mirrors `printer::Block` (tagged by `type`). */
+export type IBlock =
+  | {
+      type: 'line';
+      height: number;
+      ascent: number;
+      segments: ISegment[];
+      images?: IPlaced[];
+    }
+  | ({ type: 'image' } & IPlaced)
+  | { type: 'feed'; height: number };
+
+/** Mirrors `printer::Paper`. */
+export type IPaper = 'mm80' | 'mm58';
+
+/** Mirrors `receipts::ReceiptView`: a receipt with what to draw. */
+export interface IReceiptView extends IReceiptSummary {
+  blocks: IBlock[];
 }
 
 /** Mirrors `listener::BindError`. */

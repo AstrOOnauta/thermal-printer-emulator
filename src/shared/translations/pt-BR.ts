@@ -27,6 +27,9 @@ const ptBR: TranslationKeys = {
     emptyHint:
       'Envie impressões ESC/POS para a porta %{port} deste computador.',
     from: 'de %{host}',
+    drawer: 'Gaveta aberta',
+    beeps: 'Bipe ×%{count}',
+    unavailable: 'Não está mais na memória',
     state: {
       printing: 'Imprimindo…',
       done: 'Impresso',

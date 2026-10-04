@@ -25,8 +25,14 @@ Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/emulator.ts`
 
 `IReceiptSummary` (`src/shared/interfaces/emulator.ts`) mirrors `receipts::ReceiptSummary`:
 `{ id, peer: "ip:port", started_at, ended_at: number | null, state, cut, drawer, beeps,
-size }`, times in unix ms, `state` one of `printing`, `done`, `idle_timeout`, `too_large`,
-`connection_error`, `cut` `full` / `partial` / `null`. Never the raw bytes.
+size, paper, width, height }`, times in unix ms, `state` one of `printing`, `done`,
+`idle_timeout`, `too_large`, `connection_error`, `cut` `full` / `partial` / `null`,
+`paper` `mm80` / `mm58`, `width` and `height` in dots (so the webview reserves the paper's
+exact size before drawing it). Never the raw bytes.
+
+`IReceiptView` (from `get_receipt`) adds `blocks: IBlock[]`, the print model of
+`conventions/escpos.md` (`IBlock`, `ISegment`, `IPlaced` mirror `printer.rs`); bitmaps
+are base64 1-bit rows.
 
 `IListenerStatus` mirrors `listener::ListenerStatus`, tagged by `state`:
 `{ state: 'starting' } | { state: 'listening', port } | { state: 'failed', port, error }`,
