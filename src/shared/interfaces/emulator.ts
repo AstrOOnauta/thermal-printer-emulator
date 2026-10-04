@@ -84,6 +84,9 @@ export type IListenerStatus =
 /** Mirrors `settings::Bind`. */
 export type IBind = 'lan' | 'local';
 
+/** Mirrors `locale::Language`: `system` follows the OS. */
+export type ILanguage = 'system' | 'en' | 'es' | 'pt-BR';
+
 /** Mirrors `settings::Settings`. */
 export interface ISettings {
   port: number;
@@ -92,6 +95,7 @@ export interface ISettings {
   /** `ESC t` table used until the POS selects one. */
   code_page: number;
   sound: boolean;
+  language: ILanguage;
 }
 
 /** A refused command (`ui::UiError`): an i18n key. */

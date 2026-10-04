@@ -5,7 +5,12 @@ import {
   type TranslationScope,
   useTranslation,
 } from '@/shared/hooks/use-translation';
-import type { IBind, IPaper, ISettings } from '@/shared/interfaces/emulator';
+import type {
+  IBind,
+  ILanguage,
+  IPaper,
+  ISettings,
+} from '@/shared/interfaces/emulator';
 import { BUTTON, FIELD } from '@/shared/styles/patterns';
 import { uiErrorKey } from '@/shared/utils/ui-error';
 
@@ -22,6 +27,13 @@ const CODE_PAGES: { table: number; label: TranslationScope }[] = [
   { table: 19, label: 'settings.codePages.cp858' },
 ];
 
+/** Each language in its own name, as language pickers do; `system` is translated. */
+const LANGUAGES: { value: Exclude<ILanguage, 'system'>; name: string }[] = [
+  { value: 'en', name: 'English' },
+  { value: 'es', name: 'Español' },
+  { value: 'pt-BR', name: 'Português (Brasil)' },
+];
+
 interface ISettingsScreenProps {
   settings: ISettings;
   onSaved: (settings: ISettings) => void;
@@ -34,6 +46,7 @@ export function SettingsScreen({ settings, onSaved }: ISettingsScreenProps) {
   const [error, setError] = useState<TranslationScope | null>(null);
   const portId = useId();
   const codePageId = useId();
+  const languageId = useId();
 
   const save = (next: ISettings) => {
     setError(null);
@@ -58,6 +71,24 @@ export function SettingsScreen({ settings, onSaved }: ISettingsScreenProps) {
             {t(error)}
           </p>
         )}
+
+        <Field label={t('settings.language.label')} htmlFor={languageId}>
+          <select
+            id={languageId}
+            className={`${FIELD} w-full`}
+            value={settings.language}
+            onChange={(event) =>
+              save({ ...settings, language: event.target.value as ILanguage })
+            }
+          >
+            <option value="system">{t('settings.language.system')}</option>
+            {LANGUAGES.map(({ value, name }) => (
+              <option key={value} value={value} lang={value}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
         <Field label={t('settings.port.label')} htmlFor={portId}>
           <form

@@ -12,9 +12,10 @@ import {
   getListenerStatus,
   onListenerStatus,
 } from '@/shared/api/emulator';
+import { getAppLocale } from '@/shared/api/app';
 import { getSettings } from '@/shared/api/settings';
 import { useSynced } from '@/shared/hooks/use-synced';
-import { useTranslation } from '@/shared/hooks/use-translation';
+import { setLocale, useTranslation } from '@/shared/hooks/use-translation';
 import type { IListenerStatus, ISettings } from '@/shared/interfaces/emulator';
 import { BUTTON } from '@/shared/styles/patterns';
 
@@ -27,6 +28,23 @@ export function App() {
   const [settings, setSettings] = useState<ISettings | null>(null);
   const [screen, setScreen] = useState<'receipts' | 'settings'>('receipts');
   const [lanAddress, setLanAddress] = useState<string | null>(null);
+  // Bumped when the language changes: re-rendering the tree re-runs every `t()`.
+  const [, setLocaleTag] = useState('');
+
+  const onSettingsSaved = (next: ISettings) => {
+    const languageChanged = next.language !== settings?.language;
+    setSettings(next);
+    if (!languageChanged) return;
+    // Rust resolved `system` to the OS language; ask it, so window and tray agree.
+    getAppLocale()
+      .then((tag) => {
+        document.documentElement.lang = setLocale(tag);
+        setLocaleTag(tag);
+      })
+      .catch(() => {
+        // Not running inside Tauri.
+      });
+  };
 
   useEffect(() => {
     getSettings()
@@ -76,7 +94,7 @@ export function App() {
       <ListenerFailureHint status={status} />
       {address && <ConnectionBar address={address} kind={kind} />}
       {screen === 'settings' && settings ? (
-        <SettingsScreen settings={settings} onSaved={setSettings} />
+        <SettingsScreen settings={settings} onSaved={onSettingsSaved} />
       ) : (
         <ReceiptsScreen address={address} sound={settings?.sound ?? true} />
       )}

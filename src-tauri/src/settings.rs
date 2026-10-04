@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::escpos::codepage::CodePage;
 use crate::escpos::printer::Paper;
+use crate::locale::Language;
 
 pub const FILE_NAME: &str = "settings.json";
 
@@ -31,6 +32,7 @@ pub struct Settings {
     pub code_page: u8,
     /// Play the printer's beep (`ESC B`).
     pub sound: bool,
+    pub language: Language,
 }
 
 impl Default for Settings {
@@ -41,6 +43,7 @@ impl Default for Settings {
             paper: Paper::Mm80,
             code_page: 0,
             sound: true,
+            language: Language::System,
         }
     }
 }
@@ -143,6 +146,7 @@ mod tests {
             paper: Paper::Mm58,
             code_page: 2,
             sound: false,
+            language: Language::PtBr,
         };
         settings.save(&path).expect("saves");
         assert_eq!(Settings::load(&path), settings);

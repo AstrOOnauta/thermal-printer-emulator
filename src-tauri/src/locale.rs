@@ -1,8 +1,30 @@
-//! UI language, resolved once from the OS locale. Rust is the single source: the native
-//! tray/menu read it here and the webview asks for it (`app_locale`), so both always agree.
-//! WKWebView's `navigator.language` does not reliably follow the system language.
+//! UI language: the user's choice (`Language`, a setting), or the OS locale for `System`.
+//! Rust is the single source: the native tray/menu read it here and the webview asks for it
+//! (`app_locale`), so both always agree. WKWebView's `navigator.language` does not reliably
+//! follow the system language.
 
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::OnceLock;
+
+use serde::{Deserialize, Serialize};
+
+/// The language setting.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Language {
+    /// Follow the OS.
+    #[default]
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "en")]
+    En,
+    #[serde(rename = "es")]
+    Es,
+    #[serde(rename = "pt-BR")]
+    PtBr,
+}
+
+/// The chosen `Language` as 0 (system) to 3. A process-wide value read by every menu.
+static PREFERENCE: AtomicU8 = AtomicU8::new(0);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Locale {
@@ -27,14 +49,35 @@ impl Locale {
         }
     }
 
-    /// Read once per process, so menus built at different times never disagree.
-    pub fn current() -> Self {
-        static CURRENT: OnceLock<Locale> = OnceLock::new();
-        *CURRENT.get_or_init(|| {
+    /// The OS language, read once per process.
+    pub fn system() -> Self {
+        static SYSTEM: OnceLock<Locale> = OnceLock::new();
+        *SYSTEM.get_or_init(|| {
             sys_locale::get_locale()
                 .map(|tag| Self::from_tag(&tag))
                 .unwrap_or(Self::En)
         })
+    }
+
+    /// The language the UI uses now: the setting, or the OS language for `System`.
+    pub fn current() -> Self {
+        match PREFERENCE.load(Ordering::Relaxed) {
+            1 => Self::En,
+            2 => Self::Es,
+            3 => Self::PtBr,
+            _ => Self::system(),
+        }
+    }
+
+    /// Applies the language setting. Native menus must be rebuilt afterwards.
+    pub fn prefer(language: Language) {
+        let value = match language {
+            Language::System => 0,
+            Language::En => 1,
+            Language::Es => 2,
+            Language::PtBr => 3,
+        };
+        PREFERENCE.store(value, Ordering::Relaxed);
     }
 
     /// The tag the webview's translation files are keyed by.
@@ -184,7 +227,7 @@ const PT_BR: Strings = Strings {
 
 #[cfg(test)]
 mod tests {
-    use super::Locale;
+    use super::{Language, Locale};
 
     #[test]
     fn resolves_os_tags() {
@@ -201,5 +244,21 @@ mod tests {
         ] {
             assert_eq!(Locale::from_tag(tag), expected, "tag {tag:?}");
         }
+    }
+
+    #[test]
+    fn the_setting_overrides_the_system_language() {
+        Locale::prefer(Language::Es);
+        assert_eq!(Locale::current(), Locale::Es);
+        Locale::prefer(Language::PtBr);
+        assert_eq!(Locale::current().tag(), "pt-BR");
+        Locale::prefer(Language::System);
+        assert_eq!(Locale::current(), Locale::system());
+    }
+
+    #[test]
+    fn language_uses_the_webview_tags_on_the_wire() {
+        let json = serde_json::to_string(&[Language::System, Language::PtBr]).expect("serializes");
+        assert_eq!(json, r#"["system","pt-BR"]"#);
     }
 }

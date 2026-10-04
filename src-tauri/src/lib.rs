@@ -56,15 +56,20 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let handle = app.handle();
-            ui::build_tray(handle)?;
-
             let settings_path = ui::settings_path(handle)?;
             let settings = settings::Settings::load(&settings_path);
+            // Before any native menu is built, so they all start in the chosen language.
+            locale::Locale::prefer(settings.language);
             app.manage(ui::SettingsPath(settings_path));
             app.manage(Arc::new(listener::Shared::new(
                 receipts::Receipts::default(),
                 settings,
             )));
+            app.manage(ui::TrayStatus::default());
+            ui::build_tray(handle)?;
+            // The macOS app menu was built by `Builder::menu`, before the settings loaded.
+            #[cfg(target_os = "macos")]
+            app.set_menu(ui::app_menu(handle)?)?;
             let (events, mut received) = mpsc::unbounded_channel();
             let forwarder = handle.clone();
             // One consumer, so the webview sees events in the order the listener made them.

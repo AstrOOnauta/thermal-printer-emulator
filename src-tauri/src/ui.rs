@@ -154,20 +154,30 @@ pub async fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings
         log::error!("settings_save_failed path={} error={error}", path.display());
         return Err(UiError::new("settings.errors.save"));
     }
-    let restart = {
+    let (restart, language_changed) = {
         let shared = app.state::<Arc<Shared>>();
         let mut current = lock(&shared.settings);
-        let restart = current.addr() != settings.addr();
+        let changes = (
+            current.addr() != settings.addr(),
+            current.language != settings.language,
+        );
         *current = settings.clone();
-        restart
+        changes
     };
+    if language_changed {
+        Locale::prefer(settings.language);
+        if let Err(error) = refresh_menus(&app) {
+            log::error!("menus_refresh_failed error={error}");
+        }
+    }
     log::info!(
-        "settings_changed port={} bind={:?} paper={:?} code_page={} sound={}",
+        "settings_changed port={} bind={:?} paper={:?} code_page={} sound={} language={:?}",
         settings.port,
         settings.bind,
         settings.paper,
         settings.code_page,
-        settings.sound
+        settings.sound,
+        settings.language
     );
     if restart {
         restart_listener(&app).await;
@@ -206,18 +216,22 @@ pub fn get_listener_status(shared: State<'_, Arc<Shared>>) -> ListenerStatus {
     listener::lock(&shared.status).clone()
 }
 
-/// The tray's first, disabled item: the listener status line.
-struct TrayStatus(MenuItem<tauri::Wry>);
+/// The tray's first, disabled item: the listener status line. Replaced when the menu is
+/// rebuilt for a new language.
+#[derive(Default)]
+pub struct TrayStatus(Mutex<Option<MenuItem<tauri::Wry>>>);
 
 /// Hands a listener event to the webview (and the tray, for the status).
 pub fn forward(app: &AppHandle, event: Event) {
     let emitted = match event {
         Event::Receipts(receipts) => app.emit("receipts", receipts),
         Event::Status(status) => {
-            if let Some(item) = app.try_state::<TrayStatus>() {
-                let label = status_label(Locale::current().strings(), &status);
-                if let Err(error) = item.0.set_text(label) {
-                    log::error!("tray status failed: {error}");
+            if let Some(tray_status) = app.try_state::<TrayStatus>() {
+                if let Some(item) = lock(&tray_status.0).as_ref() {
+                    let label = status_label(Locale::current().strings(), &status);
+                    if let Err(error) = item.set_text(label) {
+                        log::error!("tray status failed: {error}");
+                    }
                 }
             }
             app.emit("listener_status", status)
@@ -328,11 +342,16 @@ fn open_logs(app: &AppHandle) {
     }
 }
 
-pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+/// The tray menu in the current language, with the current listener status line.
+fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let text = Locale::current().strings();
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
+    let label = app
+        .try_state::<Arc<Shared>>()
+        .map(|shared| status_label(text, &lock(&shared.status)))
+        .unwrap_or_else(|| text.starting.to_owned());
 
-    let status = MenuItem::with_id(app, "status", text.starting, false, None::<&str>)?;
+    let status = MenuItem::with_id(app, "status", label, false, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", text.open, true, None::<&str>)?;
     let test = MenuItem::with_id(app, "test", text.print_test, true, None::<&str>)?;
     let autostart = CheckMenuItem::with_id(
@@ -358,12 +377,17 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             &quit,
         ],
     )?;
-    app.manage(TrayStatus(status));
+    if let Some(tray_status) = app.try_state::<TrayStatus>() {
+        *lock(&tray_status.0) = Some(status);
+    }
+    Ok(menu)
+}
 
+pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip(PRODUCT_NAME)
-        .menu(&menu)
-        .on_menu_event(move |app, event| match event.id.as_ref() {
+        .menu(&tray_menu(app)?)
+        .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main_window(app),
             "test" => {
                 let app = app.clone();
@@ -371,8 +395,12 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                     let _ = send_test_receipt(&app).await;
                 });
             }
-            // The OS flips the check mark on click; read it back rather than assume.
-            "autostart" => set_autostart(app, autostart.is_checked().unwrap_or(false)),
+            // The OS flips the check mark on click; the new value is the opposite of the
+            // OS state. Read from the OS, so it works with any rebuilt menu.
+            "autostart" => {
+                let enabled = !app.autolaunch().is_enabled().unwrap_or(false);
+                set_autostart(app, enabled);
+            }
             "logs" => open_logs(app),
             "quit" => app.exit(0),
             _ => {}
@@ -381,6 +409,16 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         tray = tray.icon(icon.clone());
     }
     tray.build(app)?;
+    Ok(())
+}
+
+/// Rebuilds the native menus (tray, macOS app menu) in the current language.
+pub fn refresh_menus(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_menu(Some(tray_menu(app)?))?;
+    }
+    #[cfg(target_os = "macos")]
+    app.set_menu(app_menu(app)?)?;
     Ok(())
 }
 

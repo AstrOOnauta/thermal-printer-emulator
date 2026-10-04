@@ -11,6 +11,10 @@ const ptBR: TranslationKeys = {
   },
   settings: {
     title: 'Configurações',
+    language: {
+      label: 'Idioma',
+      system: 'Igual ao sistema',
+    },
     port: {
       label: 'Porta',
       hint: 'A porta TCP para onde o PDV envia as impressões. Impressoras de rede usam a 9100.',

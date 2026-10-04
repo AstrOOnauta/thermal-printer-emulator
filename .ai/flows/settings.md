@@ -4,13 +4,14 @@ User settings live in `settings.json` in the app's config folder
 (`app_config_dir()`), owned by Rust (`settings.rs`). The webview reads and changes them
 only through `get_settings` / `set_settings`, and Rust validates every value.
 
-| Field       | Default | Values                                                | Applies                       |
-| ----------- | ------- | ----------------------------------------------------- | ----------------------------- |
-| `port`      | 9100    | 1–65535                                               | restarts the listener         |
-| `bind`      | `lan`   | `lan` (0.0.0.0, decision 2) / `local` (127.0.0.1)     | restarts the listener         |
-| `paper`     | `mm80`  | `mm80` (576 dots) / `mm58` (384 dots)                 | next connections              |
-| `code_page` | 0       | a supported `ESC t` table (`codepage.rs`)             | next connections (decision 4) |
-| `sound`     | true    | play the printer's beep (`flows/print-job.md` § Beep) | at once (webview)             |
+| Field       | Default  | Values                                                | Applies                                                      |
+| ----------- | -------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| `port`      | 9100     | 1–65535                                               | restarts the listener                                        |
+| `bind`      | `lan`    | `lan` (0.0.0.0, decision 2) / `local` (127.0.0.1)     | restarts the listener                                        |
+| `paper`     | `mm80`   | `mm80` (576 dots) / `mm58` (384 dots)                 | next connections                                             |
+| `code_page` | 0        | a supported `ESC t` table (`codepage.rs`)             | next connections (decision 4)                                |
+| `sound`     | true     | play the printer's beep (`flows/print-job.md` § Beep) | at once (webview)                                            |
+| `language`  | `system` | `system` (follow the OS) / `en` / `es` / `pt-BR`      | at once: window, tray and macOS menu (`conventions/i18n.md`) |
 
 ## Load and save
 
@@ -29,6 +30,8 @@ validate ─ invalid ─▶ UiError { key: settings.errors.port | settings.error
 save ─ fails ─▶ UiError { key: settings.errors.save } (logged)
    │
 Shared.settings ← new value (log settings_changed)
+   │
+language changed? ─ yes ─▶ Locale::prefer + ui::refresh_menus (tray, macOS app menu)
    │
 address changed? ─ yes ─▶ ui::restart_listener: abort the running listener task, await it
    │                        (its socket is closed), spawn listener::run on the new address

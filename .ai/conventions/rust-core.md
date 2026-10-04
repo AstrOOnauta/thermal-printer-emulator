@@ -10,7 +10,7 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `main.rs`            | Entry point, only calls `lib::run`. `windows_subsystem = "windows"` hides the console in release                              |
 | `lib.rs`             | `Builder`: plugin order, macOS app menu, `setup` (tray, first show), window events, command handlers, `Reopen`                |
 | `ui.rs`              | Commands, tray, macOS app menu, window show/hide + Dock visibility. **No emulator logic**                                     |
-| `locale.rs`          | OS language → `Locale` (cached in a `OnceLock`), native menu labels                                                           |
+| `locale.rs`          | `Language` setting + OS language → `Locale::current()`, native menu labels                                                    |
 | `listener.rs`        | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
 | `receipts.rs`        | Receipts in memory: limits, eviction, `ReceiptSummary` / `ReceiptView`, raw bytes (`flows/print-job.md`)                      |
 | `capture.rs`         | One connection's bytes → receipts: start on visible output, split on cut (`flows/print-job.md`)                               |

@@ -63,8 +63,11 @@ without a Dock icon, so a login launch with a hidden window never shows one.
 | Show logs          | Opens `app_log_dir()` in the file manager                                                   |
 | Quit               | `app.exit(0)`                                                                               |
 
-Labels come from `locale.rs` (en/es/pt-BR). The tray icon is the app icon. The status item
-is managed as `TrayStatus` and updated by `ui::forward` on every `Event::Status`.
+Labels come from `locale.rs` (en/es/pt-BR), in the language setting. The tray icon is the
+app icon. The status item is held in `TrayStatus` and updated by `ui::forward` on every
+`Event::Status`. When the language changes, `ui::refresh_menus` rebuilds the tray menu
+(`tray_menu`, with the current status line) and the macOS app menu. The autostart item
+reads the OS state on click, so it works with any rebuilt menu.
 
 Linux: the tray needs an AppIndicator host (GNOME requires an extension). Without one,
 launching the app again focuses the window, which is the way back in.
