@@ -152,3 +152,20 @@ QR (`GS ( k`, `cn` 49): module size 1–16 dots (default 3), error correction L/
 (default L), store, print. Encoded with the `qrcode` crate (no default features), drawn
 without a quiet zone as a `Block::Image` aligned by `ESC a`. Nothing stored, or data too
 long for a QR: nothing printed. Model selection (fn 65) is ignored.
+
+## Status replies (decision 5)
+
+The printer answers as an idle printer with paper, cover closed and no error. Replies are
+`Output::Reply` bytes; `capture.rs` collects them (they never start a receipt) and the
+listener writes them after each read, with the idle timeout so a client that never reads
+cannot hold the task.
+
+| Request                                 | Reply                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `DLE EOT 1`–`4`, `7`, `8`               | `0x12` (fixed bits 1 and 4; online, no error, paper present)                               |
+| `GS r 1`/`2`/`4` (or `'1'`/`'2'`/`'4'`) | `0x00` (paper present, drawer pin low, ink fine)                                           |
+| `GS I 1` / `2` / `3`                    | `0x20` / `0x02` (autocutter installed) / `0x10`                                            |
+| `GS I 65`–`69`                          | `_` + text + `NUL`: `1.0`, `Thermal Printer Emulator`, `Virtual 80mm`, `0000000001`, `ANK` |
+
+The identity is honest, not a real printer model. Other requests get no reply. Not
+emulated: Automatic Status Back (`GS a`), `DLE ENQ`.

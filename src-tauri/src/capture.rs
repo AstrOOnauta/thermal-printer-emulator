@@ -28,6 +28,8 @@ pub struct Capture<'a> {
     /// Stream offset of the next byte `feed` will get.
     offset: u64,
     outputs: Vec<(Output, u64)>,
+    /// Status replies waiting to be written to the socket.
+    replies: Vec<u8>,
     /// Receipts this connection produced, for the connection log.
     pub receipts: usize,
 }
@@ -49,6 +51,7 @@ impl<'a> Capture<'a> {
             pending: Vec::new(),
             offset: 0,
             outputs: Vec::new(),
+            replies: Vec::new(),
             receipts: 0,
         }
     }
@@ -78,6 +81,11 @@ impl<'a> Capture<'a> {
         self.outputs = outputs;
         result?;
         self.add_raw(&chunk[(cursor - start) as usize..])
+    }
+
+    /// Status replies produced since the last call, to write to the socket.
+    pub fn take_replies(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.replies)
     }
 
     /// The connection ended: prints what is left and closes the receipt with `state`.
@@ -117,6 +125,11 @@ impl<'a> Capture<'a> {
             Output::Beep => {
                 let id = self.ensure_receipt()?;
                 lock(&self.shared.receipts).beep(id);
+                Ok(())
+            }
+            // A status request is not printed output: it never starts a receipt.
+            Output::Reply(reply) => {
+                self.replies.extend_from_slice(&reply);
                 Ok(())
             }
             Output::Cut { partial } => {
@@ -272,5 +285,16 @@ mod tests {
         let mut capture = Capture::new(peer(), Paper::Mm80, &shared, &events);
         capture.feed(b"\x1b@A\n").expect("fits");
         assert_eq!(capture.feed(&[b'x'; 300]), Err(TooLarge));
+    }
+
+    #[test]
+    fn collects_status_replies_without_starting_a_receipt() {
+        let shared = Shared::new(Receipts::default());
+        let (events, _received) = mpsc::unbounded_channel();
+        let mut capture = Capture::new(peer(), Paper::Mm80, &shared, &events);
+        capture.feed(b"\x10\x04\x01\x1dr\x01").expect("fits");
+        assert_eq!(capture.take_replies(), vec![0x12, 0x00]);
+        assert!(capture.take_replies().is_empty());
+        assert_eq!(capture.finish(ReceiptState::Done), 0);
     }
 }

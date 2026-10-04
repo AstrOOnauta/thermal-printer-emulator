@@ -9,7 +9,7 @@ use serde::Serialize;
 use super::barcode::{self, Symbology};
 use super::bitmap::Bitmap;
 use super::codepage::CodePage;
-use super::parser::{Alignment, Command};
+use super::parser::{Alignment, Command, StatusRequest};
 
 pub const DEFAULT_LINE_SPACING: u16 = 30;
 /// Default tab stops: every 8 character columns.
@@ -98,9 +98,13 @@ pub enum Block {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Output {
     Block(Block),
-    Cut { partial: bool },
+    Cut {
+        partial: bool,
+    },
     DrawerPulse,
     Beep,
+    /// Bytes to send back to the POS (status requests).
+    Reply(Vec<u8>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -122,6 +126,40 @@ impl Style {
         width: 1,
         height: 1,
     };
+}
+
+/// What an idle printer with paper, cover closed and no error answers (decision 5).
+fn status_reply(request: StatusRequest) -> Option<Vec<u8>> {
+    // DLE EOT: bits 1 and 4 are fixed to 1; every other bit 0 means "all good".
+    const REALTIME_OK: u8 = 0x12;
+    match request {
+        StatusRequest::Realtime(1..=4 | 7 | 8) => Some(vec![REALTIME_OK]),
+        // GS r 1/2/4: paper present, drawer pin low, ink fine.
+        StatusRequest::Status(1 | 2 | 4 | 49 | 50 | 52) => Some(vec![0x00]),
+        StatusRequest::PrinterId(n) => printer_id(n),
+        _ => None,
+    }
+}
+
+/// `GS I n`: 1–3 answer one byte; 65+ answer `_` + text + NUL. An honest identity, not a
+/// real printer model.
+fn printer_id(n: u8) -> Option<Vec<u8>> {
+    let text = match n {
+        1 | 49 => return Some(vec![0x20]),
+        // Type: autocutter installed.
+        2 | 50 => return Some(vec![0x02]),
+        3 | 51 => return Some(vec![0x10]),
+        65 => "1.0",
+        66 => "Thermal Printer Emulator",
+        67 => "Virtual 80mm",
+        68 => "0000000001",
+        69 => "ANK",
+        _ => return None,
+    };
+    let mut reply = vec![b'_'];
+    reply.extend_from_slice(text.as_bytes());
+    reply.push(0);
+    Some(reply)
 }
 
 #[derive(Clone, Copy)]
@@ -354,7 +392,12 @@ impl Printer {
             Command::QrErrorCorrection(level) => self.qr.level = level,
             Command::QrStore(data) => self.qr.data = data,
             Command::QrPrint => self.print_qr(out),
-            Command::Status(_) | Command::Ignored => {}
+            Command::Status(request) => {
+                if let Some(reply) = status_reply(request) {
+                    out.push(Output::Reply(reply));
+                }
+            }
+            Command::Ignored => {}
             Command::Unknown(_) => self.unknown_commands += 1,
         }
     }
@@ -1044,6 +1087,33 @@ mod tests {
         assert!(
             images(b"\x1d(k\x03\x00\x31\x51\x30").is_empty(),
             "nothing stored"
+        );
+    }
+
+    #[test]
+    fn answers_status_requests_like_an_idle_printer() {
+        let replies = |bytes: &[u8]| -> Vec<Vec<u8>> {
+            print(Paper::Mm80, bytes)
+                .into_iter()
+                .filter_map(|output| match output {
+                    Output::Reply(reply) => Some(reply),
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(
+            replies(b"\x10\x04\x01\x10\x04\x02\x10\x04\x03\x10\x04\x04"),
+            vec![vec![0x12]; 4]
+        );
+        assert_eq!(replies(b"\x1dr\x01\x1dr2"), vec![vec![0x00]; 2]);
+        assert_eq!(replies(b"\x1dI\x02"), vec![vec![0x02]]);
+        assert_eq!(
+            replies(b"\x1dIB"),
+            vec![b"_Thermal Printer Emulator\0".to_vec()]
+        );
+        assert!(
+            replies(b"\x10\x04\x05\x1dr\x09\x1dI\x7f").is_empty(),
+            "unknown requests"
         );
     }
 }

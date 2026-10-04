@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, Semaphore};
 use tokio::time::{sleep, timeout};
@@ -231,6 +231,21 @@ async fn receive(
         };
         if fed.is_err() {
             break ReceiptState::TooLarge;
+        }
+        let replies = capture
+            .as_mut()
+            .map(Capture::take_replies)
+            .unwrap_or_default();
+        if !replies.is_empty() {
+            // A client that never reads its replies must not hold the task forever.
+            match timeout(limits.idle_timeout, stream.write_all(&replies)).await {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => {
+                    log::warn!("reply_failed peer={peer} error={error}");
+                    break ReceiptState::ConnectionError;
+                }
+                Err(_) => break ReceiptState::IdleTimeout,
+            }
         }
     };
 

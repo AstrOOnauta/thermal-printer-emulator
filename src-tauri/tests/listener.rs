@@ -278,3 +278,24 @@ async fn retries_until_the_port_is_free() {
         ListenerStatus::Listening { port: addr.port() }
     );
 }
+
+#[tokio::test]
+async fn answers_status_requests_on_the_socket() {
+    let harness = Harness::start(FAST).await;
+    let mut stream = harness.connect().await;
+    stream.write_all(b"\x10\x04\x01").await.expect("writes");
+    let mut reply = [0u8; 1];
+    timeout(WAIT, stream.read_exact(&mut reply))
+        .await
+        .expect("a reply in time")
+        .expect("reads");
+    assert_eq!(reply, [0x12], "online, no error");
+
+    stream.write_all(b"\x1dIB").await.expect("writes");
+    let mut name = [0u8; 26];
+    timeout(WAIT, stream.read_exact(&mut name))
+        .await
+        .expect("a reply in time")
+        .expect("reads");
+    assert_eq!(&name, b"_Thermal Printer Emulator\0");
+}

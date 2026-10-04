@@ -59,6 +59,8 @@ makes it a setting). Bytes are read in 8 KiB chunks and fed to it.
   offset where each command ends, so each receipt keeps the bytes that printed it (tested
   at every split point of a stream). Bytes before the first visible output join the
   receipt that output starts; the bytes of a bare cut are dropped.
+- Status requests are answered on the socket after each read (`conventions/escpos.md`
+  § Status replies); they never start a receipt.
 - When the connection ends, the unfinished line is printed (`Printer::finish`) and the open
   receipt takes the connection's end state:
 
@@ -123,7 +125,8 @@ the receipt's bytes or text.
 - `src-tauri/tests/listener.rs`, real sockets on `127.0.0.1:0` with fast `Limits`: a
   receipt until EOF, cuts splitting one connection (raw bytes per receipt), printing
   announced, status-only connections, idle timeout, byte limit, connection cap, rejected
-  protocols, an `ESC` split from its `@`, bind retry while the port is taken.
+  protocols, an `ESC` split from its `@`, bind retry while the port is taken, status
+  replies read back from the socket.
 - `capture.rs` units: one receipt per cut, the same split for every chunking, status
   queries and bare cuts, a drawer pulse alone, text without `LF`, the store limit.
 - `receipts.rs` units: eviction, limits, finished receipts frozen. `classify` units in
