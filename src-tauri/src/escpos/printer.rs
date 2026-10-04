@@ -6,6 +6,7 @@
 
 use serde::Serialize;
 
+use super::bitmap::Bitmap;
 use super::codepage::CodePage;
 use super::parser::{Alignment, Command};
 
@@ -66,15 +67,28 @@ pub struct Segment {
     pub reverse: bool,
 }
 
+/// A bitmap and the dots from the printable area's left edge to its left side.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Placed {
+    pub x: u16,
+    #[serde(flatten)]
+    pub bitmap: Bitmap,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Block {
-    /// One printed line, `height` dots tall; glyph bottoms sit `ascent` dots from its top.
-    Text {
+    /// One printed line, `height` dots tall. Glyph bottoms sit `ascent` dots from its top;
+    /// `ESC *` image stripes in the line hang from its top.
+    Line {
         height: u16,
         ascent: u16,
         segments: Vec<Segment>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        images: Vec<Placed>,
     },
+    /// An image band of its own (raster, graphics), as tall as the image.
+    Image(Placed),
     /// Blank paper.
     Feed { height: u16 },
 }
@@ -113,6 +127,9 @@ impl Style {
 /// applies `ESC a`, `GS L` and `GS W` only at the beginning of a line.
 struct Line {
     segments: Vec<Segment>,
+    images: Vec<Placed>,
+    /// Tallest `ESC *` stripe so far.
+    image_height: u16,
     /// Next character position, dots from the line's left edge.
     x: u16,
     /// Tallest character so far.
@@ -134,6 +151,8 @@ pub struct Printer {
     /// Tab stops in character columns, ascending.
     tab_stops: Vec<u16>,
     line: Option<Line>,
+    /// `GS ( L` function 112 stores it, function 50 prints it.
+    graphics: Option<Bitmap>,
     /// Commands the parser did not know, for the job log.
     pub unknown_commands: usize,
 }
@@ -151,6 +170,7 @@ impl Printer {
             area_width: paper.dots(),
             tab_stops: (1..=32).map(|n| n * DEFAULT_TAB_COLUMNS).collect(),
             line: None,
+            graphics: None,
             unknown_commands: 0,
         }
     }
@@ -200,11 +220,8 @@ impl Printer {
             }
             Command::FeedDots(dots) => self.end_line(Some(u16::from(dots)), out),
             Command::FeedLines(lines) => {
-                // A line with text counts as the first of the n lines it feeds.
-                let had_text = self
-                    .line
-                    .as_ref()
-                    .is_some_and(|line| !line.segments.is_empty());
+                // A line with content counts as the first of the n lines it feeds.
+                let had_text = self.has_content();
                 if had_text {
                     self.end_line(None, out);
                 }
@@ -243,6 +260,47 @@ impl Printer {
             }
             Command::DrawerPulse => out.push(Output::DrawerPulse),
             Command::Beep => out.push(Output::Beep),
+            Command::Raster {
+                mode,
+                row_bytes,
+                height,
+                data,
+            } => {
+                let (sx, sy) = match mode {
+                    1 => (2, 1),
+                    2 => (1, 2),
+                    3 => (2, 2),
+                    _ => (1, 1),
+                };
+                let bitmap = Bitmap::from_rows(row_bytes, height, &data);
+                self.print_image(bitmap, sx, sy, out);
+            }
+            Command::BitImage {
+                mode,
+                columns,
+                data,
+            } => self.bit_image(mode, columns, &data),
+            Command::StoreGraphics {
+                width,
+                height,
+                scale_x,
+                scale_y,
+                data,
+            } => {
+                let bitmap = Bitmap::from_rows(width.div_ceil(8), height, &data);
+                let max = self.paper.dots();
+                self.graphics = Some(
+                    bitmap
+                        .cropped(width.min(max))
+                        .scaled(u16::from(scale_x), u16::from(scale_y))
+                        .cropped(max),
+                );
+            }
+            Command::PrintGraphics => {
+                if let Some(bitmap) = self.graphics.take() {
+                    self.print_image(bitmap, 1, 1, out);
+                }
+            }
             Command::Status(_) | Command::Ignored => {}
             Command::Unknown(_) => self.unknown_commands += 1,
         }
@@ -261,6 +319,8 @@ impl Printer {
         let alignment = self.alignment;
         self.line.get_or_insert_with(|| Line {
             segments: Vec::new(),
+            images: Vec::new(),
+            image_height: 0,
             x: 0,
             ascent: 0,
             alignment,
@@ -325,22 +385,91 @@ impl Printer {
         }
     }
 
-    fn end_line_if_started(&mut self, out: &mut Vec<Output>) {
-        if self
-            .line
+    /// A band of its own, aligned by `ESC a` inside the print area, after any started
+    /// line. The bitmap is cropped to the area before scaling, so memory stays bounded.
+    fn print_image(&mut self, bitmap: Bitmap, sx: u16, sy: u16, out: &mut Vec<Output>) {
+        self.end_line_if_started(out);
+        let left = self.left_margin;
+        let width = self.area_width.min(self.paper.dots() - left);
+        let bitmap = bitmap.cropped(width / sx).scaled(sx, sy).cropped(width);
+        if bitmap.width == 0 || bitmap.height == 0 {
+            return;
+        }
+        let offset = match self.alignment {
+            Alignment::Left => 0,
+            Alignment::Center => (width - bitmap.width) / 2,
+            Alignment::Right => width - bitmap.width,
+        };
+        out.push(Output::Block(Block::Image(Placed {
+            x: left + offset,
+            bitmap,
+        })));
+    }
+
+    /// `ESC *` stripe: modes 0/1 are 8 dots tall (each dot 3 printer dots tall at 203 dpi),
+    /// 32/33 are 24 dots; modes 0 and 32 are single density (each column 2 dots wide).
+    fn bit_image(&mut self, mode: u8, columns: u16, data: &[u8]) {
+        let (bytes_per_column, dot_height, column_width) = match mode {
+            0 => (1, 3, 2),
+            1 => (1, 3, 1),
+            32 => (3, 1, 2),
+            33 => (3, 1, 1),
+            _ => return,
+        };
+        let line = self.line_mut();
+        let available = line.width.saturating_sub(line.x);
+        let columns = columns.min(available / column_width);
+        let mut stripe = Bitmap::blank(columns * column_width, bytes_per_column * 8 * dot_height);
+        for column in 0..columns {
+            for byte in 0..bytes_per_column {
+                let index = usize::from(column) * usize::from(bytes_per_column) + usize::from(byte);
+                let Some(&bits) = data.get(index) else {
+                    continue;
+                };
+                for bit in 0..8 {
+                    if bits & (0x80 >> bit) == 0 {
+                        continue;
+                    }
+                    let top = (byte * 8 + bit) * dot_height;
+                    for dy in 0..dot_height {
+                        for dx in 0..column_width {
+                            stripe.set(column * column_width + dx, top + dy);
+                        }
+                    }
+                }
+            }
+        }
+        if stripe.width == 0 {
+            return;
+        }
+        line.image_height = line.image_height.max(stripe.height);
+        let x = line.x;
+        line.x += stripe.width;
+        line.images.push(Placed { x, bitmap: stripe });
+    }
+
+    fn has_content(&self) -> bool {
+        self.line
             .as_ref()
-            .is_some_and(|line| !line.segments.is_empty())
-        {
+            .is_some_and(|line| !line.segments.is_empty() || !line.images.is_empty())
+    }
+
+    fn end_line_if_started(&mut self, out: &mut Vec<Output>) {
+        if self.has_content() {
             self.end_line(None, out);
         }
     }
 
     /// Prints the line (or feeds an empty one) and advances `feed` dots, or the line
-    /// spacing; never less than the tallest character.
+    /// spacing; never less than its tallest character or image stripe.
     fn end_line(&mut self, feed: Option<u16>, out: &mut Vec<Output>) {
         let advance = feed.unwrap_or(self.line_spacing);
-        let Some(mut line) = self.line.take().filter(|line| !line.segments.is_empty()) else {
+        if !self.has_content() {
+            self.line = None;
             self.feed(advance, out);
+            return;
+        }
+        let Some(mut line) = self.line.take() else {
             return;
         };
         let used = line.x;
@@ -352,10 +481,14 @@ impl Printer {
         for segment in &mut line.segments {
             segment.x += line.left + offset;
         }
-        out.push(Output::Block(Block::Text {
-            height: advance.max(line.ascent),
+        for image in &mut line.images {
+            image.x += line.left + offset;
+        }
+        out.push(Output::Block(Block::Line {
+            height: advance.max(line.ascent).max(line.image_height),
             ascent: line.ascent,
             segments: line.segments,
+            images: line.images,
         }));
     }
 
@@ -390,7 +523,7 @@ mod tests {
         print(Paper::Mm80, bytes)
             .into_iter()
             .filter_map(|output| match output {
-                Output::Block(Block::Text { segments, .. }) => Some(segments),
+                Output::Block(Block::Line { segments, .. }) => Some(segments),
                 _ => None,
             })
             .collect()
@@ -406,10 +539,11 @@ mod tests {
     #[test]
     fn prints_a_line_in_font_a() {
         let out = print(Paper::Mm80, b"\x1b@Hello\n");
-        let Output::Block(Block::Text {
+        let Output::Block(Block::Line {
             height,
             ascent,
             segments,
+            ..
         }) = &out[0]
         else {
             panic!("{out:?}");
@@ -425,7 +559,7 @@ mod tests {
         assert_eq!(texts(&lines(b"\x1ba\x01Hi\n")[0]), vec![(276, "Hi")]);
         assert_eq!(texts(&lines(b"\x1ba\x02Hi\n")[0]), vec![(552, "Hi")]);
         let out = print(Paper::Mm58, b"\x1ba\x01Hi\n");
-        let Output::Block(Block::Text { segments, .. }) = &out[0] else {
+        let Output::Block(Block::Line { segments, .. }) = &out[0] else {
             panic!("{out:?}");
         };
         assert_eq!(segments[0].x, 180);
@@ -452,10 +586,11 @@ mod tests {
     #[test]
     fn double_size_doubles_cells_and_line_height() {
         let out = print(Paper::Mm80, b"\x1b!\x30AB\n");
-        let Output::Block(Block::Text {
+        let Output::Block(Block::Line {
             height,
             ascent,
             segments,
+            ..
         }) = &out[0]
         else {
             panic!("{out:?}");
@@ -493,7 +628,7 @@ mod tests {
                 height: 30 + 30 + 10 + 60
             })
         );
-        assert!(matches!(out[2], Output::Block(Block::Text { .. })));
+        assert!(matches!(out[2], Output::Block(Block::Line { .. })));
     }
 
     #[test]
@@ -501,7 +636,7 @@ mod tests {
         let out = print(Paper::Mm80, b"A\x1bd\x03");
         assert!(matches!(
             out[0],
-            Output::Block(Block::Text { height: 30, .. })
+            Output::Block(Block::Line { height: 30, .. })
         ));
         assert_eq!(out[1], Output::Block(Block::Feed { height: 60 }));
     }
@@ -554,7 +689,7 @@ mod tests {
     #[test]
     fn cut_ends_the_line_and_feeds_first() {
         let out = print(Paper::Mm80, b"A\x1dVB\x10");
-        assert!(matches!(out[0], Output::Block(Block::Text { .. })));
+        assert!(matches!(out[0], Output::Block(Block::Line { .. })));
         assert_eq!(out[1], Output::Block(Block::Feed { height: 16 }));
         assert_eq!(out[2], Output::Cut { partial: true });
         assert_eq!(
@@ -602,11 +737,96 @@ mod tests {
                 .collect();
             for paper in [Paper::Mm80, Paper::Mm58] {
                 for output in print(paper, &bytes) {
-                    if let Output::Block(Block::Text { segments, .. }) = output {
+                    if let Output::Block(Block::Line { segments, .. }) = output {
                         assert!(segments.iter().all(|segment| segment.x < paper.dots() * 2));
                     }
                 }
             }
         }
+    }
+
+    fn images(bytes: &[u8]) -> Vec<Placed> {
+        print(Paper::Mm80, bytes)
+            .into_iter()
+            .filter_map(|output| match output {
+                Output::Block(Block::Image(placed)) => Some(placed),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn raster_images_are_aligned_scaled_and_cropped() {
+        let centered = images(b"\x1ba\x01\x1dv0\x00\x01\x00\x02\x00\xff\x81");
+        assert_eq!(
+            (
+                centered[0].x,
+                centered[0].bitmap.width,
+                centered[0].bitmap.height
+            ),
+            (284, 8, 2)
+        );
+        let quadruple = images(b"\x1dv0\x03\x01\x00\x01\x00\x80");
+        assert_eq!(
+            (quadruple[0].bitmap.width, quadruple[0].bitmap.height),
+            (16, 2)
+        );
+        assert!(quadruple[0].bitmap.get(1, 1) && !quadruple[0].bitmap.get(2, 0));
+        let mut wide = b"\x1dv0\x00\x50\x00\x01\x00".to_vec();
+        wide.extend([0xff; 80]);
+        assert_eq!(images(&wide)[0].bitmap.width, 576, "cropped to the paper");
+    }
+
+    #[test]
+    fn raster_after_text_prints_the_text_first() {
+        let out = print(Paper::Mm80, b"Logo:\x1dv0\x00\x01\x00\x01\x00\xff");
+        assert!(matches!(out[0], Output::Block(Block::Line { .. })));
+        assert!(matches!(out[1], Output::Block(Block::Image(_))));
+    }
+
+    #[test]
+    fn bit_image_stripes_stack_without_gaps() {
+        // ESC 3 24, then two 24-dot double-density stripes of 2 columns, each ended by LF.
+        let stripe = b"\x1b*\x21\x02\x00\xff\x00\x00\x00\x00\x01\n";
+        let out = print(Paper::Mm80, &[&b"\x1b3\x18"[..], stripe, stripe].concat());
+        assert_eq!(out.len(), 2, "{out:?}");
+        for block in &out {
+            let Output::Block(Block::Line {
+                height,
+                images,
+                segments,
+                ..
+            }) = block
+            else {
+                panic!("{block:?}");
+            };
+            assert_eq!(*height, 24);
+            assert!(segments.is_empty());
+            let bitmap = &images[0].bitmap;
+            assert_eq!((bitmap.width, bitmap.height), (2, 24));
+            assert!(bitmap.get(0, 0) && bitmap.get(0, 7) && !bitmap.get(0, 8));
+            assert!(bitmap.get(1, 23) && !bitmap.get(1, 0));
+        }
+    }
+
+    #[test]
+    fn eight_dot_single_density_is_stretched() {
+        let out = print(Paper::Mm80, b"\x1b*\x00\x01\x00\x80\n");
+        let Output::Block(Block::Line { images, height, .. }) = &out[0] else {
+            panic!("{out:?}");
+        };
+        let bitmap = &images[0].bitmap;
+        assert_eq!((bitmap.width, bitmap.height), (2, 24));
+        assert!(bitmap.get(1, 2) && !bitmap.get(0, 3));
+        assert_eq!(*height, 30, "the line spacing is taller than the stripe");
+    }
+
+    #[test]
+    fn stored_graphics_print_on_request() {
+        let store = b"\x1d(L\x0b\x000p0\x02\x01\x31\x08\x00\x01\x00\xf0";
+        assert!(images(store).is_empty(), "storing prints nothing");
+        let printed = images(&[&store[..], b"\x1ba\x02\x1d(L\x02\x0002"].concat());
+        assert_eq!((printed[0].x, printed[0].bitmap.width), (576 - 16, 16));
+        assert!(images(b"\x1d(L\x02\x0002").is_empty(), "nothing stored");
     }
 }

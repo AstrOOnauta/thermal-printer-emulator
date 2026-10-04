@@ -9,20 +9,20 @@ web-based emulator; **no code is taken from it** (see `rules.md` § ESC/POS deco
 
 ## Tech stack
 
-| Category          | Technology                                                                                            |
-| ----------------- | ----------------------------------------------------------------------------------------------------- |
-| Shell             | **Tauri v2** (2.12): tray + one window, single process                                                |
-| Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`: networking and OS integration     |
-| Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` (Rust side only) |
-| Rust crates       | `tokio` (sockets, timers; Tauri's runtime), `sys-locale` (OS language), `serde`, `log`                |
-| Webview           | **React 19** + **TypeScript 6** (strict, `noUncheckedIndexedAccess`)                                  |
-| Bundler           | **Vite 8** (dev server on fixed port 1420)                                                            |
-| UI                | **Tailwind CSS v4** via `@tailwindcss/vite`, neutral tokens that follow the OS theme                  |
-| Class composition | `clsx` + `tailwind-merge` via `cn()`                                                                  |
-| i18n              | Typed dictionaries (en, es, pt-BR) + `t()`, no library; the locale comes from Rust                    |
-| Tests             | **Vitest** (webview, colocated `*.test.ts`), `cargo test` (Rust)                                      |
-| Quality           | ESLint 9 flat config + Prettier + Husky + lint-staged; `cargo fmt` + `clippy -D warnings`             |
-| Package manager   | **Yarn 4** via Corepack, `nodeLinker: node-modules`                                                   |
+| Category          | Technology                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Shell             | **Tauri v2** (2.12): tray + one window, single process                                                                    |
+| Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`: networking and OS integration                         |
+| Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` (Rust side only)                     |
+| Rust crates       | `tokio` (sockets, timers; Tauri's runtime), `sys-locale` (OS language), `base64` (bitmaps to the webview), `serde`, `log` |
+| Webview           | **React 19** + **TypeScript 6** (strict, `noUncheckedIndexedAccess`)                                                      |
+| Bundler           | **Vite 8** (dev server on fixed port 1420)                                                                                |
+| UI                | **Tailwind CSS v4** via `@tailwindcss/vite`, neutral tokens that follow the OS theme                                      |
+| Class composition | `clsx` + `tailwind-merge` via `cn()`                                                                                      |
+| i18n              | Typed dictionaries (en, es, pt-BR) + `t()`, no library; the locale comes from Rust                                        |
+| Tests             | **Vitest** (webview, colocated `*.test.ts`), `cargo test` (Rust)                                                          |
+| Quality           | ESLint 9 flat config + Prettier + Husky + lint-staged; `cargo fmt` + `clippy -D warnings`                                 |
+| Package manager   | **Yarn 4** via Corepack, `nodeLinker: node-modules`                                                                       |
 
 Husky is installed from `postinstall`, not `prepare`: Yarn 2+ does not run `prepare` on
 install. That is safe because the package is `private` and never published.
@@ -121,7 +121,7 @@ src-tauri/                   # Rust core
   src/locale.rs              # OS language → Locale, native menu labels
   src/listener.rs            # TCP 9100: bind, accept, one task per connection
   src/jobs.rs                # jobs in memory, limits
-  src/escpos/                # our ESC/POS decoder: parser.rs, codepage.rs, printer.rs
+  src/escpos/                # our ESC/POS decoder: parser, codepage, printer, bitmap
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)
   capabilities/main.json     # what the `main` window may call

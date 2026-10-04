@@ -19,21 +19,22 @@ Guarantees:
   the emulator ignores. An unknown `ESC x` / `GS x` / `FS x` skips two bytes
   (`Command::Unknown`); a lone `DLE` skips one, as the printer does.
 
-| Bytes                                                                              | Command                                              |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `0x20–0x7E`, `0x80–0xFF` runs                                                      | `Text` (still in the selected code page)             |
-| `LF`, `CR`, `HT`                                                                   | `LineFeed`, `CarriageReturn`, `Tab`                  |
-| `ESC @`                                                                            | `Initialize`                                         |
-| `ESC !`, `ESC E`/`ESC G`, `ESC -`, `ESC M`, `GS !`, `GS B`                         | print mode, emphasis, underline, font, size, reverse |
-| `ESC a`, `ESC SP`, `ESC 2`/`ESC 3`, `GS L`, `GS W`, `ESC $`, `ESC \`, `ESC D`      | alignment, spacing, margins, positions, tab stops    |
-| `ESC J`, `ESC d`                                                                   | feed dots / lines                                    |
-| `ESC t`                                                                            | code table                                           |
-| `GS V`, `ESC i`, `ESC m`                                                           | `Cut { partial, feed }`                              |
-| `ESC p`, `DLE DC4 1`                                                               | `DrawerPulse`                                        |
-| `ESC B n t`                                                                        | `Beep` (buzzer on many ESC/POS printers)             |
-| `DLE EOT n`, `GS r n`, `GS I n`                                                    | `Status(..)`                                         |
-| Raster/bit images, QR (`GS ( k`), barcodes (`GS k`), graphics (`GS ( L`, `GS 8 L`) | skipped by length for now (P2 commits add them)      |
-| Page mode, NV/user images, macros, Kanji, sensors, counters                        | `Ignored` (skipped by length)                        |
+| Bytes                                                                         | Command                                                |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `0x20–0x7E`, `0x80–0xFF` runs                                                 | `Text` (still in the selected code page)               |
+| `LF`, `CR`, `HT`                                                              | `LineFeed`, `CarriageReturn`, `Tab`                    |
+| `ESC @`                                                                       | `Initialize`                                           |
+| `ESC !`, `ESC E`/`ESC G`, `ESC -`, `ESC M`, `GS !`, `GS B`                    | print mode, emphasis, underline, font, size, reverse   |
+| `ESC a`, `ESC SP`, `ESC 2`/`ESC 3`, `GS L`, `GS W`, `ESC $`, `ESC \`, `ESC D` | alignment, spacing, margins, positions, tab stops      |
+| `ESC J`, `ESC d`                                                              | feed dots / lines                                      |
+| `ESC t`                                                                       | code table                                             |
+| `GS V`, `ESC i`, `ESC m`                                                      | `Cut { partial, feed }`                                |
+| `ESC p`, `DLE DC4 1`                                                          | `DrawerPulse`                                          |
+| `ESC B n t`                                                                   | `Beep` (buzzer on many ESC/POS printers)               |
+| `DLE EOT n`, `GS r n`, `GS I n`                                               | `Status(..)`                                           |
+| `GS v 0`, `ESC *`, `GS ( L` / `GS 8 L` (functions 112, 50)                    | `Raster`, `BitImage`, `StoreGraphics`, `PrintGraphics` |
+| QR (`GS ( k`), barcodes (`GS k`)                                              | skipped by length for now (next P2 commit)             |
+| Page mode, NV/user images, macros, Kanji, sensors, counters                   | `Ignored` (skipped by length)                          |
 
 Other control bytes (`0x00–0x1F`, `0x7F`) are `Ignored`, one byte each.
 
@@ -68,9 +69,11 @@ default tab stops every 8 columns. 48 columns of font A (64 of font B) fill 80 m
 **The print model** (what the webview draws, serialized as snake_case JSON):
 
 ```
-Block::Text { height, ascent, segments: [Segment] }   one printed line
-Block::Feed { height }                                blank paper (consecutive feeds merge)
+Block::Line  { height, ascent, segments: [Segment], images?: [Placed] }   one printed line
+Block::Image (Placed)                                                     an image band
+Block::Feed  { height }                                    blank paper (consecutive feeds merge)
 Segment { x, text, font: a|b, width, height, advance, bold, underline: 0|1|2, reverse }
+Placed  { x, width, height, data }   1-bit rows, MSB leftmost, 1 = black, base64
 ```
 
 Character `i` of a segment sits at `x + i × advance` (dots from the printable area's left
@@ -98,3 +101,21 @@ bug from the developer.
 
 Not emulated: page mode, upside-down and 90° rotation, user-defined characters,
 international character sets (`ESC R`), Kanji.
+
+## Images (`bitmap.rs`, `printer.rs`)
+
+All images are 1-bit `Bitmap`s, sent as base64 and drawn straight onto the canvas: no
+PNG, no `data:` URL, so the CSP stays closed.
+
+| Command                                | Becomes                                 | Notes                                                                                  |
+| -------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------- |
+| `GS v 0 m`                             | `Block::Image`                          | `m` 1 doubles the width, 2 the height, 3 both                                          |
+| `GS ( L` / `GS 8 L` fn 112, then fn 50 | `Block::Image`                          | stored, printed on fn 50 (or 2); `bx`/`by` scale 1–2; color ignored                    |
+| `ESC * m`                              | stripe inside the current `Block::Line` | 0/1: 8 dots, each 3 dots tall; 32/33: 24 dots; 0/32 single density (2 dots per column) |
+
+- Image bands are aligned by `ESC a` inside the print area (margin and `GS W`), and a
+  started text line prints first.
+- `ESC *` stripes belong to the line, so the usual `ESC 3 24` + stripe + `LF` sequence
+  stacks without gaps: the line is `max(line spacing, tallest stripe)` tall.
+- Everything is cropped to the print area **before** scaling, so an image costs at most
+  4× its input bytes in memory.

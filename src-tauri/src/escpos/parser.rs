@@ -95,6 +95,30 @@ pub enum Command {
     /// `ESC B n t` (buzzer on many ESC/POS printers).
     Beep,
     Status(StatusRequest),
+    /// `GS v 0 m xL xH yL yH d…`: raster image, `row_bytes` × `height`; `mode` 1 doubles
+    /// the width, 2 the height, 3 both.
+    Raster {
+        mode: u8,
+        row_bytes: u16,
+        height: u16,
+        data: Vec<u8>,
+    },
+    /// `ESC * m nL nH d…`: one stripe of a column-format image, part of the current line.
+    BitImage {
+        mode: u8,
+        columns: u16,
+        data: Vec<u8>,
+    },
+    /// `GS ( L` / `GS 8 L` function 112: store a raster graphic, `scale` 1 or 2.
+    StoreGraphics {
+        width: u16,
+        height: u16,
+        scale_x: u8,
+        scale_y: u8,
+        data: Vec<u8>,
+    },
+    /// `GS ( L` / `GS 8 L` function 50 (or 2): print the stored graphic.
+    PrintGraphics,
     /// A known command with no visible effect here.
     Ignored,
     /// An `ESC`/`GS`/`FS` command this parser does not know. Two bytes skipped.
@@ -258,8 +282,14 @@ fn esc_bit_image(input: &[u8]) -> Step {
     let Some(&[mode, low, high]) = input.get(2..5) else {
         return Step::Incomplete;
     };
+    let columns = le16(low, high);
     let bytes_per_column = if mode >= 32 { 3 } else { 1 };
-    skip(input, 5 + usize::from(le16(low, high)) * bytes_per_column)
+    let len = 5 + usize::from(columns) * bytes_per_column;
+    fixed(input, len, |b| Command::BitImage {
+        mode,
+        columns,
+        data: b[5..].to_vec(),
+    })
 }
 
 /// `ESC & y c1 c2 [x d1…d(y×x)]…` for each character from c1 to c2.
@@ -295,15 +325,21 @@ fn parse_gs(input: &[u8]) -> Step {
             Command::Status(StatusRequest::PrinterId(b[2]))
         }),
         // GS ( fn pL pH data: QR/2D codes (k), graphics (L), setup, and more.
-        b'(' => match input.get(3..5) {
-            Some(&[low, high]) => skip(input, 5 + usize::from(le16(low, high))),
+        b'(' => match input.get(2..5) {
+            Some(&[function, low, high]) => {
+                let len = 5 + usize::from(le16(low, high));
+                fixed(input, len, |b| match function {
+                    b'L' => graphics(&b[5..]),
+                    _ => Command::Ignored,
+                })
+            }
             _ => Step::Incomplete,
         },
         // GS 8 L p1 p2 p3 p4 data: graphics with a 32-bit length.
         b'8' => match input.get(2..7) {
             Some(&[b'L', p1, p2, p3, p4]) => {
                 let len = u32::from_le_bytes([p1, p2, p3, p4]) as usize;
-                skip(input, 7usize.saturating_add(len))
+                fixed(input, 7usize.saturating_add(len), |b| graphics(&b[7..]))
             }
             Some(_) => Step::Done(Command::Unknown([GS, code]), 2),
             None => Step::Incomplete,
@@ -354,8 +390,32 @@ fn gs_raster(input: &[u8]) -> Step {
             Some(_) => Step::Done(Command::Unknown([GS, b'v']), 2),
         };
     };
-    let len = usize::from(le16(x_low, x_high)) * usize::from(le16(y_low, y_high));
-    skip(input, 8 + len)
+    let (row_bytes, height) = (le16(x_low, x_high), le16(y_low, y_high));
+    let len = 8 + usize::from(row_bytes) * usize::from(height);
+    fixed(input, len, |b| Command::Raster {
+        mode: b[3] & 0x03,
+        row_bytes,
+        height,
+        data: b[8..].to_vec(),
+    })
+}
+
+/// The payload of `GS ( L` / `GS 8 L` after its length: `m fn [parameters]`.
+fn graphics(payload: &[u8]) -> Command {
+    match payload {
+        [48, 2 | 50, ..] => Command::PrintGraphics,
+        // m fn a bx by c xL xH yL yH d…, raster format.
+        [48, 112, 48, scale_x, scale_y, _color, x_low, x_high, y_low, y_high, data @ ..] => {
+            Command::StoreGraphics {
+                width: le16(*x_low, *x_high),
+                height: le16(*y_low, *y_high),
+                scale_x: (*scale_x).clamp(1, 2),
+                scale_y: (*scale_y).clamp(1, 2),
+                data: data.to_vec(),
+            }
+        }
+        _ => Command::Ignored,
+    }
 }
 
 /// `GS k m d1…dk NUL` (m = 0–6) or `GS k m n d1…dn` (m = 65–79).
@@ -575,12 +635,9 @@ mod tests {
         // Each one is followed by text that must survive intact.
         for skipped in [
             &b"\x1d(k\x03\x00\x31\x43\x05"[..],               // QR module size
-            b"\x1dv0\x00\x02\x00\x02\x00\xaa\xbb\xcc\xdd",    // raster 2×2 bytes
-            b"\x1b*\x00\x03\x00\x01\x02\x03",                 // 8-dot bit image, 3 columns
-            b"\x1b*\x21\x02\x00\x01\x02\x03\x04\x05\x06",     // 24-dot bit image, 2 columns
             b"\x1dk\x04*AB*\x00",                             // CODE39, NUL-terminated
             b"\x1dkI\x03{BA",                                 // CODE128, counted
-            b"\x1d8L\x02\x00\x00\x00\x30\x45",                // graphics, 32-bit length
+            b"\x1d8L\x02\x00\x00\x00\x30\x45",                // graphics, unknown function
             b"\x1d*\x01\x01\x01\x02\x03\x04\x05\x06\x07\x08", // downloaded image 1×1
             b"\x1b&\x03\x41\x42\x01\x01\x02\x03\x01\x04\x05\x06", // 2 user chars
             b"\x1cq\x01\x01\x00\x01\x00\x01\x02\x03\x04\x05\x06\x07\x08", // NV image
@@ -594,6 +651,56 @@ mod tests {
                 "{skipped:02x?}"
             );
         }
+    }
+
+    #[test]
+    fn image_commands_carry_their_data() {
+        assert_eq!(
+            one(b"\x1dv0\x01\x02\x00\x02\x00\xaa\xbb\xcc\xdd"),
+            Command::Raster {
+                mode: 1,
+                row_bytes: 2,
+                height: 2,
+                data: vec![0xaa, 0xbb, 0xcc, 0xdd]
+            }
+        );
+        assert_eq!(
+            one(b"\x1b*\x00\x03\x00\x01\x02\x03"),
+            Command::BitImage {
+                mode: 0,
+                columns: 3,
+                data: vec![1, 2, 3]
+            }
+        );
+        assert_eq!(
+            one(b"\x1b*\x21\x02\x00\x01\x02\x03\x04\x05\x06"),
+            Command::BitImage {
+                mode: 33,
+                columns: 2,
+                data: vec![1, 2, 3, 4, 5, 6]
+            }
+        );
+        assert_eq!(
+            one(b"\x1d(L\x0b\x000p0\x01\x01\x31\x08\x00\x01\x00\xff"),
+            Command::StoreGraphics {
+                width: 8,
+                height: 1,
+                scale_x: 1,
+                scale_y: 1,
+                data: vec![0xff]
+            }
+        );
+        assert_eq!(
+            one(b"\x1d8L\x0b\x00\x00\x000p0\x02\x02\x31\x08\x00\x01\x00\x0f"),
+            Command::StoreGraphics {
+                width: 8,
+                height: 1,
+                scale_x: 2,
+                scale_y: 2,
+                data: vec![0x0f]
+            }
+        );
+        assert_eq!(one(b"\x1d(L\x02\x0002"), Command::PrintGraphics);
     }
 
     #[test]

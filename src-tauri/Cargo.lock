@@ -3832,6 +3832,7 @@ dependencies = [
 name = "thermal-printer-emulator"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "log",
  "serde",
  "serde_json",
