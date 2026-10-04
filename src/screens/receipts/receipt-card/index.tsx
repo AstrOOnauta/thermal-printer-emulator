@@ -1,3 +1,4 @@
+import { ExportButton } from '@/screens/receipts/export-button';
 import { ReceiptPaper } from '@/screens/receipts/receipt-paper';
 import { useNearViewport } from '@/shared/hooks/use-near-viewport';
 import { getLocale, useTranslation } from '@/shared/hooks/use-translation';
@@ -61,6 +62,7 @@ export function ReceiptCard({ receipt, root }: IReceiptCardProps) {
         {receipt.beeps > 0 && (
           <Badge>{t('receipts.beeps', { count: receipt.beeps })}</Badge>
         )}
+        {!printing && <ExportButton id={receipt.id} />}
       </header>
       {/* Paper and torn edge touch: no gap between them. */}
       <div>

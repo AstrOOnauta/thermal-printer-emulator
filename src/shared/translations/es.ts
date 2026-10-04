@@ -93,6 +93,14 @@ const es: TranslationKeys = {
     drawer: 'Cajón abierto',
     beeps: 'Pitido ×%{count}',
     unavailable: 'Ya no está en memoria',
+    clear: 'Limpiar',
+    clearConfirm: '¿Limpiar todo?',
+    export: 'Guardar .bin',
+    exported: 'Guardado en Descargas',
+    errors: {
+      gone: 'Este recibo ya no está en memoria.',
+      export: 'No se pudo guardar el archivo.',
+    },
     state: {
       printing: 'Imprimiendo…',
       done: 'Impreso',

@@ -93,6 +93,14 @@ const ptBR: TranslationKeys = {
     drawer: 'Gaveta aberta',
     beeps: 'Bipe ×%{count}',
     unavailable: 'Não está mais na memória',
+    clear: 'Limpar',
+    clearConfirm: 'Limpar tudo?',
+    export: 'Salvar .bin',
+    exported: 'Salvo em Downloads',
+    errors: {
+      gone: 'Este cupom não está mais na memória.',
+      export: 'Não foi possível salvar o arquivo.',
+    },
     state: {
       printing: 'Imprimindo…',
       done: 'Impresso',

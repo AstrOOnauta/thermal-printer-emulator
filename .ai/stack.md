@@ -107,7 +107,7 @@ src/                         # Webview (React)
   app/index.tsx              # header (status badge) + failure hint + screen
   app/listener-status/       # status badge, failure hint
   app/connection-bar/        # "Point your POS at ip:port" + copy
-  screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/, test-receipt-button/
+  screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/, toolbar buttons
   screens/settings/          # settings form (saved and applied at once)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts

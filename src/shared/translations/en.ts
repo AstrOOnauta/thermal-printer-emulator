@@ -95,6 +95,14 @@ const en = {
     drawer: 'Drawer opened',
     beeps: 'Beep ×%{count}',
     unavailable: 'No longer in memory',
+    clear: 'Clear',
+    clearConfirm: 'Clear all?',
+    export: 'Save .bin',
+    exported: 'Saved to Downloads',
+    errors: {
+      gone: 'This receipt is no longer in memory.',
+      export: "Couldn't save the file.",
+    },
     state: {
       printing: 'Printing…',
       done: 'Printed',

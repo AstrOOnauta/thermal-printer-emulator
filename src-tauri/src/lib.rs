@@ -105,6 +105,8 @@ pub fn run() {
             ui::get_settings,
             ui::get_lan_address,
             ui::print_test_receipt,
+            ui::clear_receipts,
+            ui::export_receipt,
             ui::set_settings
         ])
         .build(tauri::generate_context!())

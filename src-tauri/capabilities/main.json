@@ -12,6 +12,8 @@
     "allow-get-settings",
     "allow-get-lan-address",
     "allow-print-test-receipt",
+    "allow-clear-receipts",
+    "allow-export-receipt",
     "allow-set-settings"
   ]
 }

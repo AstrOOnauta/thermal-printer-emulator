@@ -116,6 +116,14 @@ paper, white in both themes, with a torn edge when the receipt was cut. Drawing 
   strip: there are no progress events.
 - A receipt dropped from memory (`get_receipt` → `null`) shows "No longer in memory".
 
+## History tools
+
+- **Clear** (toolbar, two clicks: the second within 3 s confirms "Clear all?"): drops every
+  finished receipt (`Receipts::clear`, the total is recomputed); one still printing stays.
+- **Save .bin** (each finished receipt's header): writes its raw bytes to
+  `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
+  Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.
+
 ## Test receipt (`test_receipt.rs`)
 
 "Print test receipt" (tray, the empty list, the toolbar above the receipts) builds a sample

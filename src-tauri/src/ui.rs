@@ -82,6 +82,55 @@ async fn send_test_receipt(app: &AppHandle) -> Result<(), UiError> {
         })
 }
 
+/// Drops every finished receipt from memory.
+#[tauri::command]
+pub fn clear_receipts(app: AppHandle) {
+    let shared = app.state::<Arc<Shared>>();
+    let mut receipts = lock(&shared.receipts);
+    receipts.clear();
+    // Through the listener's channel, so it stays in order with the listener's events.
+    let _ = app
+        .state::<Events>()
+        .0
+        .send(Event::Receipts(receipts.summaries()));
+    log::info!("receipts_cleared");
+}
+
+/// Saves a receipt's raw bytes in the Downloads folder and shows the file. Returns its name.
+#[tauri::command]
+pub fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> {
+    let (started_at, bytes) = {
+        let shared = app.state::<Arc<Shared>>();
+        let receipts = lock(&shared.receipts);
+        let view = receipts
+            .view(id)
+            .ok_or_else(|| UiError::new("receipts.errors.gone"))?;
+        let bytes = receipts.raw(id).unwrap_or_default().to_vec();
+        (view.summary.started_at, bytes)
+    };
+    let name = format!("receipt-{started_at}-{id}.bin");
+    let path = app
+        .path()
+        .download_dir()
+        .map(|dir| dir.join(&name))
+        .map_err(|error| {
+            log::error!("export_failed id={id} error={error}");
+            UiError::new("receipts.errors.export")
+        })?;
+    std::fs::write(&path, &bytes).map_err(|error| {
+        log::error!(
+            "export_failed id={id} path={} error={error}",
+            path.display()
+        );
+        UiError::new("receipts.errors.export")
+    })?;
+    log::info!("receipt_exported id={id} bytes={}", bytes.len());
+    if let Err(error) = app.opener().reveal_item_in_dir(&path) {
+        log::warn!("reveal_failed path={} error={error}", path.display());
+    }
+    Ok(name)
+}
+
 /// This computer's LAN IPv4 address (`network.rs`), `None` offline.
 #[tauri::command]
 pub fn get_lan_address() -> Option<String> {

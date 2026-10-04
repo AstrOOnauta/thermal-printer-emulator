@@ -49,3 +49,13 @@ export function getLanAddress(): Promise<string | null> {
 export function printTestReceipt(): Promise<void> {
   return invoke<void>('print_test_receipt');
 }
+
+/** Drops every finished receipt from memory. */
+export function clearReceipts(): Promise<void> {
+  return invoke<void>('clear_receipts');
+}
+
+/** Saves a receipt's raw bytes in Downloads and reveals the file; resolves to its name. */
+export function exportReceipt(id: number): Promise<string> {
+  return invoke<string>('export_receipt', { id });
+}

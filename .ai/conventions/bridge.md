@@ -14,6 +14,8 @@ Nothing else: no plugin APIs, no direct OS access.
 | `get_settings`        | none           | `ISettings`               |                                                                                                                 |
 | `get_lan_address`     | none           | `string \| null`          | This computer's LAN IPv4, `null` offline. Asked again whenever the listener (re)starts                          |
 | `print_test_receipt`  | none           | `()` or `UiError`         | Sends the test receipt to 127.0.0.1:port. `testReceipt.errors.notListening` / `.send`                           |
+| `clear_receipts`      | none           | `()`                      | Drops finished receipts; the new list goes out on the listener's channel (ordered)                              |
+| `export_receipt`      | `{ id }`       | file name or `UiError`    | Raw bytes to `Downloads/receipt-<started_at>-<id>.bin`, revealed. `receipts.errors.gone` / `.export`            |
 | `set_settings`        | `{ settings }` | `ISettings` or `UiError`  | Validates, saves, applies (`flows/settings.md`)                                                                 |
 
 Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/settings.ts`

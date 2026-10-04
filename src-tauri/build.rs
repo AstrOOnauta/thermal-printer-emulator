@@ -10,6 +10,8 @@ fn main() {
             "get_settings",
             "get_lan_address",
             "print_test_receipt",
+            "clear_receipts",
+            "export_receipt",
             "set_settings",
         ]),
     ))

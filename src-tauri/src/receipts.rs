@@ -197,6 +197,13 @@ impl Receipts {
         }
     }
 
+    /// Drops every finished receipt; one still printing stays.
+    pub fn clear(&mut self) {
+        self.receipts
+            .retain(|receipt| receipt.summary.state == ReceiptState::Printing);
+        self.total = self.receipts.iter().map(|receipt| receipt.weight).sum();
+    }
+
     /// Oldest first.
     pub fn summaries(&self) -> Vec<ReceiptSummary> {
         self.receipts
@@ -396,5 +403,20 @@ mod tests {
             (1, 0, false)
         );
         assert_eq!(receipts.view(999), None);
+    }
+
+    #[test]
+    fn clear_keeps_only_printing_receipts() {
+        let mut receipts = Receipts::new(10, 1000);
+        finished(&mut receipts, b"done");
+        let printing = receipts
+            .start(peer(), Paper::Mm80, b"open".to_vec())
+            .expect("fits");
+        receipts.clear();
+        assert_eq!(ids(&receipts), vec![printing]);
+        // The freed bytes are available again.
+        receipts
+            .add_raw(printing, &[0; 996])
+            .expect("exactly the limit fits");
     }
 }

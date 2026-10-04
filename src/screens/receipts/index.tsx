@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { ClearButton } from '@/screens/receipts/clear-button';
 import { ReceiptCard } from '@/screens/receipts/receipt-card';
 import { TestReceiptButton } from '@/screens/receipts/test-receipt-button';
 import { getReceipts, onReceipts } from '@/shared/api/emulator';
@@ -51,8 +52,9 @@ export function ReceiptsScreen({ address }: IReceiptsScreenProps) {
       aria-label={t('receipts.title')}
       className="flex-1 overflow-y-auto px-6 py-6"
     >
-      <div className="mb-6 flex justify-end">
+      <div className="mb-6 flex items-start justify-end gap-2">
         <TestReceiptButton />
+        <ClearButton />
       </div>
       <ol className="flex flex-col items-center gap-8">
         {[...receipts].reverse().map((receipt) => (
