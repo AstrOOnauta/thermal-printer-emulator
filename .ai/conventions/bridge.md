@@ -5,27 +5,28 @@ Nothing else: no plugin APIs, no direct OS access.
 
 ## Commands
 
-| Command               | Args | Returns                   | Notes                                                                                                           |
-| --------------------- | ---- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `app_locale`          | none | `'en' \| 'es' \| 'pt-BR'` | Resolved once per process from the OS (`conventions/i18n.md`). Called by `initLocale()` before the first render |
-| `get_jobs`            | none | `IJobSummary[]`           | Received jobs, oldest first. Same list as the `jobs` event                                                      |
-| `get_listener_status` | none | `IListenerStatus`         | Same value as the `listener_status` event                                                                       |
+| Command               | Args     | Returns                   | Notes                                                                                                           |
+| --------------------- | -------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `app_locale`          | none     | `'en' \| 'es' \| 'pt-BR'` | Resolved once per process from the OS (`conventions/i18n.md`). Called by `initLocale()` before the first render |
+| `get_receipts`        | none     | `IReceiptSummary[]`       | Printed receipts, oldest first. Same list as the `receipts` event                                               |
+| `get_receipt`         | `{ id }` | `IReceiptView \| null`    | One receipt with its print model, to draw. `null` once dropped from memory                                      |
+| `get_listener_status` | none     | `IListenerStatus`         | Same value as the `listener_status` event                                                                       |
 
 Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/emulator.ts`
-(`getJobs`, `onJobs`, `getListenerStatus`, `onListenerStatus`). Components never call
+(`getReceipts`, `onReceipts`, `getListenerStatus`, `onListenerStatus`). Components never call
 `invoke` or `listen`.
 
 ## Events
 
-| Event             | Payload           | Fires when                                                                                                                                 |
-| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `jobs`            | `IJobSummary[]`   | A job starts or ends. The **whole list**, oldest first (≤ 100 small items): the webview replaces its copy, so it can never drift from Rust |
-| `listener_status` | `IListenerStatus` | The listener starts, fails to bind or recovers (only on change)                                                                            |
+| Event             | Payload             | Fires when                                                                                                                                     |
+| ----------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `receipts`        | `IReceiptSummary[]` | A receipt starts or ends. The **whole list**, oldest first (≤ 100 small items): the webview replaces its copy, so it can never drift from Rust |
+| `listener_status` | `IListenerStatus`   | The listener starts, fails to bind or recovers (only on change)                                                                                |
 
-`IJobSummary` (`src/shared/interfaces/emulator.ts`) mirrors `jobs::JobSummary`:
-`{ id, peer: "ip:port", started_at, ended_at: number | null, state, size }`, times in unix
-ms, `state` one of `receiving`, `done`, `idle_timeout`, `too_large`, `connection_error`.
-Never the job's bytes.
+`IReceiptSummary` (`src/shared/interfaces/emulator.ts`) mirrors `receipts::ReceiptSummary`:
+`{ id, peer: "ip:port", started_at, ended_at: number | null, state, cut, drawer, beeps,
+size }`, times in unix ms, `state` one of `printing`, `done`, `idle_timeout`, `too_large`,
+`connection_error`, `cut` `full` / `partial` / `null`. Never the raw bytes.
 
 `IListenerStatus` mirrors `listener::ListenerStatus`, tagged by `state`:
 `{ state: 'starting' } | { state: 'listening', port } | { state: 'failed', port, error }`,

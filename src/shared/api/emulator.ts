@@ -2,20 +2,22 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 import type {
-  IJobSummary,
+  IReceiptSummary,
   IListenerStatus,
 } from '@/shared/interfaces/emulator';
 
-/** Received jobs, oldest first. */
-export function getJobs(): Promise<IJobSummary[]> {
-  return invoke<IJobSummary[]>('get_jobs');
+/** Printed receipts, oldest first. */
+export function getReceipts(): Promise<IReceiptSummary[]> {
+  return invoke<IReceiptSummary[]>('get_receipts');
 }
 
-/** The whole list again, whenever a job starts or ends. */
-export function onJobs(
-  handler: (jobs: IJobSummary[]) => void,
+/** The whole list again, whenever a receipt starts or ends. */
+export function onReceipts(
+  handler: (receipts: IReceiptSummary[]) => void,
 ): Promise<UnlistenFn> {
-  return listen<IJobSummary[]>('jobs', (event) => handler(event.payload));
+  return listen<IReceiptSummary[]>('receipts', (event) =>
+    handler(event.payload),
+  );
 }
 
 /** Whether the emulator is listening, and on which port. */

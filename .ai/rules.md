@@ -150,7 +150,7 @@ them with `grep -rn "ponytail:" src src-tauri/src`.
 | ------------------------------------------------------ | -------------------------- |
 | a command, an event, capabilities, the CSP             | `conventions/bridge.md`    |
 | tray, window, single instance, autostart, Dock, logs   | `flows/app-lifecycle.md`   |
-| the listener, connections, jobs, their limits          | `flows/print-job.md`       |
+| the listener, connections, receipts, limits            | `flows/print-job.md`       |
 | the ESC/POS decoder (commands, layout, codes, images)  | `conventions/escpos.md`    |
 | a Rust module, a plugin, a security rule               | `conventions/rust-core.md` |
 | translations or locale resolution                      | `conventions/i18n.md`      |

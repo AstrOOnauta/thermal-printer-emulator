@@ -6,7 +6,8 @@
   "permissions": [
     "core:event:default",
     "allow-app-locale",
-    "allow-get-jobs",
+    "allow-get-receipts",
+    "allow-get-receipt",
     "allow-get-listener-status"
   ]
 }

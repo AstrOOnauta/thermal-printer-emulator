@@ -1,7 +1,8 @@
+mod capture;
 pub mod escpos;
-pub mod jobs;
 pub mod listener;
 mod locale;
+pub mod receipts;
 mod ui;
 
 use std::sync::Arc;
@@ -54,7 +55,7 @@ pub fn run() {
             let handle = app.handle();
             ui::build_tray(handle)?;
 
-            let shared = Arc::new(listener::Shared::new(jobs::Jobs::default()));
+            let shared = Arc::new(listener::Shared::new(receipts::Receipts::default()));
             app.manage(Arc::clone(&shared));
             let (events, mut received) = mpsc::unbounded_channel();
             let forwarder = handle.clone();
@@ -92,7 +93,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ui::app_locale,
-            ui::get_jobs,
+            ui::get_receipts,
+            ui::get_receipt,
             ui::get_listener_status
         ])
         .build(tauri::generate_context!())

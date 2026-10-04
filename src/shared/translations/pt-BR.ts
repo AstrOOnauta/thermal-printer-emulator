@@ -21,15 +21,15 @@ const ptBR: TranslationKeys = {
       other: 'O emulador continua tentando.',
     },
   },
-  jobs: {
-    title: 'Impressões recebidas',
-    empty: 'Aguardando impressões',
+  receipts: {
+    title: 'Cupons',
+    empty: 'Aguardando cupons',
     emptyHint:
       'Envie impressões ESC/POS para a porta %{port} deste computador.',
     from: 'de %{host}',
     state: {
-      receiving: 'Recebendo…',
-      done: 'Recebida',
+      printing: 'Imprimindo…',
+      done: 'Impresso',
       idle_timeout: 'Tempo esgotado',
       too_large: 'Grande demais',
       connection_error: 'Conexão perdida',

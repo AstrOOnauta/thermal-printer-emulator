@@ -2,7 +2,7 @@ import {
   ListenerFailureHint,
   ListenerStatusBadge,
 } from '@/app/listener-status';
-import { JobsScreen } from '@/screens/jobs';
+import { ReceiptsScreen } from '@/screens/receipts';
 import { getListenerStatus, onListenerStatus } from '@/shared/api/emulator';
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTranslation } from '@/shared/hooks/use-translation';
@@ -28,7 +28,7 @@ export function App() {
         <ListenerStatusBadge status={status} />
       </header>
       <ListenerFailureHint status={status} />
-      <JobsScreen port={port} />
+      <ReceiptsScreen port={port} />
     </main>
   );
 }

@@ -3,6 +3,10 @@
 Our own decoder, written from Epson's public ESC/POS command reference (rules in
 `rules.md` § ESC/POS decoder). Code in `src-tauri/src/escpos/`.
 
+`Decoder` (`mod.rs`) is a parser plus a printer for one connection: `feed(bytes, out)`
+pushes each `Output` with the stream offset right after the command that produced it;
+`capture.rs` uses those offsets to split receipts at cuts (`flows/print-job.md`).
+
 ## Parser (`parser.rs`)
 
 Bytes → `Command`. `Parser::feed(bytes, emit)` is streaming: an unfinished command stays

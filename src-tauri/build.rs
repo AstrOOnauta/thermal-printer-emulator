@@ -4,7 +4,8 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "app_locale",
-            "get_jobs",
+            "get_receipts",
+            "get_receipt",
             "get_listener_status",
         ]),
     ))

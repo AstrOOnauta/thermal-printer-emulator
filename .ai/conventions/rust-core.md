@@ -12,7 +12,9 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `ui.rs`              | Commands, tray, macOS app menu, window show/hide + Dock visibility. **No emulator logic**                                     |
 | `locale.rs`          | OS language → `Locale` (cached in a `OnceLock`), native menu labels                                                           |
 | `listener.rs`        | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
-| `jobs.rs`            | Jobs in memory: limits, eviction, `JobSummary` (`flows/print-job.md`)                                                         |
+| `receipts.rs`        | Receipts in memory: limits, eviction, `ReceiptSummary` / `ReceiptView`, raw bytes (`flows/print-job.md`)                      |
+| `capture.rs`         | One connection's bytes → receipts: start on visible output, split on cut (`flows/print-job.md`)                               |
+| `escpos/mod.rs`      | `Decoder`: parser + printer for one connection, outputs tagged with stream offsets                                            |
 | `escpos/parser.rs`   | ESC/POS bytes → `Command`, streaming (`conventions/escpos.md`)                                                                |
 | `escpos/codepage.rs` | `ESC t` tables → `char`; tables generated into `codepage_tables.rs` by `scripts/codepages.py`                                 |
 | `escpos/barcode.rs`  | `GS k` symbologies → bar widths + HRI text                                                                                    |
@@ -60,7 +62,7 @@ context. **Never** log receipt bytes or text: they can carry customer data.
 - Integration tests in `src-tauri/tests/` against real sockets on `127.0.0.1`, with an
   ephemeral port (`:0`) so they run in parallel. Modules they use are `pub` in `lib.rs`;
   the rest stay private.
-- Timeouts and limits come from a struct (`listener::Limits`, `Jobs::new`) so tests run
+- Timeouts and limits come from a struct (`listener::Limits`, `Receipts::new`) so tests run
   them in milliseconds. Production values live next to the code, not in tests.
 
 ## Platform

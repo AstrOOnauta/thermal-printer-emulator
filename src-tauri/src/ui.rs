@@ -11,9 +11,9 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_opener::OpenerExt as _;
 
-use crate::jobs::JobSummary;
 use crate::listener::{self, BindError, Event, ListenerStatus, Shared};
 use crate::locale::{Locale, Strings};
+use crate::receipts::{ReceiptSummary, ReceiptView};
 
 const PRODUCT_NAME: &str = "Thermal Printer Emulator";
 
@@ -23,10 +23,16 @@ pub fn app_locale() -> &'static str {
     Locale::current().tag()
 }
 
-/// Received jobs, oldest first. Same list as the `jobs` event.
+/// Printed receipts, oldest first. Same list as the `receipts` event.
 #[tauri::command]
-pub fn get_jobs(shared: State<'_, Arc<Shared>>) -> Vec<JobSummary> {
-    listener::lock(&shared.jobs).summaries()
+pub fn get_receipts(shared: State<'_, Arc<Shared>>) -> Vec<ReceiptSummary> {
+    listener::lock(&shared.receipts).summaries()
+}
+
+/// One receipt with its print model, to draw. `None` once it was dropped from memory.
+#[tauri::command]
+pub fn get_receipt(id: u64, shared: State<'_, Arc<Shared>>) -> Option<ReceiptView> {
+    listener::lock(&shared.receipts).view(id)
 }
 
 /// Whether the emulator is listening, and on which port.
@@ -41,7 +47,7 @@ struct TrayStatus(MenuItem<tauri::Wry>);
 /// Hands a listener event to the webview (and the tray, for the status).
 pub fn forward(app: &AppHandle, event: Event) {
     let emitted = match event {
-        Event::Jobs(jobs) => app.emit("jobs", jobs),
+        Event::Receipts(receipts) => app.emit("receipts", receipts),
         Event::Status(status) => {
             if let Some(item) = app.try_state::<TrayStatus>() {
                 let label = status_label(Locale::current().strings(), &status);

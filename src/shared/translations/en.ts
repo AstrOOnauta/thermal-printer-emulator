@@ -23,14 +23,14 @@ const en = {
       other: 'The emulator keeps trying.',
     },
   },
-  jobs: {
-    title: 'Received jobs',
-    empty: 'Waiting for print jobs',
+  receipts: {
+    title: 'Receipts',
+    empty: 'Waiting for receipts',
     emptyHint: 'Send ESC/POS jobs to port %{port} of this computer.',
     from: 'from %{host}',
     state: {
-      receiving: 'Receiving…',
-      done: 'Received',
+      printing: 'Printing…',
+      done: 'Printed',
       idle_timeout: 'Timed out',
       too_large: 'Too large',
       connection_error: 'Connection lost',

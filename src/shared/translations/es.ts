@@ -21,14 +21,14 @@ const es: TranslationKeys = {
       other: 'El emulador sigue intentándolo.',
     },
   },
-  jobs: {
-    title: 'Trabajos recibidos',
-    empty: 'Esperando trabajos de impresión',
+  receipts: {
+    title: 'Recibos',
+    empty: 'Esperando recibos',
     emptyHint: 'Envía trabajos ESC/POS al puerto %{port} de esta computadora.',
     from: 'desde %{host}',
     state: {
-      receiving: 'Recibiendo…',
-      done: 'Recibido',
+      printing: 'Imprimiendo…',
+      done: 'Impreso',
       idle_timeout: 'Tiempo agotado',
       too_large: 'Demasiado grande',
       connection_error: 'Conexión perdida',

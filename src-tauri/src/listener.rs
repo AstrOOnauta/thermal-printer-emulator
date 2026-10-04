@@ -12,7 +12,9 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, Semaphore};
 use tokio::time::{sleep, timeout};
 
-use crate::jobs::{JobState, JobSummary, Jobs};
+use crate::capture::Capture;
+use crate::escpos::printer::Paper;
+use crate::receipts::{ReceiptState, ReceiptSummary, Receipts};
 
 /// Every interface (decision 2): POS terminals print from other machines.
 pub const DEFAULT_ADDR: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 9100));
@@ -28,6 +30,8 @@ pub struct Limits {
     pub idle_timeout: Duration,
     /// Wait between bind attempts while the port is unavailable.
     pub bind_retry: Duration,
+    /// Bytes one connection may send; past it, the receipt ends `too_large`.
+    pub max_connection_bytes: usize,
 }
 
 impl Limits {
@@ -35,6 +39,7 @@ impl Limits {
         max_connections: 16,
         idle_timeout: Duration::from_secs(5 * 60),
         bind_retry: Duration::from_secs(3),
+        max_connection_bytes: 16 * 1024 * 1024,
     };
 }
 
@@ -65,24 +70,24 @@ pub enum ListenerStatus {
     Failed { port: u16, error: BindError },
 }
 
-/// What changed, for the UI. `Jobs` carries the whole list, oldest first: at most 100 small
-/// summaries, sent when a job starts or ends.
+/// What changed, for the UI. `Receipts` carries the whole list, oldest first: at most 100
+/// small summaries, sent when a receipt starts or ends.
 #[derive(Clone, Debug)]
 pub enum Event {
-    Jobs(Vec<JobSummary>),
+    Receipts(Vec<ReceiptSummary>),
     Status(ListenerStatus),
 }
 
 /// State the listener writes and the UI commands read.
 pub struct Shared {
-    pub jobs: Mutex<Jobs>,
+    pub receipts: Mutex<Receipts>,
     pub status: Mutex<ListenerStatus>,
 }
 
 impl Shared {
-    pub fn new(jobs: Jobs) -> Self {
+    pub fn new(receipts: Receipts) -> Self {
         Self {
-            jobs: Mutex::new(jobs),
+            receipts: Mutex::new(receipts),
             status: Mutex::new(ListenerStatus::Starting),
         }
     }
@@ -142,7 +147,7 @@ pub async fn run(
         let shared = Arc::clone(&shared);
         let events = events.clone();
         tokio::spawn(async move {
-            receive(stream, peer, limits.idle_timeout, &shared, &events).await;
+            receive(stream, peer, limits, &shared, &events).await;
             drop(permit);
         });
     }
@@ -174,33 +179,39 @@ fn classify(head: &[u8]) -> Verdict {
     }
 }
 
-/// Reads one connection to its end. The job starts once the first bytes pass `classify`:
-/// a connection that closes without sending anything, or is rejected, leaves no job.
+/// Reads one connection to its end and turns it into receipts (`capture.rs`). Decoding
+/// starts once the first bytes pass `classify`: a connection that closes without sending
+/// anything, or is rejected, leaves nothing behind.
 async fn receive(
     mut stream: TcpStream,
     peer: SocketAddr,
-    idle_timeout: Duration,
+    limits: Limits,
     shared: &Shared,
     events: &mpsc::UnboundedSender<Event>,
 ) {
     let started = Instant::now();
     let mut buffer = vec![0u8; READ_BUFFER_BYTES];
-    let mut job: Option<u64> = None;
+    let mut capture: Option<Capture> = None;
     // Bytes read before the verdict: a lone `ESC` at most, plus the read that decides.
     let mut head: Vec<u8> = Vec::new();
+    let mut received = 0usize;
 
     let state = loop {
-        let read = match timeout(idle_timeout, stream.read(&mut buffer)).await {
-            Err(_) => break JobState::IdleTimeout,
-            Ok(Ok(0)) => break JobState::Done,
+        let read = match timeout(limits.idle_timeout, stream.read(&mut buffer)).await {
+            Err(_) => break ReceiptState::IdleTimeout,
+            Ok(Ok(0)) => break ReceiptState::Done,
             Ok(Ok(read)) => read,
             Ok(Err(error)) => {
                 log::warn!("read_failed peer={peer} error={error}");
-                break JobState::ConnectionError;
+                break ReceiptState::ConnectionError;
             }
         };
-        let chunk = match job {
-            Some(id) => (id, &buffer[..read]),
+        received += read;
+        if received > limits.max_connection_bytes {
+            break ReceiptState::TooLarge;
+        }
+        let fed = match capture.as_mut() {
+            Some(capture) => capture.feed(&buffer[..read]),
             None => {
                 head.extend_from_slice(&buffer[..read]);
                 match classify(&head) {
@@ -212,34 +223,23 @@ async fn receive(
                     }
                     Verdict::Accept => {}
                 }
-                let id = {
-                    let mut jobs = lock(&shared.jobs);
-                    let id = jobs.start(peer).id;
-                    let _ = events.send(Event::Jobs(jobs.summaries()));
-                    id
-                };
-                log::info!("job_started id={id} peer={peer}");
-                job = Some(id);
-                (id, head.as_slice())
+                log::info!("connection_accepted peer={peer}");
+                capture
+                    .insert(Capture::new(peer, Paper::Mm80, shared, events))
+                    .feed(&std::mem::take(&mut head))
             }
         };
-        if lock(&shared.jobs).append(chunk.0, chunk.1).is_err() {
-            break JobState::TooLarge;
+        if fed.is_err() {
+            break ReceiptState::TooLarge;
         }
     };
 
-    let Some(id) = job else {
+    let Some(capture) = capture else {
         return;
     };
-    let summary = {
-        let mut jobs = lock(&shared.jobs);
-        let summary = jobs.finish(id, state);
-        let _ = events.send(Event::Jobs(jobs.summaries()));
-        summary
-    };
-    let size = summary.map_or(0, |summary| summary.size);
+    let receipts = capture.finish(state);
     log::info!(
-        "job_ended id={id} peer={peer} state={state:?} bytes={size} ms={}",
+        "connection_ended peer={peer} state={state:?} bytes={received} receipts={receipts} ms={}",
         started.elapsed().as_millis()
     );
 }

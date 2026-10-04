@@ -106,10 +106,10 @@ src/                         # Webview (React)
   main.tsx                   # initLocale() → createRoot
   app/index.tsx              # header (status badge) + failure hint + screen
   app/listener-status/       # status badge, failure hint
-  screens/jobs/              # P1: list of received jobs (+ job-row/)
+  screens/receipts/          # receipt list (+ receipt-row/); the renderer draws them next
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts
-    interfaces/emulator.ts   # bridge types (mirror of jobs.rs / listener.rs)
+    interfaces/emulator.ts   # bridge types (mirror of receipts.rs / listener.rs)
     hooks/                   # use-translation (t, locale), use-synced (event + read)
     utils/format.ts          # bytes, peer host (+ test)
     styles/                  # globals.css (tokens), cn.ts
@@ -120,7 +120,8 @@ src-tauri/                   # Rust core
   src/ui.rs                  # commands, tray, app menu, window show/hide
   src/locale.rs              # OS language → Locale, native menu labels
   src/listener.rs            # TCP 9100: bind, accept, one task per connection
-  src/jobs.rs                # jobs in memory, limits
+  src/capture.rs             # one connection → receipts (split on cut)
+  src/receipts.rs            # receipts in memory, limits
   src/escpos/                # our ESC/POS decoder: parser, codepage, printer, bitmap, barcode
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)
