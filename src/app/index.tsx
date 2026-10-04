@@ -78,7 +78,7 @@ export function App() {
       {screen === 'settings' && settings ? (
         <SettingsScreen settings={settings} onSaved={setSettings} />
       ) : (
-        <ReceiptsScreen address={address} />
+        <ReceiptsScreen address={address} sound={settings?.sound ?? true} />
       )}
     </main>
   );

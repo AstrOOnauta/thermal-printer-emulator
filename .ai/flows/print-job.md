@@ -124,6 +124,14 @@ paper, white in both themes, with a torn edge when the receipt was cut. Drawing 
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
   Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.
 
+## Beep
+
+When a receipt finishes with `ESC B` (`beeps > 0`) and the `sound` setting is on, the
+webview plays a generated buzzer (`src/shared/utils/beep.ts`: WebAudio square wave,
+2.7 kHz, 120 ms per beep, at most 3). No sound file. `pendingBeeps` (tested) decides:
+each receipt rings once, after it stops printing; receipts already in the list when the
+screen opens never ring.
+
 ## Test receipt (`test_receipt.rs`)
 
 "Print test receipt" (tray, the empty list, the toolbar above the receipts) builds a sample

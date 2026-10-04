@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { ClearButton } from '@/screens/receipts/clear-button';
 import { ReceiptCard } from '@/screens/receipts/receipt-card';
@@ -7,20 +7,32 @@ import { getReceipts, onReceipts } from '@/shared/api/emulator';
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTranslation } from '@/shared/hooks/use-translation';
 import type { IReceiptSummary } from '@/shared/interfaces/emulator';
+import { pendingBeeps, playBeeps } from '@/shared/utils/beep';
 
 const NO_RECEIPTS: IReceiptSummary[] = [];
 
 interface IReceiptsScreenProps {
   /** Where to print, for the empty-state hint; `null` while the port is not open. */
   address: string | null;
+  /** Play the printer's beep (setting). */
+  sound: boolean;
 }
 
 /** The printed receipts on paper, newest first. */
-export function ReceiptsScreen({ address }: IReceiptsScreenProps) {
+export function ReceiptsScreen({ address, sound }: IReceiptsScreenProps) {
   const { t } = useTranslation();
   const receipts = useSynced(onReceipts, getReceipts, NO_RECEIPTS);
   // State, not a ref: the cards' observers need the element once it exists.
   const [scroller, setScroller] = useState<HTMLElement | null>(null);
+  const heard = useRef<Set<number> | null>(null);
+
+  // Ring for receipts that finished with `ESC B` since the last list.
+  useEffect(() => {
+    if (receipts === null) return;
+    const { beeps, seen } = pendingBeeps(heard.current, receipts);
+    heard.current = seen;
+    if (sound) playBeeps(beeps);
+  }, [receipts, sound]);
 
   if (receipts === null) return null;
 
