@@ -15,6 +15,7 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `jobs.rs`            | Jobs in memory: limits, eviction, `JobSummary` (`flows/print-job.md`)                                                         |
 | `escpos/parser.rs`   | ESC/POS bytes → `Command`, streaming (`conventions/escpos.md`)                                                                |
 | `escpos/codepage.rs` | `ESC t` tables → `char`; tables generated into `codepage_tables.rs` by `scripts/codepages.py`                                 |
+| `escpos/printer.rs`  | Printer state machine: commands → print model (`Block`) + side effects (`Output`)                                             |
 
 The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator_lib`. The
 `_lib` suffix keeps the lib name distinct from the bin name (cargo#8519 on Windows).

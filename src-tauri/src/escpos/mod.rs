@@ -4,3 +4,4 @@
 pub mod codepage;
 mod codepage_tables;
 pub mod parser;
+pub mod printer;

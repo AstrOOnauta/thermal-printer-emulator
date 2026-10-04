@@ -121,7 +121,7 @@ src-tauri/                   # Rust core
   src/locale.rs              # OS language → Locale, native menu labels
   src/listener.rs            # TCP 9100: bind, accept, one task per connection
   src/jobs.rs                # jobs in memory, limits
-  src/escpos/                # our ESC/POS decoder: parser.rs (bytes → commands)
+  src/escpos/                # our ESC/POS decoder: parser.rs, codepage.rs, printer.rs
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)
   capabilities/main.json     # what the `main` window may call

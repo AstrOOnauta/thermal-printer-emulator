@@ -1,0 +1,612 @@
+//! The printer: applies `Command`s to its state and lays text out in dots, producing the
+//! print model the webview draws (`Block`s) plus the side effects (cut, drawer, beep).
+//!
+//! Geometry is a 203 dpi, 80 mm (576 dots) or 58 mm (384 dots) printer with Epson's fonts:
+//! font A 12×24 dots, font B 9×17, default line spacing 30 dots.
+
+use serde::Serialize;
+
+use super::codepage::CodePage;
+use super::parser::{Alignment, Command};
+
+pub const DEFAULT_LINE_SPACING: u16 = 30;
+/// Default tab stops: every 8 character columns.
+const DEFAULT_TAB_COLUMNS: u16 = 8;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Paper {
+    Mm80,
+    Mm58,
+}
+
+impl Paper {
+    /// Printable width in dots.
+    pub fn dots(self) -> u16 {
+        match self {
+            Self::Mm80 => 576,
+            Self::Mm58 => 384,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Font {
+    A,
+    B,
+}
+
+impl Font {
+    /// Character cell (width, height) in dots.
+    pub fn cell(self) -> (u16, u16) {
+        match self {
+            Self::A => (12, 24),
+            Self::B => (9, 17),
+        }
+    }
+}
+
+/// A run of characters in one style. Character `i` sits at `x + i × advance`; its glyph
+/// fills a `font cell × (width, height)` box, bottom-aligned on the line's `ascent`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Segment {
+    /// Dots from the left edge of the printable area.
+    pub x: u16,
+    pub text: String,
+    pub font: Font,
+    /// Size multipliers, 1–8.
+    pub width: u8,
+    pub height: u8,
+    /// Dots from one character to the next (cell + spacing, times `width`).
+    pub advance: u16,
+    pub bold: bool,
+    /// 0 off, 1 thin, 2 thick.
+    pub underline: u8,
+    pub reverse: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Block {
+    /// One printed line, `height` dots tall; glyph bottoms sit `ascent` dots from its top.
+    Text {
+        height: u16,
+        ascent: u16,
+        segments: Vec<Segment>,
+    },
+    /// Blank paper.
+    Feed { height: u16 },
+}
+
+/// What applying a command produced.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Output {
+    Block(Block),
+    Cut { partial: bool },
+    DrawerPulse,
+    Beep,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Style {
+    font: Font,
+    bold: bool,
+    underline: u8,
+    reverse: bool,
+    width: u8,
+    height: u8,
+}
+
+impl Style {
+    const DEFAULT: Self = Self {
+        font: Font::A,
+        bold: false,
+        underline: 0,
+        reverse: false,
+        width: 1,
+        height: 1,
+    };
+}
+
+/// The line being filled. Alignment and the print area are taken when it starts: Epson
+/// applies `ESC a`, `GS L` and `GS W` only at the beginning of a line.
+struct Line {
+    segments: Vec<Segment>,
+    /// Next character position, dots from the line's left edge.
+    x: u16,
+    /// Tallest character so far.
+    ascent: u16,
+    alignment: Alignment,
+    left: u16,
+    width: u16,
+}
+
+pub struct Printer {
+    paper: Paper,
+    code_page: CodePage,
+    style: Style,
+    alignment: Alignment,
+    char_spacing: u16,
+    line_spacing: u16,
+    left_margin: u16,
+    area_width: u16,
+    /// Tab stops in character columns, ascending.
+    tab_stops: Vec<u16>,
+    line: Option<Line>,
+    /// Commands the parser did not know, for the job log.
+    pub unknown_commands: usize,
+}
+
+impl Printer {
+    pub fn new(paper: Paper) -> Self {
+        Self {
+            paper,
+            code_page: CodePage::DEFAULT,
+            style: Style::DEFAULT,
+            alignment: Alignment::Left,
+            char_spacing: 0,
+            line_spacing: DEFAULT_LINE_SPACING,
+            left_margin: 0,
+            area_width: paper.dots(),
+            tab_stops: (1..=32).map(|n| n * DEFAULT_TAB_COLUMNS).collect(),
+            line: None,
+            unknown_commands: 0,
+        }
+    }
+
+    pub fn apply(&mut self, command: Command, out: &mut Vec<Output>) {
+        match command {
+            Command::Text(bytes) => {
+                for byte in bytes {
+                    let character = self.code_page.decode(byte);
+                    self.put(character, out);
+                }
+            }
+            Command::LineFeed => self.end_line(None, out),
+            // With automatic line feed off (the default), CR does nothing.
+            Command::CarriageReturn => {}
+            Command::Tab => self.tab(),
+            Command::Initialize => {
+                let unknown = self.unknown_commands;
+                *self = Self::new(self.paper);
+                self.unknown_commands = unknown;
+            }
+            Command::PrintMode(mode) => {
+                self.style.font = if mode & 0x01 != 0 { Font::B } else { Font::A };
+                self.style.bold = mode & 0x08 != 0;
+                self.style.height = if mode & 0x10 != 0 { 2 } else { 1 };
+                self.style.width = if mode & 0x20 != 0 { 2 } else { 1 };
+                self.style.underline = if mode & 0x80 != 0 { 1 } else { 0 };
+            }
+            Command::Emphasis(on) => self.style.bold = on,
+            Command::Underline(thickness) => self.style.underline = thickness.min(2),
+            Command::Align(alignment) => self.alignment = alignment,
+            // Font C, where a printer has it, is the size of font B.
+            Command::Font(font) => self.style.font = if font == 0 { Font::A } else { Font::B },
+            Command::CharSize { width, height } => {
+                self.style.width = width;
+                self.style.height = height;
+            }
+            Command::Reverse(on) => self.style.reverse = on,
+            Command::CodeTable(table) => {
+                if let Some(page) = CodePage::from_table(table) {
+                    self.code_page = page;
+                }
+            }
+            Command::CharSpacing(dots) => self.char_spacing = u16::from(dots),
+            Command::LineSpacing(dots) => {
+                self.line_spacing = dots.map_or(DEFAULT_LINE_SPACING, u16::from);
+            }
+            Command::FeedDots(dots) => self.end_line(Some(u16::from(dots)), out),
+            Command::FeedLines(lines) => {
+                // A line with text counts as the first of the n lines it feeds.
+                let had_text = self
+                    .line
+                    .as_ref()
+                    .is_some_and(|line| !line.segments.is_empty());
+                if had_text {
+                    self.end_line(None, out);
+                }
+                let lines = u16::from(lines).saturating_sub(u16::from(had_text));
+                self.feed(lines.saturating_mul(self.line_spacing), out);
+            }
+            Command::LeftMargin(dots) => self.left_margin = dots.min(self.paper.dots()),
+            Command::PrintAreaWidth(dots) => self.area_width = dots,
+            Command::AbsolutePosition(dots) => {
+                let line = self.line_mut();
+                if dots < line.width {
+                    line.x = dots;
+                }
+            }
+            Command::RelativePosition(dots) => {
+                let line = self.line_mut();
+                if let Some(x) = line.x.checked_add_signed(dots).filter(|&x| x < line.width) {
+                    line.x = x;
+                }
+            }
+            Command::TabStops(columns) => {
+                // Must ascend; the printer ignores the rest from the first one that doesn't.
+                let mut stops: Vec<u16> = Vec::new();
+                for column in columns.into_iter().map(u16::from) {
+                    if stops.last().is_some_and(|&last| column <= last) {
+                        break;
+                    }
+                    stops.push(column);
+                }
+                self.tab_stops = stops;
+            }
+            Command::Cut { partial, feed } => {
+                self.end_line_if_started(out);
+                self.feed(u16::from(feed), out);
+                out.push(Output::Cut { partial });
+            }
+            Command::DrawerPulse => out.push(Output::DrawerPulse),
+            Command::Beep => out.push(Output::Beep),
+            Command::Status(_) | Command::Ignored => {}
+            Command::Unknown(_) => self.unknown_commands += 1,
+        }
+    }
+
+    /// End of the stream: prints what is left in the line buffer. A real printer would
+    /// hold it until the next `LF`; an emulator that hid it would hide a bug from you.
+    pub fn finish(&mut self, out: &mut Vec<Output>) {
+        self.end_line_if_started(out);
+    }
+
+    fn line_mut(&mut self) -> &mut Line {
+        let paper = self.paper.dots();
+        let left = self.left_margin;
+        let width = self.area_width.min(paper - left);
+        let alignment = self.alignment;
+        self.line.get_or_insert_with(|| Line {
+            segments: Vec::new(),
+            x: 0,
+            ascent: 0,
+            alignment,
+            left,
+            width,
+        })
+    }
+
+    fn put(&mut self, character: char, out: &mut Vec<Output>) {
+        let style = self.style;
+        let (cell_width, cell_height) = style.font.cell();
+        let glyph_width = cell_width * u16::from(style.width);
+        let advance = (cell_width + self.char_spacing) * u16::from(style.width);
+
+        let line = self.line_mut();
+        // Wrap like the printer: a character that does not fit starts the next line.
+        if line.x + glyph_width > line.width && !line.segments.is_empty() {
+            self.end_line(None, out);
+        }
+        let line = self.line_mut();
+        let x = line.x;
+        line.ascent = line.ascent.max(cell_height * u16::from(style.height));
+        match line.segments.last_mut() {
+            Some(segment)
+                if segment.font == style.font
+                    && segment.width == style.width
+                    && segment.height == style.height
+                    && segment.bold == style.bold
+                    && segment.underline == style.underline
+                    && segment.reverse == style.reverse
+                    && segment.advance == advance
+                    && segment.x + segment.text.chars().count() as u16 * advance == x =>
+            {
+                segment.text.push(character);
+            }
+            _ => line.segments.push(Segment {
+                x,
+                text: character.to_string(),
+                font: style.font,
+                width: style.width,
+                height: style.height,
+                advance,
+                bold: style.bold,
+                underline: style.underline,
+                reverse: style.reverse,
+            }),
+        }
+        line.x = x.saturating_add(advance);
+    }
+
+    fn tab(&mut self) {
+        let (cell_width, _) = self.style.font.cell();
+        let column = (cell_width + self.char_spacing) * u16::from(self.style.width);
+        let stops = self.tab_stops.clone();
+        let line = self.line_mut();
+        if let Some(x) = stops
+            .iter()
+            .map(|&stop| stop.saturating_mul(column))
+            .find(|&x| x > line.x && x < line.width)
+        {
+            line.x = x;
+        }
+    }
+
+    fn end_line_if_started(&mut self, out: &mut Vec<Output>) {
+        if self
+            .line
+            .as_ref()
+            .is_some_and(|line| !line.segments.is_empty())
+        {
+            self.end_line(None, out);
+        }
+    }
+
+    /// Prints the line (or feeds an empty one) and advances `feed` dots, or the line
+    /// spacing; never less than the tallest character.
+    fn end_line(&mut self, feed: Option<u16>, out: &mut Vec<Output>) {
+        let advance = feed.unwrap_or(self.line_spacing);
+        let Some(mut line) = self.line.take().filter(|line| !line.segments.is_empty()) else {
+            self.feed(advance, out);
+            return;
+        };
+        let used = line.x;
+        let offset = match line.alignment {
+            Alignment::Left => 0,
+            Alignment::Center => line.width.saturating_sub(used) / 2,
+            Alignment::Right => line.width.saturating_sub(used),
+        };
+        for segment in &mut line.segments {
+            segment.x += line.left + offset;
+        }
+        out.push(Output::Block(Block::Text {
+            height: advance.max(line.ascent),
+            ascent: line.ascent,
+            segments: line.segments,
+        }));
+    }
+
+    /// Blank paper; consecutive feeds merge into one block.
+    fn feed(&mut self, dots: u16, out: &mut Vec<Output>) {
+        if dots == 0 {
+            return;
+        }
+        if let Some(Output::Block(Block::Feed { height })) = out.last_mut() {
+            *height = height.saturating_add(dots);
+            return;
+        }
+        out.push(Output::Block(Block::Feed { height: dots }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::escpos::parser::Parser;
+
+    fn print(paper: Paper, bytes: &[u8]) -> Vec<Output> {
+        let mut parser = Parser::default();
+        let mut printer = Printer::new(paper);
+        let mut out = Vec::new();
+        parser.feed(bytes, |command, _| printer.apply(command, &mut out));
+        printer.finish(&mut out);
+        out
+    }
+
+    fn lines(bytes: &[u8]) -> Vec<Vec<Segment>> {
+        print(Paper::Mm80, bytes)
+            .into_iter()
+            .filter_map(|output| match output {
+                Output::Block(Block::Text { segments, .. }) => Some(segments),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn texts(segments: &[Segment]) -> Vec<(u16, &str)> {
+        segments
+            .iter()
+            .map(|segment| (segment.x, segment.text.as_str()))
+            .collect()
+    }
+
+    #[test]
+    fn prints_a_line_in_font_a() {
+        let out = print(Paper::Mm80, b"\x1b@Hello\n");
+        let Output::Block(Block::Text {
+            height,
+            ascent,
+            segments,
+        }) = &out[0]
+        else {
+            panic!("{out:?}");
+        };
+        assert_eq!((*height, *ascent), (30, 24));
+        assert_eq!(texts(segments), vec![(0, "Hello")]);
+        assert_eq!(segments[0].advance, 12);
+        assert_eq!(segments[0].font, Font::A);
+    }
+
+    #[test]
+    fn aligns_center_and_right_within_the_paper() {
+        assert_eq!(texts(&lines(b"\x1ba\x01Hi\n")[0]), vec![(276, "Hi")]);
+        assert_eq!(texts(&lines(b"\x1ba\x02Hi\n")[0]), vec![(552, "Hi")]);
+        let out = print(Paper::Mm58, b"\x1ba\x01Hi\n");
+        let Output::Block(Block::Text { segments, .. }) = &out[0] else {
+            panic!("{out:?}");
+        };
+        assert_eq!(segments[0].x, 180);
+    }
+
+    #[test]
+    fn alignment_applies_from_the_next_line() {
+        let all = lines(b"Left\x1ba\x01\nMid\n");
+        assert_eq!(all[0][0].x, 0);
+        assert_eq!(all[1][0].x, (576 - 36) / 2);
+    }
+
+    #[test]
+    fn a_style_change_mid_line_stays_on_one_line() {
+        let all = lines(b"Total: \x1bE\x011,50\x1bE\x00!\n");
+        assert_eq!(all.len(), 1);
+        assert_eq!(
+            texts(&all[0]),
+            vec![(0, "Total: "), (84, "1,50"), (132, "!")]
+        );
+        assert!(all[0][1].bold && !all[0][0].bold && !all[0][2].bold);
+    }
+
+    #[test]
+    fn double_size_doubles_cells_and_line_height() {
+        let out = print(Paper::Mm80, b"\x1b!\x30AB\n");
+        let Output::Block(Block::Text {
+            height,
+            ascent,
+            segments,
+        }) = &out[0]
+        else {
+            panic!("{out:?}");
+        };
+        assert_eq!((*height, *ascent), (48, 48));
+        assert_eq!(
+            (segments[0].width, segments[0].height, segments[0].advance),
+            (2, 2, 24)
+        );
+        let gs = lines(b"\x1d!\x21A\n");
+        assert_eq!((gs[0][0].width, gs[0][0].height), (3, 2));
+    }
+
+    #[test]
+    fn wraps_at_48_columns_in_font_a_and_64_in_font_b() {
+        let line_a = [b'x'; 49];
+        let all = lines(&[&line_a[..], b"\n"].concat());
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0][0].text.len(), 48);
+        assert_eq!(texts(&all[1]), vec![(0, "x")]);
+
+        let line_b = [b'y'; 64];
+        let all = lines(&[&b"\x1bM\x01"[..], &line_b, b"\n"].concat());
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0][0].advance, 9);
+    }
+
+    #[test]
+    fn empty_lines_and_feeds_become_one_feed_block() {
+        let out = print(Paper::Mm80, b"A\n\n\n\x1bJ\x0a\x1bd\x02B\n");
+        assert_eq!(out.len(), 3, "{out:?}");
+        assert_eq!(
+            out[1],
+            Output::Block(Block::Feed {
+                height: 30 + 30 + 10 + 60
+            })
+        );
+        assert!(matches!(out[2], Output::Block(Block::Text { .. })));
+    }
+
+    #[test]
+    fn feed_lines_after_text_counts_the_printed_line() {
+        let out = print(Paper::Mm80, b"A\x1bd\x03");
+        assert!(matches!(
+            out[0],
+            Output::Block(Block::Text { height: 30, .. })
+        ));
+        assert_eq!(out[1], Output::Block(Block::Feed { height: 60 }));
+    }
+
+    #[test]
+    fn decodes_text_in_the_selected_code_page() {
+        assert_eq!(lines(b"\x1bt\x02Caf\x82 \x87\n")[0][0].text, "Café ç");
+        // 0xC6 is "ã" in CP850 but "╞" in CP437.
+        assert_eq!(
+            lines(b"\x1bt\x02\x1b@\xc6\n")[0][0].text,
+            "╞",
+            "ESC @ restores CP437"
+        );
+    }
+
+    #[test]
+    fn initialize_resets_style_and_drops_the_buffer() {
+        let all = lines(b"\x1b!\x38lost\x1b@kept\n");
+        assert_eq!(all.len(), 1);
+        assert_eq!(texts(&all[0]), vec![(0, "kept")]);
+        assert_eq!((all[0][0].width, all[0][0].bold), (1, false));
+    }
+
+    #[test]
+    fn margins_tabs_and_positions() {
+        assert_eq!(lines(b"\x1dL\x20\x00A\n")[0][0].x, 32);
+        assert_eq!(texts(&lines(b"A\tB\n")[0]), vec![(0, "A"), (96, "B")]);
+        assert_eq!(
+            texts(&lines(b"\x1bD\x04\x00A\tB\n")[0]),
+            vec![(0, "A"), (48, "B")]
+        );
+        assert_eq!(texts(&lines(b"\x1b$\x64\x00A\n")[0]), vec![(100, "A")]);
+        assert_eq!(
+            texts(&lines(b"A\x1b\\\x0a\x00B\n")[0]),
+            vec![(0, "A"), (22, "B")]
+        );
+        // Centered inside a 288-dot area that starts at 32.
+        assert_eq!(
+            lines(b"\x1dL\x20\x00\x1dW\x20\x01\x1ba\x01AB\n")[0][0].x,
+            32 + 132
+        );
+    }
+
+    #[test]
+    fn character_spacing_widens_the_advance() {
+        let all = lines(b"\x1b \x02\x1b!\x20AB\n");
+        assert_eq!(all[0][0].advance, (12 + 2) * 2);
+    }
+
+    #[test]
+    fn cut_ends_the_line_and_feeds_first() {
+        let out = print(Paper::Mm80, b"A\x1dVB\x10");
+        assert!(matches!(out[0], Output::Block(Block::Text { .. })));
+        assert_eq!(out[1], Output::Block(Block::Feed { height: 16 }));
+        assert_eq!(out[2], Output::Cut { partial: true });
+        assert_eq!(
+            print(Paper::Mm80, b"\x1dV\x00"),
+            vec![Output::Cut { partial: false }]
+        );
+    }
+
+    #[test]
+    fn side_effects_and_unknown_commands() {
+        assert_eq!(
+            print(Paper::Mm80, b"\x1bp\x00\x19\xfa\x1bB\x01\x01"),
+            vec![Output::DrawerPulse, Output::Beep]
+        );
+        let mut printer = Printer::new(Paper::Mm80);
+        let mut out = Vec::new();
+        printer.apply(Command::Unknown([0x1b, 0x01]), &mut out);
+        assert_eq!(printer.unknown_commands, 1);
+    }
+
+    #[test]
+    fn text_without_a_final_line_feed_still_prints() {
+        assert_eq!(
+            texts(&lines(b"\x1b@no newline")[0]),
+            vec![(0, "no newline")]
+        );
+    }
+
+    #[test]
+    fn random_bytes_never_panic() {
+        let mut state: u64 = 0x2545_f491_4f6c_dd1d;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for _ in 0..2_000 {
+            let len = (next() % 512) as usize;
+            let bytes: Vec<u8> = (0..len)
+                .map(|_| match next() % 4 {
+                    0 => [0x1b, 0x1d, 0x0a, 0x09][(next() % 4) as usize],
+                    _ => next() as u8,
+                })
+                .collect();
+            for paper in [Paper::Mm80, Paper::Mm58] {
+                for output in print(paper, &bytes) {
+                    if let Output::Block(Block::Text { segments, .. }) = output {
+                        assert!(segments.iter().all(|segment| segment.x < paper.dots() * 2));
+                    }
+                }
+            }
+        }
+    }
+}
