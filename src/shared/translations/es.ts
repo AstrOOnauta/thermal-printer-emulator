@@ -5,6 +5,56 @@ const es: TranslationKeys = {
     name: 'Thermal Printer Emulator',
     tagline: 'Impresora térmica virtual para ESC/POS',
   },
+  nav: {
+    settings: 'Configuración',
+    receipts: 'Recibos',
+  },
+  settings: {
+    title: 'Configuración',
+    port: {
+      label: 'Puerto',
+      hint: 'El puerto TCP al que el POS envía los trabajos. Las impresoras de red usan el 9100.',
+      apply: 'Aplicar',
+    },
+    bind: {
+      label: 'Quién puede imprimir',
+      lan: 'Cualquier dispositivo de la red',
+      local: 'Solo esta computadora',
+    },
+    paper: {
+      label: 'Ancho del papel',
+      mm80: '80 mm (48 columnas)',
+      mm58: '58 mm (32 columnas)',
+      hint: 'Se aplica a los recibos nuevos.',
+    },
+    codePage: {
+      label: 'Página de códigos predeterminada',
+      hint: 'Se usa hasta que el POS elige otra con ESC t.',
+    },
+    codePages: {
+      cp437: 'CP437 · EE. UU., Europa estándar',
+      cp850: 'CP850 · Latín 1 multilingüe',
+      cp860: 'CP860 · Portugués',
+      cp863: 'CP863 · Francés canadiense',
+      cp865: 'CP865 · Nórdico',
+      wpc1252: 'WPC1252 · Windows Latín 1',
+      cp866: 'CP866 · Cirílico',
+      cp852: 'CP852 · Latín 2',
+      cp858: 'CP858 · Latín 1 con €',
+    },
+    sound: {
+      label: 'Sonido',
+      beep: 'Reproducir el pitido de la impresora',
+    },
+    errors: {
+      port: 'Usa un puerto del 1 al 65535.',
+      codePage: 'Esta página de códigos no es compatible.',
+      save: 'No se pudo guardar la configuración.',
+    },
+  },
+  errors: {
+    unexpected: 'Algo salió mal. Inténtalo de nuevo.',
+  },
   listener: {
     starting: 'Iniciando…',
     listening: 'Escuchando en el puerto %{port}',

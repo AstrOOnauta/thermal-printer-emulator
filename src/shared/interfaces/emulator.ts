@@ -80,3 +80,21 @@ export type IListenerStatus =
   | { state: 'starting' }
   | { state: 'listening'; port: number }
   | { state: 'failed'; port: number; error: IBindError };
+
+/** Mirrors `settings::Bind`. */
+export type IBind = 'lan' | 'local';
+
+/** Mirrors `settings::Settings`. */
+export interface ISettings {
+  port: number;
+  bind: IBind;
+  paper: IPaper;
+  /** `ESC t` table used until the POS selects one. */
+  code_page: number;
+  sound: boolean;
+}
+
+/** A refused command (`ui::UiError`): an i18n key. */
+export interface IUiError {
+  key: string;
+}

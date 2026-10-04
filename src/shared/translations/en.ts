@@ -7,6 +7,56 @@ const en = {
     name: 'Thermal Printer Emulator',
     tagline: 'Virtual thermal printer for ESC/POS',
   },
+  nav: {
+    settings: 'Settings',
+    receipts: 'Receipts',
+  },
+  settings: {
+    title: 'Settings',
+    port: {
+      label: 'Port',
+      hint: 'The TCP port the POS sends jobs to. Network printers use 9100.',
+      apply: 'Apply',
+    },
+    bind: {
+      label: 'Who can print',
+      lan: 'Any device on the network',
+      local: 'Only this computer',
+    },
+    paper: {
+      label: 'Paper width',
+      mm80: '80 mm (48 columns)',
+      mm58: '58 mm (32 columns)',
+      hint: 'Applies to new receipts.',
+    },
+    codePage: {
+      label: 'Default code page',
+      hint: 'Used until the POS selects one with ESC t.',
+    },
+    codePages: {
+      cp437: 'CP437 · USA, standard Europe',
+      cp850: 'CP850 · Multilingual Latin 1',
+      cp860: 'CP860 · Portuguese',
+      cp863: 'CP863 · Canadian French',
+      cp865: 'CP865 · Nordic',
+      wpc1252: 'WPC1252 · Windows Latin 1',
+      cp866: 'CP866 · Cyrillic',
+      cp852: 'CP852 · Latin 2',
+      cp858: 'CP858 · Latin 1 with €',
+    },
+    sound: {
+      label: 'Sound',
+      beep: "Play the printer's beep",
+    },
+    errors: {
+      port: 'Use a port from 1 to 65535.',
+      codePage: 'This code page is not supported.',
+      save: "Couldn't save the settings.",
+    },
+  },
+  errors: {
+    unexpected: 'Something went wrong. Try again.',
+  },
   listener: {
     starting: 'Starting…',
     listening: 'Listening on port %{port}',

@@ -5,14 +5,17 @@ Nothing else: no plugin APIs, no direct OS access.
 
 ## Commands
 
-| Command               | Args     | Returns                   | Notes                                                                                                           |
-| --------------------- | -------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `app_locale`          | none     | `'en' \| 'es' \| 'pt-BR'` | Resolved once per process from the OS (`conventions/i18n.md`). Called by `initLocale()` before the first render |
-| `get_receipts`        | none     | `IReceiptSummary[]`       | Printed receipts, oldest first. Same list as the `receipts` event                                               |
-| `get_receipt`         | `{ id }` | `IReceiptView \| null`    | One receipt with its print model, to draw. `null` once dropped from memory                                      |
-| `get_listener_status` | none     | `IListenerStatus`         | Same value as the `listener_status` event                                                                       |
+| Command               | Args           | Returns                   | Notes                                                                                                           |
+| --------------------- | -------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `app_locale`          | none           | `'en' \| 'es' \| 'pt-BR'` | Resolved once per process from the OS (`conventions/i18n.md`). Called by `initLocale()` before the first render |
+| `get_receipts`        | none           | `IReceiptSummary[]`       | Printed receipts, oldest first. Same list as the `receipts` event                                               |
+| `get_receipt`         | `{ id }`       | `IReceiptView \| null`    | One receipt with its print model, to draw. `null` once dropped from memory                                      |
+| `get_listener_status` | none           | `IListenerStatus`         | Same value as the `listener_status` event                                                                       |
+| `get_settings`        | none           | `ISettings`               |                                                                                                                 |
+| `set_settings`        | `{ settings }` | `ISettings` or `UiError`  | Validates, saves, applies (`flows/settings.md`)                                                                 |
 
-Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/emulator.ts`
+Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/settings.ts`
+(`getSettings`, `setSettings`), `src/shared/api/emulator.ts`
 (`getReceipts`, `onReceipts`, `getListenerStatus`, `onListenerStatus`). Components never call
 `invoke` or `listen`.
 
@@ -50,9 +53,9 @@ Rules for the wire:
 - **snake_case** field names on both sides. TS interfaces keep them as they are.
 - Rust structs and their TS interfaces (`src/shared/interfaces/`) change **together**, in
   the same commit.
-- A failing command rejects with `{ key, params? }`, where `key` is a dot path into the
-  translation files. The webview renders `t(error.key, error.params)`. Rust never sends a
-  sentence.
+- A failing command rejects with `UiError = { key }`, a dot path into the translation
+  files. The webview renders `t(uiErrorKey(error))`; any other rejection shape becomes
+  `errors.unexpected`. Rust never sends a sentence.
 
 ## Adding a command (checklist)
 

@@ -3,6 +3,7 @@ pub mod escpos;
 pub mod listener;
 mod locale;
 pub mod receipts;
+pub mod settings;
 mod ui;
 
 use std::sync::Arc;
@@ -55,8 +56,13 @@ pub fn run() {
             let handle = app.handle();
             ui::build_tray(handle)?;
 
-            let shared = Arc::new(listener::Shared::new(receipts::Receipts::default()));
-            app.manage(Arc::clone(&shared));
+            let settings_path = ui::settings_path(handle)?;
+            let settings = settings::Settings::load(&settings_path);
+            app.manage(ui::SettingsPath(settings_path));
+            app.manage(Arc::new(listener::Shared::new(
+                receipts::Receipts::default(),
+                settings,
+            )));
             let (events, mut received) = mpsc::unbounded_channel();
             let forwarder = handle.clone();
             // One consumer, so the webview sees events in the order the listener made them.
@@ -65,12 +71,10 @@ pub fn run() {
                     ui::forward(&forwarder, event);
                 }
             });
-            tauri::async_runtime::spawn(listener::run(
-                listener::DEFAULT_ADDR,
-                listener::Limits::PRODUCTION,
-                shared,
-                events,
-            ));
+            app.manage(ui::Events(events));
+            app.manage(ui::ListenerTask::default());
+            let starter = handle.clone();
+            tauri::async_runtime::spawn(async move { ui::restart_listener(&starter).await });
 
             // The window is created hidden (tauri.conf.json) so a login launch never flashes it.
             let autostart = std::env::args().any(|arg| arg == AUTOSTART_ARG);
@@ -95,7 +99,9 @@ pub fn run() {
             ui::app_locale,
             ui::get_receipts,
             ui::get_receipt,
-            ui::get_listener_status
+            ui::get_listener_status,
+            ui::get_settings,
+            ui::set_settings
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

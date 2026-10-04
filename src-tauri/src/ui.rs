@@ -1,19 +1,105 @@
 //! UI bridge: tray, app menu, window show/hide and the webview's commands. No emulator
 //! logic here.
 
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+use serde::Serialize;
 #[cfg(target_os = "macos")]
 use tauri::menu::Submenu;
 
+use tauri::async_runtime::JoinHandle;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_opener::OpenerExt as _;
+use tokio::sync::mpsc;
 
-use crate::listener::{self, BindError, Event, ListenerStatus, Shared};
+use crate::listener::{self, lock, BindError, Event, Limits, ListenerStatus, Shared};
 use crate::locale::{Locale, Strings};
 use crate::receipts::{ReceiptSummary, ReceiptView};
+use crate::settings::{self, Settings};
+
+/// A refused command: an i18n key the webview translates. Rust never sends a sentence.
+#[derive(Debug, Serialize)]
+pub struct UiError {
+    key: &'static str,
+}
+
+impl UiError {
+    fn new(key: &'static str) -> Self {
+        Self { key }
+    }
+}
+
+/// Where the listener sends its events (the forwarder in `lib.rs` emits them).
+pub struct Events(pub mpsc::UnboundedSender<Event>);
+
+/// The running listener task, replaced when the port or network changes.
+#[derive(Default)]
+pub struct ListenerTask(Mutex<Option<JoinHandle<()>>>);
+
+/// The settings file.
+pub struct SettingsPath(pub PathBuf);
+
+/// Starts the listener on the address in the settings, after stopping the previous one:
+/// awaiting the aborted task means its socket is closed before the new bind.
+pub async fn restart_listener(app: &AppHandle) {
+    let previous = lock(&app.state::<ListenerTask>().0).take();
+    if let Some(previous) = previous {
+        previous.abort();
+        let _ = previous.await;
+    }
+    let shared = Arc::clone(&app.state::<Arc<Shared>>());
+    let addr = lock(&shared.settings).addr();
+    let events = app.state::<Events>().0.clone();
+    let task = tauri::async_runtime::spawn(listener::run(addr, Limits::PRODUCTION, shared, events));
+    *lock(&app.state::<ListenerTask>().0) = Some(task);
+}
+
+#[tauri::command]
+pub fn get_settings(shared: State<'_, Arc<Shared>>) -> Settings {
+    lock(&shared.settings).clone()
+}
+
+/// Validates, saves and applies new settings. A new port or network restarts the listener;
+/// paper and code page apply to the next connections.
+#[tauri::command]
+pub async fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings, UiError> {
+    settings
+        .validate()
+        .map_err(|invalid| UiError::new(invalid.key()))?;
+    let path = app.state::<SettingsPath>().0.clone();
+    if let Err(error) = settings.save(&path) {
+        log::error!("settings_save_failed path={} error={error}", path.display());
+        return Err(UiError::new("settings.errors.save"));
+    }
+    let restart = {
+        let shared = app.state::<Arc<Shared>>();
+        let mut current = lock(&shared.settings);
+        let restart = current.addr() != settings.addr();
+        *current = settings.clone();
+        restart
+    };
+    log::info!(
+        "settings_changed port={} bind={:?} paper={:?} code_page={} sound={}",
+        settings.port,
+        settings.bind,
+        settings.paper,
+        settings.code_page,
+        settings.sound
+    );
+    if restart {
+        restart_listener(&app).await;
+    }
+    Ok(settings)
+}
+
+/// The settings file path in the app's config folder.
+pub fn settings_path(app: &AppHandle) -> tauri::Result<PathBuf> {
+    Ok(app.path().app_config_dir()?.join(settings::FILE_NAME))
+}
 
 const PRODUCT_NAME: &str = "Thermal Printer Emulator";
 

@@ -2,7 +2,7 @@
 //! connection runs in its own task, so a slow or broken client never blocks the others.
 
 use std::io::ErrorKind;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
@@ -13,11 +13,8 @@ use tokio::sync::{mpsc, Semaphore};
 use tokio::time::{sleep, timeout};
 
 use crate::capture::Capture;
-use crate::escpos::printer::Paper;
 use crate::receipts::{ReceiptState, ReceiptSummary, Receipts};
-
-/// Every interface (decision 2): POS terminals print from other machines.
-pub const DEFAULT_ADDR: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 9100));
+use crate::settings::Settings;
 
 const READ_BUFFER_BYTES: usize = 8 * 1024;
 /// Pause after a failed `accept` (e.g. out of file descriptors), so it does not spin.
@@ -82,13 +79,16 @@ pub enum Event {
 pub struct Shared {
     pub receipts: Mutex<Receipts>,
     pub status: Mutex<ListenerStatus>,
+    /// Paper and code page are read by each new connection.
+    pub settings: Mutex<Settings>,
 }
 
 impl Shared {
-    pub fn new(receipts: Receipts) -> Self {
+    pub fn new(receipts: Receipts, settings: Settings) -> Self {
         Self {
             receipts: Mutex::new(receipts),
             status: Mutex::new(ListenerStatus::Starting),
+            settings: Mutex::new(settings),
         }
     }
 }
@@ -224,8 +224,12 @@ async fn receive(
                     Verdict::Accept => {}
                 }
                 log::info!("connection_accepted peer={peer}");
+                let (paper, code_page) = {
+                    let settings = lock(&shared.settings);
+                    (settings.paper, settings.code_page())
+                };
                 capture
-                    .insert(Capture::new(peer, Paper::Mm80, shared, events))
+                    .insert(Capture::new(peer, paper, code_page, shared, events))
                     .feed(&std::mem::take(&mut head))
             }
         };

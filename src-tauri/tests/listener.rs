@@ -8,6 +8,7 @@ use thermal_printer_emulator_lib::listener::{
     self, BindError, Event, Limits, ListenerStatus, Shared,
 };
 use thermal_printer_emulator_lib::receipts::{Cut, ReceiptState, ReceiptSummary, Receipts};
+use thermal_printer_emulator_lib::settings::Settings;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
@@ -31,7 +32,7 @@ struct Harness {
 impl Harness {
     async fn start(limits: Limits) -> Self {
         let addr: SocketAddr = "127.0.0.1:0".parse().expect("valid address");
-        let shared = Arc::new(Shared::new(Receipts::default()));
+        let shared = Arc::new(Shared::new(Receipts::default(), Settings::default()));
         let (sender, events) = mpsc::unbounded_channel();
         tokio::spawn(listener::run(addr, limits, Arc::clone(&shared), sender));
         let mut harness = Self {
@@ -251,7 +252,7 @@ async fn keeps_an_esc_split_from_its_at() {
 async fn retries_until_the_port_is_free() {
     let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("binds");
     let addr = taken.local_addr().expect("has an address");
-    let shared = Arc::new(Shared::new(Receipts::default()));
+    let shared = Arc::new(Shared::new(Receipts::default(), Settings::default()));
     let (sender, mut events) = mpsc::unbounded_channel();
     tokio::spawn(listener::run(addr, FAST, Arc::clone(&shared), sender));
 

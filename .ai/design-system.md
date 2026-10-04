@@ -30,6 +30,8 @@ font, sized so that 48 columns (font A) fill 80 mm paper (P2).
 
 - `cn()` in `src/shared/styles/cn.ts` (`clsx` + `tailwind-merge`) composes conditional
   classes.
+- `src/shared/styles/patterns.ts`: `INTERACTIVE` (hover/active/disabled feedback),
+  `BUTTON` (bordered secondary button), `FIELD` (inputs and selects). Use them directly.
 - UI primitives go to `src/components/ui/<name>/index.tsx` **on their second use**. There
   are none yet.
 

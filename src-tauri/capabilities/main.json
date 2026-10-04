@@ -8,6 +8,8 @@
     "allow-app-locale",
     "allow-get-receipts",
     "allow-get-receipt",
-    "allow-get-listener-status"
+    "allow-get-listener-status",
+    "allow-get-settings",
+    "allow-set-settings"
   ]
 }

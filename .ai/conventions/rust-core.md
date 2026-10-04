@@ -14,6 +14,7 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `listener.rs`        | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
 | `receipts.rs`        | Receipts in memory: limits, eviction, `ReceiptSummary` / `ReceiptView`, raw bytes (`flows/print-job.md`)                      |
 | `capture.rs`         | One connection's bytes → receipts: start on visible output, split on cut (`flows/print-job.md`)                               |
+| `settings.rs`        | `Settings`: defaults, validation, load (defaults on any problem), atomic save (`flows/settings.md`)                           |
 | `escpos/mod.rs`      | `Decoder`: parser + printer for one connection, outputs tagged with stream offsets                                            |
 | `escpos/parser.rs`   | ESC/POS bytes → `Command`, streaming (`conventions/escpos.md`)                                                                |
 | `escpos/codepage.rs` | `ESC t` tables → `char`; tables generated into `codepage_tables.rs` by `scripts/codepages.py`                                 |

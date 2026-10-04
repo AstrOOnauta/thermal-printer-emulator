@@ -107,12 +107,13 @@ src/                         # Webview (React)
   app/index.tsx              # header (status badge) + failure hint + screen
   app/listener-status/       # status badge, failure hint
   screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/ (canvas slices)
+  screens/settings/          # settings form (saved and applied at once)
   shared/
-    api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts
+    api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
     interfaces/emulator.ts   # bridge types (mirror of receipts.rs / listener.rs)
     hooks/                   # use-translation, use-synced (event + read), use-near-viewport
-    utils/                   # format (+ test), receipt-layout (+ test), draw-receipt (canvas)
-    styles/                  # globals.css (tokens), cn.ts
+    utils/                   # format, receipt-layout, ui-error (+ tests), draw-receipt (canvas)
+    styles/                  # globals.css (tokens), cn.ts, patterns.ts (BUTTON, FIELD)
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts
 src-tauri/                   # Rust core
   src/main.rs                # entry (calls lib::run)
@@ -122,6 +123,7 @@ src-tauri/                   # Rust core
   src/listener.rs            # TCP 9100: bind, accept, one task per connection
   src/capture.rs             # one connection → receipts (split on cut)
   src/receipts.rs            # receipts in memory, limits
+  src/settings.rs            # settings.json: defaults, validation, load/save
   src/escpos/                # our ESC/POS decoder: parser, codepage, printer, bitmap, barcode
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)

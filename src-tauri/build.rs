@@ -7,6 +7,8 @@ fn main() {
             "get_receipts",
             "get_receipt",
             "get_listener_status",
+            "get_settings",
+            "set_settings",
         ]),
     ))
     .expect("failed to run tauri-build");

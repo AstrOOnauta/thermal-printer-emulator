@@ -8,6 +8,7 @@ mod codepage_tables;
 pub mod parser;
 pub mod printer;
 
+use codepage::CodePage;
 use parser::Parser;
 use printer::{Output, Paper, Printer};
 
@@ -19,10 +20,10 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(paper: Paper) -> Self {
+    pub fn new(paper: Paper, code_page: CodePage) -> Self {
         Self {
             parser: Parser::default(),
-            printer: Printer::new(paper),
+            printer: Printer::with_code_page(paper, code_page),
             scratch: Vec::new(),
         }
     }

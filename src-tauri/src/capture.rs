@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 
 use tokio::sync::mpsc;
 
+use crate::escpos::codepage::CodePage;
 use crate::escpos::printer::{Output, Paper};
 use crate::escpos::Decoder;
 use crate::listener::{lock, Event, Shared};
@@ -38,6 +39,7 @@ impl<'a> Capture<'a> {
     pub fn new(
         peer: SocketAddr,
         paper: Paper,
+        code_page: CodePage,
         shared: &'a Shared,
         events: &'a mpsc::UnboundedSender<Event>,
     ) -> Self {
@@ -46,7 +48,7 @@ impl<'a> Capture<'a> {
             paper,
             shared,
             events,
-            decoder: Decoder::new(paper),
+            decoder: Decoder::new(paper, code_page),
             receipt: None,
             pending: Vec::new(),
             offset: 0,
@@ -197,6 +199,7 @@ impl<'a> Capture<'a> {
 mod tests {
     use super::*;
     use crate::receipts::Receipts;
+    use crate::settings::Settings;
 
     fn peer() -> SocketAddr {
         "10.0.0.2:4000".parse().expect("valid address")
@@ -205,9 +208,9 @@ mod tests {
     /// Feeds `chunks` through one connection and returns (state, size, raw, blocks) per
     /// receipt.
     fn capture(chunks: &[&[u8]]) -> Vec<(ReceiptState, Option<Cut>, Vec<u8>, usize)> {
-        let shared = Shared::new(Receipts::default());
+        let shared = Shared::new(Receipts::default(), Settings::default());
         let (events, _received) = mpsc::unbounded_channel();
-        let mut capture = Capture::new(peer(), Paper::Mm80, &shared, &events);
+        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared, &events);
         for chunk in chunks {
             capture.feed(chunk).expect("fits");
         }
@@ -280,18 +283,18 @@ mod tests {
 
     #[test]
     fn the_store_limit_stops_the_capture() {
-        let shared = Shared::new(Receipts::new(10, 200));
+        let shared = Shared::new(Receipts::new(10, 200), Settings::default());
         let (events, _received) = mpsc::unbounded_channel();
-        let mut capture = Capture::new(peer(), Paper::Mm80, &shared, &events);
+        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared, &events);
         capture.feed(b"\x1b@A\n").expect("fits");
         assert_eq!(capture.feed(&[b'x'; 300]), Err(TooLarge));
     }
 
     #[test]
     fn collects_status_replies_without_starting_a_receipt() {
-        let shared = Shared::new(Receipts::default());
+        let shared = Shared::new(Receipts::default(), Settings::default());
         let (events, _received) = mpsc::unbounded_channel();
-        let mut capture = Capture::new(peer(), Paper::Mm80, &shared, &events);
+        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared, &events);
         capture.feed(b"\x10\x04\x01\x1dr\x01").expect("fits");
         assert_eq!(capture.take_replies(), vec![0x12, 0x00]);
         assert!(capture.take_replies().is_empty());

@@ -4,7 +4,7 @@
 //! Geometry is a 203 dpi, 80 mm (576 dots) or 58 mm (384 dots) printer with Epson's fonts:
 //! font A 12×24 dots, font B 9×17, default line spacing 30 dots.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::barcode::{self, Symbology};
 use super::bitmap::Bitmap;
@@ -15,7 +15,7 @@ pub const DEFAULT_LINE_SPACING: u16 = 30;
 /// Default tab stops: every 8 character columns.
 const DEFAULT_TAB_COLUMNS: u16 = 8;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Paper {
     Mm80,
@@ -225,6 +225,8 @@ struct Line {
 
 pub struct Printer {
     paper: Paper,
+    /// What `ESC @` goes back to: the configured default (decision 4).
+    default_code_page: CodePage,
     code_page: CodePage,
     style: Style,
     alignment: Alignment,
@@ -245,9 +247,14 @@ pub struct Printer {
 
 impl Printer {
     pub fn new(paper: Paper) -> Self {
+        Self::with_code_page(paper, CodePage::DEFAULT)
+    }
+
+    pub fn with_code_page(paper: Paper, code_page: CodePage) -> Self {
         Self {
             paper,
-            code_page: CodePage::DEFAULT,
+            default_code_page: code_page,
+            code_page,
             style: Style::DEFAULT,
             alignment: Alignment::Left,
             char_spacing: 0,
@@ -277,7 +284,7 @@ impl Printer {
             Command::Tab => self.tab(),
             Command::Initialize => {
                 let unknown = self.unknown_commands;
-                *self = Self::new(self.paper);
+                *self = Self::with_code_page(self.paper, self.default_code_page);
                 self.unknown_commands = unknown;
             }
             Command::PrintMode(mode) => {
@@ -1125,5 +1132,20 @@ mod tests {
             replies(b"\x10\x04\x05\x1dr\x09\x1dI\x7f").is_empty(),
             "unknown requests"
         );
+    }
+
+    #[test]
+    fn initialize_restores_the_configured_code_page() {
+        let mut printer = Printer::with_code_page(Paper::Mm80, CodePage::Cp850);
+        let mut out = Vec::new();
+        let mut parser = Parser::default();
+        // 0xC6 is "ã" in CP850; after ESC t 0 and ESC @ it must be CP850 again.
+        parser.feed(b"\xc6\x1bt\x00\x1b@\xc6\n", |command, _| {
+            printer.apply(command, &mut out)
+        });
+        let Output::Block(Block::Line { segments, .. }) = &out[0] else {
+            panic!("{out:?}");
+        };
+        assert_eq!(segments[0].text, "ã");
     }
 }
