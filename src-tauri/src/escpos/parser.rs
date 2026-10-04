@@ -119,6 +119,27 @@ pub enum Command {
     },
     /// `GS ( L` / `GS 8 L` function 50 (or 2): print the stored graphic.
     PrintGraphics,
+    /// `GS h n`: barcode height in dots.
+    BarcodeHeight(u8),
+    /// `GS w n`: barcode module width in dots.
+    BarcodeWidth(u8),
+    /// `GS H n`: HRI text 0 none, 1 above, 2 below, 3 both.
+    HriPosition(u8),
+    /// `GS f n`: HRI font, 0 A, 1 B.
+    HriFont(u8),
+    /// `GS k m …`: `symbology` is the raw `m`.
+    Barcode {
+        symbology: u8,
+        data: Vec<u8>,
+    },
+    /// `GS ( k` function 167: QR module size in dots.
+    QrModuleSize(u8),
+    /// `GS ( k` function 169: error correction, 48 L, 49 M, 50 Q, 51 H.
+    QrErrorCorrection(u8),
+    /// `GS ( k` function 180: store the QR data.
+    QrStore(Vec<u8>),
+    /// `GS ( k` function 181: print the stored QR.
+    QrPrint,
     /// A known command with no visible effect here.
     Ignored,
     /// An `ESC`/`GS`/`FS` command this parser does not know. Two bytes skipped.
@@ -330,6 +351,7 @@ fn parse_gs(input: &[u8]) -> Step {
                 let len = 5 + usize::from(le16(low, high));
                 fixed(input, len, |b| match function {
                     b'L' => graphics(&b[5..]),
+                    b'k' => two_dimensional(&b[5..]),
                     _ => Command::Ignored,
                 })
             }
@@ -353,7 +375,11 @@ fn parse_gs(input: &[u8]) -> Step {
         },
         // One parameter: print downloaded image, head control, HRI position, ASB, smoothing,
         // HRI font, barcode height, ASB ink, barcode width, print position mode.
-        b'/' | b'E' | b'H' | b'T' | b'a' | b'b' | b'f' | b'h' | b'j' | b'w' => skip(input, 3),
+        b'h' => fixed(input, 3, |b| Command::BarcodeHeight(b[2])),
+        b'w' => fixed(input, 3, |b| Command::BarcodeWidth(b[2])),
+        b'H' => fixed(input, 3, |b| Command::HriPosition(b[2] & 0x03)),
+        b'f' => fixed(input, 3, |b| Command::HriFont(b[2] & 0x01)),
+        b'/' | b'E' | b'T' | b'a' | b'b' | b'j' => skip(input, 3),
         // Two parameters: page-mode vertical positions, motion units.
         b'$' | b'\\' | b'P' => skip(input, 4),
         // GS ^ r t m: execute macro.
@@ -425,14 +451,35 @@ fn gs_barcode(input: &[u8]) -> Step {
     };
     if kind <= 6 {
         match input[3..].iter().position(|&byte| byte == 0) {
-            Some(end) => skip(input, end + 4),
+            Some(end) => Step::Done(
+                Command::Barcode {
+                    symbology: kind,
+                    data: input[3..3 + end].to_vec(),
+                },
+                end + 4,
+            ),
             None => Step::Incomplete,
         }
     } else {
         match input.get(3) {
-            Some(&len) => skip(input, 4 + usize::from(len)),
+            Some(&len) => fixed(input, 4 + usize::from(len), |b| Command::Barcode {
+                symbology: kind,
+                data: b[4..].to_vec(),
+            }),
             None => Step::Incomplete,
         }
+    }
+}
+
+/// The payload of `GS ( k` after its length: `cn fn [parameters]`. Only QR (`cn` 49) is
+/// drawn; PDF417, MaxiCode, DataMatrix, Aztec are skipped.
+fn two_dimensional(payload: &[u8]) -> Command {
+    match payload {
+        [49, 67, size, ..] => Command::QrModuleSize(*size),
+        [49, 69, level, ..] => Command::QrErrorCorrection(*level),
+        [49, 80, 48, data @ ..] => Command::QrStore(data.to_vec()),
+        [49, 81, 48, ..] => Command::QrPrint,
+        _ => Command::Ignored,
     }
 }
 
@@ -634,14 +681,11 @@ mod tests {
     fn skips_data_carrying_commands_by_their_length() {
         // Each one is followed by text that must survive intact.
         for skipped in [
-            &b"\x1d(k\x03\x00\x31\x43\x05"[..],               // QR module size
-            b"\x1dk\x04*AB*\x00",                             // CODE39, NUL-terminated
-            b"\x1dkI\x03{BA",                                 // CODE128, counted
-            b"\x1d8L\x02\x00\x00\x00\x30\x45",                // graphics, unknown function
+            &b"\x1d8L\x02\x00\x00\x00\x30\x45"[..], // graphics, unknown function
             b"\x1d*\x01\x01\x01\x02\x03\x04\x05\x06\x07\x08", // downloaded image 1×1
             b"\x1b&\x03\x41\x42\x01\x01\x02\x03\x01\x04\x05\x06", // 2 user chars
             b"\x1cq\x01\x01\x00\x01\x00\x01\x02\x03\x04\x05\x06\x07\x08", // NV image
-            b"\x1b(A\x02\x00\x01\x02",                        // ESC ( A
+            b"\x1b(A\x02\x00\x01\x02",              // ESC ( A
         ] {
             let mut stream = skipped.to_vec();
             stream.extend_from_slice(b"ok");
@@ -701,6 +745,43 @@ mod tests {
             }
         );
         assert_eq!(one(b"\x1d(L\x02\x0002"), Command::PrintGraphics);
+    }
+
+    #[test]
+    fn barcode_and_qr_commands() {
+        assert_eq!(one(b"\x1dh\x50"), Command::BarcodeHeight(80));
+        assert_eq!(one(b"\x1dw\x02"), Command::BarcodeWidth(2));
+        assert_eq!(one(b"\x1dH2"), Command::HriPosition(2));
+        assert_eq!(one(b"\x1df\x01"), Command::HriFont(1));
+        assert_eq!(
+            one(b"\x1dk\x04AB\x00"),
+            Command::Barcode {
+                symbology: 4,
+                data: b"AB".to_vec()
+            }
+        );
+        assert_eq!(
+            one(b"\x1dkI\x03{BA"),
+            Command::Barcode {
+                symbology: 73,
+                data: b"{BA".to_vec()
+            }
+        );
+        assert_eq!(one(b"\x1d(k\x03\x00\x31\x43\x05"), Command::QrModuleSize(5));
+        assert_eq!(
+            one(b"\x1d(k\x03\x00\x31\x45\x31"),
+            Command::QrErrorCorrection(49)
+        );
+        assert_eq!(
+            one(b"\x1d(k\x05\x00\x31\x50\x30hi"),
+            Command::QrStore(b"hi".to_vec())
+        );
+        assert_eq!(one(b"\x1d(k\x03\x00\x31\x51\x30"), Command::QrPrint);
+        assert_eq!(
+            one(b"\x1d(k\x03\x00\x30\x43\x05"),
+            Command::Ignored,
+            "PDF417"
+        );
     }
 
     #[test]

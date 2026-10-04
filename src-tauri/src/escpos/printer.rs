@@ -6,6 +6,7 @@
 
 use serde::Serialize;
 
+use super::barcode::{self, Symbology};
 use super::bitmap::Bitmap;
 use super::codepage::CodePage;
 use super::parser::{Alignment, Command};
@@ -123,6 +124,41 @@ impl Style {
     };
 }
 
+#[derive(Clone, Copy)]
+struct BarcodeSettings {
+    height: u16,
+    module: u16,
+    /// Bit 0: HRI above, bit 1: below.
+    hri: u8,
+    hri_font: Font,
+}
+
+impl BarcodeSettings {
+    /// Epson's power-on values.
+    const DEFAULT: Self = Self {
+        height: 162,
+        module: 3,
+        hri: 0,
+        hri_font: Font::A,
+    };
+}
+
+struct QrSettings {
+    module: u16,
+    level: u8,
+    data: Vec<u8>,
+}
+
+impl Default for QrSettings {
+    fn default() -> Self {
+        Self {
+            module: 3,
+            level: 48,
+            data: Vec::new(),
+        }
+    }
+}
+
 /// The line being filled. Alignment and the print area are taken when it starts: Epson
 /// applies `ESC a`, `GS L` and `GS W` only at the beginning of a line.
 struct Line {
@@ -153,6 +189,8 @@ pub struct Printer {
     line: Option<Line>,
     /// `GS ( L` function 112 stores it, function 50 prints it.
     graphics: Option<Bitmap>,
+    barcode: BarcodeSettings,
+    qr: QrSettings,
     /// Commands the parser did not know, for the job log.
     pub unknown_commands: usize,
 }
@@ -171,6 +209,8 @@ impl Printer {
             tab_stops: (1..=32).map(|n| n * DEFAULT_TAB_COLUMNS).collect(),
             line: None,
             graphics: None,
+            barcode: BarcodeSettings::DEFAULT,
+            qr: QrSettings::default(),
             unknown_commands: 0,
         }
     }
@@ -301,6 +341,19 @@ impl Printer {
                     self.print_image(bitmap, 1, 1, out);
                 }
             }
+            Command::BarcodeHeight(dots) => self.barcode.height = u16::from(dots.max(1)),
+            Command::BarcodeWidth(dots) => self.barcode.module = u16::from(dots.clamp(1, 6)),
+            Command::HriPosition(position) => self.barcode.hri = position,
+            Command::HriFont(font) => {
+                self.barcode.hri_font = if font == 0 { Font::A } else { Font::B };
+            }
+            Command::Barcode { symbology, data } => {
+                self.print_barcode(Symbology::from_code(symbology), &data, out);
+            }
+            Command::QrModuleSize(dots) => self.qr.module = u16::from(dots.clamp(1, 16)),
+            Command::QrErrorCorrection(level) => self.qr.level = level,
+            Command::QrStore(data) => self.qr.data = data,
+            Command::QrPrint => self.print_qr(out),
             Command::Status(_) | Command::Ignored => {}
             Command::Unknown(_) => self.unknown_commands += 1,
         }
@@ -385,6 +438,101 @@ impl Printer {
         }
     }
 
+    /// `GS k`: bars as an image band, HRI text above and/or below it, centered on the
+    /// bars. Like the printer, a barcode wider than the print area is not printed.
+    fn print_barcode(&mut self, symbology: Symbology, data: &[u8], out: &mut Vec<Output>) {
+        let Some(encoded) = barcode::encode(symbology, data) else {
+            return;
+        };
+        let settings = self.barcode;
+        let widths: Vec<u16> = encoded.dots(settings.module).collect();
+        let total: u16 = widths.iter().copied().fold(0, u16::saturating_add);
+        let area = self.area_width.min(self.paper.dots() - self.left_margin);
+        if total > area {
+            return;
+        }
+        let mut bars = Bitmap::blank(total, settings.height);
+        let mut x = 0;
+        for (index, width) in widths.into_iter().enumerate() {
+            if index % 2 == 0 {
+                for dx in x..x + width {
+                    for y in 0..settings.height {
+                        bars.set(dx, y);
+                    }
+                }
+            }
+            x += width;
+        }
+        self.end_line_if_started(out);
+        let left = self.left_margin + self.align_offset(area, total);
+        if settings.hri & 1 != 0 {
+            self.hri_line(&encoded.hri, left, total, out);
+        }
+        out.push(Output::Block(Block::Image(Placed {
+            x: left,
+            bitmap: bars,
+        })));
+        if settings.hri & 2 != 0 {
+            self.hri_line(&encoded.hri, left, total, out);
+        }
+    }
+
+    fn hri_line(&self, text: &str, left: u16, bars_width: u16, out: &mut Vec<Output>) {
+        let font = self.barcode.hri_font;
+        let (cell_width, cell_height) = font.cell();
+        let text_width = cell_width.saturating_mul(text.chars().count() as u16);
+        out.push(Output::Block(Block::Line {
+            height: cell_height,
+            ascent: cell_height,
+            segments: vec![Segment {
+                x: left + bars_width.saturating_sub(text_width) / 2,
+                text: text.to_owned(),
+                font,
+                width: 1,
+                height: 1,
+                advance: cell_width,
+                bold: false,
+                underline: 0,
+                reverse: false,
+            }],
+            images: Vec::new(),
+        }));
+    }
+
+    /// `GS ( k` print: the stored data at the selected size and error correction, no quiet
+    /// zone, aligned like any image. Data that does not fit a QR prints nothing.
+    fn print_qr(&mut self, out: &mut Vec<Output>) {
+        if self.qr.data.is_empty() {
+            return;
+        }
+        let level = match self.qr.level {
+            49 => qrcode::EcLevel::M,
+            50 => qrcode::EcLevel::Q,
+            51 => qrcode::EcLevel::H,
+            _ => qrcode::EcLevel::L,
+        };
+        let Ok(code) = qrcode::QrCode::with_error_correction_level(&self.qr.data, level) else {
+            return;
+        };
+        let modules = code.width() as u16;
+        let mut bitmap = Bitmap::blank(modules, modules);
+        for (index, color) in code.to_colors().into_iter().enumerate() {
+            if color == qrcode::Color::Dark {
+                bitmap.set(index as u16 % modules, index as u16 / modules);
+            }
+        }
+        let module = self.qr.module;
+        self.print_image(bitmap, module, module, out);
+    }
+
+    fn align_offset(&self, area: u16, width: u16) -> u16 {
+        match self.alignment {
+            Alignment::Left => 0,
+            Alignment::Center => area.saturating_sub(width) / 2,
+            Alignment::Right => area.saturating_sub(width),
+        }
+    }
+
     /// A band of its own, aligned by `ESC a` inside the print area, after any started
     /// line. The bitmap is cropped to the area before scaling, so memory stays bounded.
     fn print_image(&mut self, bitmap: Bitmap, sx: u16, sy: u16, out: &mut Vec<Output>) {
@@ -395,11 +543,7 @@ impl Printer {
         if bitmap.width == 0 || bitmap.height == 0 {
             return;
         }
-        let offset = match self.alignment {
-            Alignment::Left => 0,
-            Alignment::Center => (width - bitmap.width) / 2,
-            Alignment::Right => width - bitmap.width,
-        };
+        let offset = self.align_offset(width, bitmap.width);
         out.push(Output::Block(Block::Image(Placed {
             x: left + offset,
             bitmap,
@@ -828,5 +972,78 @@ mod tests {
         let printed = images(&[&store[..], b"\x1ba\x02\x1d(L\x02\x0002"].concat());
         assert_eq!((printed[0].x, printed[0].bitmap.width), (576 - 16, 16));
         assert!(images(b"\x1d(L\x02\x0002").is_empty(), "nothing stored");
+    }
+
+    #[test]
+    fn barcodes_are_centered_with_hri_below() {
+        let out = print(Paper::Mm80, b"\x1ba\x01\x1dH\x02\x1dk\x02590123412345\x00");
+        let Output::Block(Block::Image(bars)) = &out[0] else {
+            panic!("{out:?}");
+        };
+        // EAN-13 is 95 modules of 3 dots, 162 dots tall by default.
+        assert_eq!(
+            (bars.x, bars.bitmap.width, bars.bitmap.height),
+            (145, 285, 162)
+        );
+        assert!(bars.bitmap.get(0, 0) && !bars.bitmap.get(3, 0) && bars.bitmap.get(6, 161));
+        let Output::Block(Block::Line { segments, .. }) = &out[1] else {
+            panic!("{out:?}");
+        };
+        assert_eq!(
+            texts(segments),
+            vec![(145 + (285 - 13 * 12) / 2, "5901234123457")]
+        );
+    }
+
+    #[test]
+    fn barcode_settings_and_hri_above() {
+        let out = print(
+            Paper::Mm80,
+            b"\x1dh\x28\x1dw\x02\x1dH\x01\x1df\x01\x1dkI\x06{BAb12",
+        );
+        assert!(
+            matches!(&out[0], Output::Block(Block::Line { segments, .. })
+            if segments[0].text == "Ab12" && segments[0].font == Font::B)
+        );
+        let Output::Block(Block::Image(bars)) = &out[1] else {
+            panic!("{out:?}");
+        };
+        // CODE128: start + 4 characters + checksum (11 modules each) + stop (13), 2 dots.
+        assert_eq!(
+            (bars.bitmap.width, bars.bitmap.height),
+            ((6 * 11 + 13) * 2, 40)
+        );
+    }
+
+    #[test]
+    fn barcodes_wider_than_the_paper_or_invalid_are_skipped() {
+        let long = [&b"\x1dw\x06\x1dk\x49\x20{B"[..], &[b'X'; 30]].concat();
+        assert!(images(&long).is_empty());
+        assert!(
+            images(b"\x1dk\x02ABC\x00").is_empty(),
+            "EAN-13 takes digits"
+        );
+    }
+
+    #[test]
+    fn qr_codes_use_the_stored_data_and_module_size() {
+        let qr = b"\x1ba\x01\x1d(k\x03\x00\x31\x43\x04\x1d(k\x05\x00\x31\x50\x30hi\x1d(k\x03\x00\x31\x51\x30";
+        let printed = images(qr);
+        // "hi" fits version 1: 21 modules of 4 dots.
+        assert_eq!(
+            (
+                printed[0].x,
+                printed[0].bitmap.width,
+                printed[0].bitmap.height
+            ),
+            (246, 84, 84)
+        );
+        // Top-left finder pattern: dark corner, light ring at module 1.
+        assert!(printed[0].bitmap.get(0, 0) && printed[0].bitmap.get(3, 3));
+        assert!(!printed[0].bitmap.get(4, 4));
+        assert!(
+            images(b"\x1d(k\x03\x00\x31\x51\x30").is_empty(),
+            "nothing stored"
+        );
     }
 }

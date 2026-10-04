@@ -19,22 +19,23 @@ Guarantees:
   the emulator ignores. An unknown `ESC x` / `GS x` / `FS x` skips two bytes
   (`Command::Unknown`); a lone `DLE` skips one, as the printer does.
 
-| Bytes                                                                         | Command                                                |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `0x20–0x7E`, `0x80–0xFF` runs                                                 | `Text` (still in the selected code page)               |
-| `LF`, `CR`, `HT`                                                              | `LineFeed`, `CarriageReturn`, `Tab`                    |
-| `ESC @`                                                                       | `Initialize`                                           |
-| `ESC !`, `ESC E`/`ESC G`, `ESC -`, `ESC M`, `GS !`, `GS B`                    | print mode, emphasis, underline, font, size, reverse   |
-| `ESC a`, `ESC SP`, `ESC 2`/`ESC 3`, `GS L`, `GS W`, `ESC $`, `ESC \`, `ESC D` | alignment, spacing, margins, positions, tab stops      |
-| `ESC J`, `ESC d`                                                              | feed dots / lines                                      |
-| `ESC t`                                                                       | code table                                             |
-| `GS V`, `ESC i`, `ESC m`                                                      | `Cut { partial, feed }`                                |
-| `ESC p`, `DLE DC4 1`                                                          | `DrawerPulse`                                          |
-| `ESC B n t`                                                                   | `Beep` (buzzer on many ESC/POS printers)               |
-| `DLE EOT n`, `GS r n`, `GS I n`                                               | `Status(..)`                                           |
-| `GS v 0`, `ESC *`, `GS ( L` / `GS 8 L` (functions 112, 50)                    | `Raster`, `BitImage`, `StoreGraphics`, `PrintGraphics` |
-| QR (`GS ( k`), barcodes (`GS k`)                                              | skipped by length for now (next P2 commit)             |
-| Page mode, NV/user images, macros, Kanji, sensors, counters                   | `Ignored` (skipped by length)                          |
+| Bytes                                                                         | Command                                                                              |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `0x20–0x7E`, `0x80–0xFF` runs                                                 | `Text` (still in the selected code page)                                             |
+| `LF`, `CR`, `HT`                                                              | `LineFeed`, `CarriageReturn`, `Tab`                                                  |
+| `ESC @`                                                                       | `Initialize`                                                                         |
+| `ESC !`, `ESC E`/`ESC G`, `ESC -`, `ESC M`, `GS !`, `GS B`                    | print mode, emphasis, underline, font, size, reverse                                 |
+| `ESC a`, `ESC SP`, `ESC 2`/`ESC 3`, `GS L`, `GS W`, `ESC $`, `ESC \`, `ESC D` | alignment, spacing, margins, positions, tab stops                                    |
+| `ESC J`, `ESC d`                                                              | feed dots / lines                                                                    |
+| `ESC t`                                                                       | code table                                                                           |
+| `GS V`, `ESC i`, `ESC m`                                                      | `Cut { partial, feed }`                                                              |
+| `ESC p`, `DLE DC4 1`                                                          | `DrawerPulse`                                                                        |
+| `ESC B n t`                                                                   | `Beep` (buzzer on many ESC/POS printers)                                             |
+| `DLE EOT n`, `GS r n`, `GS I n`                                               | `Status(..)`                                                                         |
+| `GS v 0`, `ESC *`, `GS ( L` / `GS 8 L` (functions 112, 50)                    | `Raster`, `BitImage`, `StoreGraphics`, `PrintGraphics`                               |
+| `GS h`, `GS w`, `GS H`, `GS f`, `GS k`                                        | barcode height, module width, HRI position/font, `Barcode`                           |
+| `GS ( k` cn 49, fn 67/69/80/81                                                | `QrModuleSize`, `QrErrorCorrection`, `QrStore`, `QrPrint` (other 2D codes `Ignored`) |
+| Page mode, NV/user images, macros, Kanji, sensors, counters                   | `Ignored` (skipped by length)                                                        |
 
 Other control bytes (`0x00–0x1F`, `0x7F`) are `Ignored`, one byte each.
 
@@ -119,3 +120,31 @@ PNG, no `data:` URL, so the CSP stays closed.
   stacks without gaps: the line is `max(line spacing, tallest stripe)` tall.
 - Everything is cropped to the print area **before** scaling, so an image costs at most
   4× its input bytes in memory.
+
+## Barcodes (`barcode.rs`) and QR codes
+
+| `GS k m`                                      | Symbology | Data                                                                                                                            |
+| --------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 0 / 65                                        | UPC-A     | 11 digits (check digit added) or 12                                                                                             |
+| 2 / 67                                        | EAN-13    | 12 digits (check digit added) or 13                                                                                             |
+| 3 / 68                                        | EAN-8     | 7 digits (check digit added) or 8                                                                                               |
+| 4 / 69                                        | CODE39    | `0–9 A–Z space $ % + - . /`; `*` start/stop added when missing                                                                  |
+| 5 / 70                                        | ITF       | an even number of digits                                                                                                        |
+| 6 / 71                                        | CODABAR   | starts and ends with `A–D`                                                                                                      |
+| 73                                            | CODE128   | starts with `{A`/`{B`/`{C`; `{A`/`{B`/`{C` switch, `{S` shift, `{1`–`{4` FNC, `{{` = `{`; in set C each byte 0–99 is two digits |
+| 1/66 (UPC-E), 72 (CODE93), 74+ (GS1 DataBar…) | not drawn |                                                                                                                                 |
+
+- Defaults (Epson power-on): height 162 dots, module 3 dots, no HRI, HRI font A. `ESC @`
+  restores them.
+- Module codes (EAN/UPC/CODE128): element = modules × `GS w`. Narrow/wide codes (CODE39,
+  ITF, CODABAR): narrow = `GS w`, wide = `ceil(5 × w / 2)` (2→5, 3→8, 4→10, 5→13, 6→15).
+- The bars are a `Block::Image`, aligned by `ESC a`. HRI is a `Block::Line` above and/or
+  below, centered on the bars (CODE39 HRI shows the `*`s).
+- **Invalid data or a barcode wider than the print area prints nothing**, like the printer.
+- Tables come from the symbology specs. The tests compare every symbology bit for bit
+  with strings produced by python-barcode, used only as an oracle outside the repo.
+
+QR (`GS ( k`, `cn` 49): module size 1–16 dots (default 3), error correction L/M/Q/H
+(default L), store, print. Encoded with the `qrcode` crate (no default features), drawn
+without a quiet zone as a `Block::Image` aligned by `ESC a`. Nothing stored, or data too
+long for a QR: nothing printed. Model selection (fn 65) is ignored.
