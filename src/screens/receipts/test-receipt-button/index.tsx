@@ -1,43 +1,27 @@
-import { useEffect, useState } from 'react';
-
-import { printTestReceipt } from '@/shared/api/emulator';
-import {
-  type TranslationScope,
-  useTranslation,
-} from '@/shared/hooks/use-translation';
+import type { ITestReceipt } from '@/shared/hooks/use-test-receipt';
+import { useTranslation } from '@/shared/hooks/use-translation';
 import { BUTTON } from '@/shared/styles/patterns';
-import { uiErrorKey } from '@/shared/utils/ui-error';
+import { shortcutLabel } from '@/shared/utils/shortcut';
 
 /** Sends the test receipt; the receipt itself shows up in the list like any other. */
-export function TestReceiptButton() {
+export function TestReceiptButton({ test }: { test: ITestReceipt }) {
   const { t } = useTranslation();
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<TranslationScope | null>(null);
-
-  useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => setError(null), 5000);
-    return () => clearTimeout(timer);
-  }, [error]);
+  const shortcut = shortcutLabel('T');
 
   return (
     <span className="flex items-center gap-2">
-      {error && (
+      {test.error && (
         <span role="alert" className="text-xs text-error">
-          {t(error)}
+          {t(test.error)}
         </span>
       )}
       <button
         type="button"
         className={BUTTON}
-        disabled={sending}
-        onClick={() => {
-          setSending(true);
-          setError(null);
-          printTestReceipt()
-            .catch((reason: unknown) => setError(uiErrorKey(reason)))
-            .finally(() => setSending(false));
-        }}
+        disabled={test.sending}
+        title={`${t('testReceipt.print')} (${shortcut})`}
+        aria-keyshortcuts={shortcut}
+        onClick={test.print}
       >
         {t('testReceipt.print')}
       </button>

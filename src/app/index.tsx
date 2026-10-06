@@ -18,12 +18,18 @@ import {
 } from '@/shared/api/emulator';
 import { getSettings } from '@/shared/api/settings';
 import { useSynced } from '@/shared/hooks/use-synced';
+import { useTestReceipt } from '@/shared/hooks/use-test-receipt';
 import { setLocale, useTranslation } from '@/shared/hooks/use-translation';
 import type {
   IListenerStatus,
   IReceiptSummary,
   ISettings,
 } from '@/shared/interfaces/emulator';
+import {
+  hasCommandKey,
+  isTyping,
+  shortcutLabel,
+} from '@/shared/utils/shortcut';
 
 const STARTING: IListenerStatus = { state: 'starting' };
 const NO_RECEIPTS: IReceiptSummary[] = [];
@@ -39,6 +45,8 @@ export function App() {
   // Bumped when the language changes: re-rendering the tree re-runs every `t()`.
   const [, setLocaleTag] = useState('');
   const settingsButton = useRef<HTMLButtonElement>(null);
+  const clearDialog = useRef<HTMLDialogElement>(null);
+  const testReceipt = useTestReceipt();
 
   useEffect(() => {
     getSettings()
@@ -78,23 +86,49 @@ export function App() {
     settingsButton.current?.focus();
   }, []);
 
+  const hasReceipts = (receipts?.length ?? 0) > 0;
+  const printTest = testReceipt.print;
+
+  // ⌘, settings · ⌘T test receipt · ⌘⌫ clear (Ctrl on Windows and Linux).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!hasCommandKey(event)) return;
+      if (event.key === ',' && settings) {
+        event.preventDefault();
+        setSettingsOpen((open) => !open);
+      } else if (event.key.toLowerCase() === 't' && listening) {
+        event.preventDefault();
+        printTest();
+      } else if (
+        event.key === 'Backspace' &&
+        hasReceipts &&
+        !isTyping(event.target)
+      ) {
+        event.preventDefault();
+        clearDialog.current?.showModal();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [settings, listening, hasReceipts, printTest]);
+
   const local = settings?.bind === 'local';
   const host = local ? '127.0.0.1' : (lanAddress ?? '127.0.0.1');
   const address = listening ? `${host}:${status.port}` : null;
   const kind = local ? 'local' : lanAddress ? 'lan' : 'offline';
-  const hasReceipts = (receipts?.length ?? 0) > 0;
 
   return (
     <main className="flex h-full flex-col">
       <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
         <StatusBar status={status} address={address} kind={kind} />
         <div className="flex shrink-0 items-center gap-2">
-          {listening && hasReceipts && <TestReceiptButton />}
-          {hasReceipts && <ClearButton />}
+          {listening && hasReceipts && <TestReceiptButton test={testReceipt} />}
+          {hasReceipts && <ClearButton dialogRef={clearDialog} />}
           {settings && (
             <IconButton
               ref={settingsButton}
               label={t('nav.settings')}
+              shortcut={shortcutLabel(',')}
               aria-expanded={settingsOpen}
               aria-controls="settings-panel"
               onClick={() => setSettingsOpen((open) => !open)}
@@ -111,6 +145,7 @@ export function App() {
           receipts={receipts}
           address={address}
           sound={settings?.sound ?? true}
+          testReceipt={testReceipt}
         />
         {settings && (
           <SettingsPanel

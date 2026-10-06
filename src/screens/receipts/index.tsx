@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ReceiptCard } from '@/screens/receipts/receipt-card';
 import { TestReceiptButton } from '@/screens/receipts/test-receipt-button';
 import { useFollowBottom } from '@/screens/receipts/use-follow-bottom';
+import type { ITestReceipt } from '@/shared/hooks/use-test-receipt';
 import { useTranslation } from '@/shared/hooks/use-translation';
 import type { IReceiptSummary } from '@/shared/interfaces/emulator';
 import { feedDuration } from '@/shared/utils/paper-feed';
@@ -15,6 +16,8 @@ interface IReceiptsScreenProps {
   address: string | null;
   /** Play the printing sound and the printer's beep (setting). */
   sound: boolean;
+  /** For the empty state's button. */
+  testReceipt: ITestReceipt;
 }
 
 /** The printed receipts on paper, oldest first: the newest is at the bottom, like a roll. */
@@ -22,6 +25,7 @@ export function ReceiptsScreen({
   receipts,
   address,
   sound,
+  testReceipt,
 }: IReceiptsScreenProps) {
   const { t } = useTranslation();
   // State, not a ref: the cards' observers need the element once it exists.
@@ -72,7 +76,7 @@ export function ReceiptsScreen({
               {t('receipts.emptyHint', { address })}
             </p>
             <div className="mt-4">
-              <TestReceiptButton />
+              <TestReceiptButton test={testReceipt} />
             </div>
           </>
         )}

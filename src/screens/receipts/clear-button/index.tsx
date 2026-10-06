@@ -1,29 +1,35 @@
-import { useRef } from 'react';
+import type { RefObject } from 'react';
 
 import { IconButton } from '@/components/ui/icon-button';
 import { TrashIcon } from '@/components/ui/icons';
 import { clearReceipts } from '@/shared/api/emulator';
 import { useTranslation } from '@/shared/hooks/use-translation';
 import { BUTTON, INTERACTIVE } from '@/shared/styles/patterns';
+import { shortcutLabel } from '@/shared/utils/shortcut';
 
 /**
  * Clearing cannot be undone, so it asks first, in a native modal `<dialog>`: it traps
  * focus, closes on Esc, and starts on Cancel, the safe choice.
  */
-export function ClearButton() {
+export function ClearButton({
+  dialogRef,
+}: {
+  /** Owned by the app, so the ⌘⌫ shortcut opens the same dialog. */
+  dialogRef: RefObject<HTMLDialogElement | null>;
+}) {
   const { t } = useTranslation();
-  const dialog = useRef<HTMLDialogElement>(null);
 
   return (
     <>
       <IconButton
         label={t('receipts.clear')}
-        onClick={() => dialog.current?.showModal()}
+        shortcut={shortcutLabel('⌫')}
+        onClick={() => dialogRef.current?.showModal()}
       >
         <TrashIcon />
       </IconButton>
       <dialog
-        ref={dialog}
+        ref={dialogRef}
         aria-labelledby="clear-title"
         className="m-auto w-[min(24rem,calc(100%-2rem))] rounded-lg border border-border bg-raised p-5 text-ink shadow-xl backdrop:bg-black/40"
       >

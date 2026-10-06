@@ -72,6 +72,12 @@ reads the OS state on click, so it works with any rebuilt menu.
 Linux: the tray needs an AppIndicator host (GNOME requires an extension). Without one,
 launching the app again focuses the window, which is the way back in.
 
+## Keyboard shortcuts
+
+In the window (`App`), ⌘ on macOS and Ctrl elsewhere (`shortcut.ts`): ⌘, settings, ⌘T test
+receipt, ⌘⌫ clear (the same confirmation dialog; ignored while typing in a field), ⌘+ ⌘−
+⌘0 paper zoom. Tooltips show them (`aria-keyshortcuts` too).
+
 ## Logs
 
 | OS      | Dir                                                                 |
