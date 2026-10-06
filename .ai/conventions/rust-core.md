@@ -42,7 +42,7 @@ The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator
   `capabilities/main.json` (`conventions/bridge.md`).
 - No shell. If an OS tool ever has to run, it gets an argv with a fixed binary path, never
   a shell string.
-- **Listening socket (P1)**: the app accepts connections from the LAN by design (POS
+- **Listening socket**: the app accepts connections from the LAN by design (POS
   terminals on other machines). Rules for that code:
   - parse bytes as untrusted: bounded buffers, a size limit per job, an idle timeout per
     connection, and a cap on concurrent connections;

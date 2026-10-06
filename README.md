@@ -8,8 +8,8 @@ Use it to develop and test receipt printing without a physical printer, on Windo
 macOS and Linux.
 
 > **Status: early development.** The app receives ESC/POS jobs on TCP port 9100 and
-> draws the receipts: text styles, code pages, images, barcodes and QR codes. Settings
-> (port, paper width, code page) and history tools are next.
+> draws the receipts: text styles, code pages, images, barcodes and QR codes. Next:
+> installers with a firewall rule and automatic updates.
 
 ## How it works
 
@@ -21,6 +21,10 @@ From the POS software, add a network (TCP/IP, "RAW" or "Socket") printer at:
 
 - `127.0.0.1:9100` when the POS runs on the same computer, or
 - `<this computer's LAN IP>:9100` from another device on the network.
+
+The window shows the exact address to use, and **Print test receipt** checks that
+everything works. In **Settings** you can change the port, allow only this computer,
+pick 80 or 58 mm paper, the default code page, the beep and the language.
 
 A job must open like ESC/POS, with `ESC @` (initialize), as every ESC/POS library does.
 Other traffic on port 9100, such as port scanners or plain text, is ignored. To try it

@@ -23,8 +23,8 @@ Text printed on the paper is black on `paper` in both themes. It does not use `i
 flips in dark mode.
 
 Font: the **system stack** (`--font-sans`). The CSP allows only bundled files and the app
-works offline, so no web fonts. The receipt itself will use a bundled or system monospace
-font, sized so that 48 columns (font A) fill 80 mm paper (P2).
+works offline, so no web fonts. The receipt uses the system monospace font, stretched to
+the printer's cells (see Receipt rendering below).
 
 ## Patterns
 

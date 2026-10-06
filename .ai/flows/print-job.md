@@ -47,8 +47,9 @@ decision; don't add a blocklist of protocols.
 
 ## Connection → receipts (`receive`, `capture.rs`)
 
-Each accepted connection gets a `Capture` with its own `Decoder` (80 mm paper until P3
-makes it a setting). Bytes are read in 8 KiB chunks and fed to it.
+Each accepted connection gets a `Capture` with its own `Decoder`, set up with the paper
+width and default code page in the settings at that moment. Bytes are read in 8 KiB
+chunks and fed to it.
 
 - **A receipt starts with its first visible output**: a printed line, an image, a drawer
   pulse or a beep. A connection that only asks for the status (POS software polls it every
@@ -83,8 +84,9 @@ The server closes the connection in every case except a client close.
   read. Memory stays bounded whatever the clients send.
 - Consecutive feeds merge into one block.
 - `ReceiptSummary` (`id`, `peer`, `started_at` / `ended_at` in unix ms, `state`, `cut`,
-  `drawer`, `beeps`, `size`) is what the list gets. `ReceiptView` adds `paper`, `width` and
-  the `blocks` to draw. Raw bytes stay in Rust (`Receipts::raw`, for the P3 export).
+  `drawer`, `beeps`, `size`, `paper`, `width`, `height`) is what the list gets.
+  `ReceiptView` adds the `blocks` to draw. Raw bytes stay in Rust (`Receipts::raw`, read by
+  "Save .bin").
 
 ## Status in the UI
 

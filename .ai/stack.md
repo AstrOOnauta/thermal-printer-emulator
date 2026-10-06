@@ -1,18 +1,101 @@
 # Stack & architecture
 
 Thermal printer emulator, also searched for as **virtual thermal printer**: a desktop
-app that emulates an ESC/POS **network** receipt printer: point-of-sale software
-sends raw bytes to TCP port 9100 and the app shows the receipt. It is installed like any
-app and never needs a terminal. The idea comes from
+app that emulates an ESC/POS **network** receipt printer. Point-of-sale software sends raw
+bytes to TCP port 9100 and the app draws the receipt. It is installed like any app and
+never needs a terminal. The idea comes from
 [virtual-thermal-printer](https://github.com/FilipChalupa/virtual-thermal-printer), a
 web-based emulator; **no code is taken from it** (see `rules.md` § ESC/POS decoder).
+
+## How it works
+
+```
+POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─event─▶ webview (canvas)
+                (Rust)      (one       (parser +   (memory,          draws what Rust
+                            connection) printer)   limits)           publishes
+```
+
+- **Rust owns everything that matters**: the socket, decoding, receipts in memory,
+  settings, the tray. The **webview only draws** what Rust publishes and sends commands.
+- **Listener** (`listener.rs`): binds the configured port, retries while it is taken,
+  filters non-ESC/POS connections, one task per connection, limits. → `flows/print-job.md`
+- **Capture** (`capture.rs`): turns one connection's bytes into receipts, split at cuts.
+- **Decoder** (`escpos/`): our own ESC/POS parser and printer state machine, producing a
+  print model laid out in printer dots. → `conventions/escpos.md`
+- **Receipts** (`receipts.rs`): the history in memory, bounded.
+- **Webview**: receipts on paper, the status, the address to print to, settings.
+  → `conventions/bridge.md`, `design-system.md`
+- **Settings** (`settings.rs`): a JSON file, applied without a restart.
+  → `flows/settings.md`
+- **App shell**: tray, window, autostart, logs, language. → `flows/app-lifecycle.md`,
+  `conventions/i18n.md`
+
+## Features
+
+**Printing**
+
+- Listens on TCP 9100 (configurable), on every network or only on this computer.
+- Accepts connections that open like ESC/POS (`ESC @`, `DLE`, `GS`); turns away port
+  scanners and other protocols.
+- Answers status requests (`DLE EOT`, `GS r`, `GS I`) as an online printer with paper.
+- Decodes text styles (fonts A/B, sizes 1–8, bold, underline, reverse, alignment, margins,
+  tabs), 9 code pages, raster and column images, graphics, QR codes and 7 barcode
+  symbologies, cuts, the cash drawer and the beep.
+
+**Receipts**
+
+- Drawn on paper at the printer's scale (576 dots for 80 mm, 384 for 58 mm), sharp on
+  Retina screens; only the ones near the visible area are drawn.
+- One receipt per cut; status-only connections leave nothing in the list.
+- History in memory: clear it, or save a receipt's raw bytes as `.bin`.
+- Badges for the cash drawer and the beep; the beep can play a sound.
+
+**App**
+
+- The status (listening / port in use / blocked) in the window and the tray; recovers by
+  itself when the port frees up.
+- "Point your POS at `ip:port`" with a copy button.
+- A test receipt, from the tray or the window, sent through the real socket.
+- Settings: port, who can print, paper width, default code page, sound, language.
+- English, Spanish and Brazilian Portuguese, following the OS or chosen in settings.
+- Runs from the tray, starts at login if asked, one instance only, rotating logs.
+
+## Next
+
+- **Windows installer with admin** (NSIS `perMachine`, UAC at install) that adds a Windows
+  Firewall rule for private and domain networks only, removed on uninstall.
+- **Automatic updates** (`tauri-plugin-updater`, signed with Tauri's own key, no paid
+  certificate): Windows, macOS and AppImage; `.deb`/`.rpm` only get a "new version" link.
+- Screenshots for the README, a release checklist, the final icon.
+
+## Product decisions
+
+Changing one is a product decision: update this list.
+
+1. **Receipt boundary**: a receipt ends at a cut command or when the connection closes,
+   whichever comes first. A connection is only transport: some POS send many receipts over
+   one.
+2. **Bind address**: every interface by default (POS terminals on other machines); "only
+   this computer" (`127.0.0.1`) is a setting.
+3. **History**: in memory only, newest 100 receipts within 32 MB (raw bytes and print model),
+   oldest dropped first. Rust keeps each receipt's raw bytes for export.
+4. **Default code page** (no `ESC t` received): **CP437**, Epson's factory default, and a
+   setting: Brazilian printers (Elgin, Bematech) usually ship with CP850 and some POS never
+   send `ESC t`.
+5. **Status replies**: answer `DLE EOT n`, `GS r n` and `GS I n` as an online printer with
+   paper, with an honest identity (not a real printer model). The connection filter accepts
+   a first byte of `ESC @`, `DLE` or `GS`.
+6. **Decoder**: written from scratch in **Rust** from Epson's public ESC/POS command
+   reference. Rust interprets, the webview only draws.
+7. **Windows installer**: asks for admin, so it can add the firewall rule. Trade-off
+   accepted: every update shows UAC, and users without admin rights cannot install.
 
 ## Tech stack
 
 | Category          | Technology                                                                                                                                                             |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shell             | **Tauri v2** (2.12): tray + one window, single process                                                                                                                 |
-| Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`: networking and OS integration                                                                      |
+| Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`                                                                                                     |
 | Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` (Rust side only)                                                                  |
 | Rust crates       | `tokio` (sockets, timers; Tauri's runtime), `qrcode` (QR encoding, no default features), `base64` (bitmaps to the webview), `sys-locale` (OS language), `serde`, `log` |
 | Webview           | **React 19** + **TypeScript 6** (strict, `noUncheckedIndexedAccess`)                                                                                                   |
@@ -54,87 +137,44 @@ install. That is safe because the package is `private` and never published.
   explains both. CI proves the build, not this first-launch experience: check it by hand
   on real machines before the first public release.
 
-## Phases
-
-- **P0 Skeleton: done.** Tauri app, tray (Open / Launch at login / Show logs / Quit),
-  hide-on-close window, Dock only while the window is open, single instance, rotating logs,
-  autostart, capability lockdown, CSP, en/es/pt-BR, CI, release workflow, Dependabot,
-  provisional icon.
-- **P1 Listener: done.** TCP 9100 in Rust (`0.0.0.0`), connection filter, limits, jobs kept
-  in memory and pushed to the webview, tray status, port-in-use error. The window shows a
-  temporary list of received jobs (time, peer, size).
-- **P2 Decoder + receipt: done.** Our own ESC/POS parser and printer state machine in
-  Rust, emitting a print model (lines, images, cuts) that the webview draws on a canvas at
-  1:1 dots; code pages, raster images, QR and barcodes, status replies, receipt split on
-  cut, 58/80 mm geometry (the 58 mm choice is a P3 setting).
-- **P3 App: next.** "Point your POS at `IP:9100`" panel, test receipt (tray + window),
-  settings (port, LAN or local only, paper width, default code page, sound) in a JSON file
-  written by Rust, history (clear, export raw `.bin`).
-- **P4 Distribution: planned.** NSIS `perMachine` (UAC at install) with a Windows Firewall
-  rule for private and domain networks only, removed on uninstall; `tauri-plugin-updater`
-  (Tauri's own signing key, no certificate; Windows, macOS and AppImage; `.deb`/`.rpm`
-  only get a "new version" link); screenshots; release checklist.
-
-## Decisions
-
-Made on 2026-10-06. Changing one is a product decision: update this list.
-
-1. **Receipt boundary**: a receipt ends at a cut command (`GS V`) or when the connection
-   closes, whichever comes first. A connection is only transport: some POS send many
-   receipts over one. Until the parser exists (P1), the connection close is the only
-   boundary.
-2. **Bind address**: `0.0.0.0:9100` by default (POS terminals on other machines). "Local
-   only" (`127.0.0.1`) becomes a setting in P3.
-3. **History**: in memory only, newest 100 receipts or 32 MB, oldest dropped first. Rust
-   keeps the raw bytes of each receipt (for export).
-4. **Default code page** (no `ESC t` received): **CP437**, Epson's factory default.
-   Configurable in P3: Brazilian printers (Elgin, Bematech) usually ship with CP850 and
-   some POS never send `ESC t`.
-5. **Status replies**: answer `DLE EOT n`, `GS r n` and `GS I n` as an online printer with
-   paper (P2, once the parser knows command boundaries). The connection filter accepts a
-   first byte of `ESC @`, `DLE` or `GS`.
-6. **Decoder**: written from scratch in **Rust** from Epson's public ESC/POS command
-   reference. Rust interprets, the webview only draws.
-7. **Windows installer** (P4): asks for admin, so it can add the firewall rule. Trade-off
-   accepted: every update shows UAC, and users without admin rights cannot install.
-
-## Top-level layout
+## Layout
 
 ```
 .ai/                         # AI + contributor context (this folder); AGENTS.md / CLAUDE.md point here
 src/                         # Webview (React)
   main.tsx                   # initLocale() → createRoot
-  app/index.tsx              # header (status badge) + failure hint + screen
+  app/index.tsx              # header (status, settings button), failure hint, address bar, screen
   app/listener-status/       # status badge, failure hint
   app/connection-bar/        # "Point your POS at ip:port" + copy
   screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/, toolbar buttons
   screens/settings/          # settings form (saved and applied at once)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
-    interfaces/emulator.ts   # bridge types (mirror of receipts.rs / listener.rs)
+    interfaces/emulator.ts   # bridge types (mirror of the Rust structs)
     hooks/                   # use-translation, use-synced (event + read), use-near-viewport
-    utils/                   # format, receipt-layout, ui-error (+ tests), draw-receipt (canvas)
+    utils/                   # format, receipt-layout, ui-error, beep (+ tests), draw-receipt (canvas)
     styles/                  # globals.css (tokens), cn.ts, patterns.ts (BUTTON, FIELD)
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts
 src-tauri/                   # Rust core
   src/main.rs                # entry (calls lib::run)
   src/lib.rs                 # Builder: plugins, setup, window events, handlers
-  src/ui.rs                  # commands, tray, app menu, window show/hide
-  src/locale.rs              # OS language → Locale, native menu labels
-  src/listener.rs            # TCP 9100: bind, accept, one task per connection
+  src/ui.rs                  # commands, tray, app menu, window show/hide, listener restart
+  src/locale.rs              # language setting + OS language → Locale, native menu labels
+  src/listener.rs            # TCP: bind, accept, connection filter, one task per connection
   src/capture.rs             # one connection → receipts (split on cut)
   src/receipts.rs            # receipts in memory, limits
   src/settings.rs            # settings.json: defaults, validation, load/save
   src/network.rs             # LAN IPv4 for "point your POS at…"
   src/test_receipt.rs        # sample receipt sent to our own port
   src/escpos/                # our ESC/POS decoder: parser, codepage, printer, bitmap, barcode
+  scripts/codepages.py       # generates escpos/codepage_tables.rs
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)
   capabilities/main.json     # what the `main` window may call
   tauri.conf.json            # window, CSP, bundle targets, version source
   Info.plist                 # macOS: LSUIElement, localizations, Local Network string
   icons/                     # generated; source in icons/source/icon.svg
-.github/workflows/           # ci.yml, release.yml
+.github/                     # workflows (ci.yml, release.yml), dependabot.yml
 rust-toolchain.toml          # pinned Rust; bump it on purpose, in its own commit
 ```
 
@@ -152,6 +192,7 @@ folders it creates (desktop only).
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Networking / OS logic     | Rust, one module per responsibility (`conventions/rust-core.md`)                                                     |
 | A command for the UI      | `ui.rs` + `build.rs` + `capabilities/main.json` + `lib.rs` handler + `src/shared/api/` (see `conventions/bridge.md`) |
+| A setting                 | `settings.rs` + `ISettings` + the settings screen (see `flows/settings.md`)                                          |
 | A screen                  | `src/screens/<name>/index.tsx`                                                                                       |
 | Widget used by one screen | `src/screens/<name>/<widget>/index.tsx`                                                                              |
 | Shared UI primitive       | `src/components/ui/<name>/index.tsx`, created on its **second** use                                                  |

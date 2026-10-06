@@ -53,8 +53,8 @@ Other control bytes (`0x00–0x1F`, `0x7F`) are `Ignored`, one byte each.
 | 4         | CP863 | 19        | CP858   |
 | 5         | CP865 |           |         |
 
-- Default **CP437** until `ESC t` (decision 4); `ESC @` goes back to it. P3 makes the
-  default configurable (Brazilian printers often ship with CP850).
+- Default **CP437** until `ESC t` (decision 4), configurable in settings (Brazilian
+  printers often ship with CP850). `ESC @` goes back to the configured default.
 - An unsupported `n` (Katakana, Thai, …) keeps the current table, as the printer does.
 - Bytes `0x20–0x7E` are ASCII in every table. The upper half is generated:
   `python3 scripts/codepages.py > src/escpos/codepage_tables.rs` (from `src-tauri/`), from

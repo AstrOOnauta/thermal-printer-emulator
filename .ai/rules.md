@@ -146,18 +146,18 @@ them with `grep -rn "ponytail:" src src-tauri/src`.
 
 ## Documentation
 
-| If you touched…                                        | Update                     |
-| ------------------------------------------------------ | -------------------------- |
-| a command, an event, capabilities, the CSP             | `conventions/bridge.md`    |
-| tray, window, single instance, autostart, Dock, logs   | `flows/app-lifecycle.md`   |
-| the listener, connections, receipts, limits            | `flows/print-job.md`       |
-| settings: fields, defaults, load/save, apply           | `flows/settings.md`        |
-| the ESC/POS decoder (commands, layout, codes, images)  | `conventions/escpos.md`    |
-| a Rust module, a plugin, a security rule               | `conventions/rust-core.md` |
-| translations or locale resolution                      | `conventions/i18n.md`      |
-| tokens, theme, `cn()`, a UI primitive, window size     | `design-system.md`         |
-| a dependency, the layout, CI/release, a phase finished | `stack.md`                 |
-| a rule in this file                                    | `rules.md`                 |
+| If you touched…                                                     | Update                     |
+| ------------------------------------------------------------------- | -------------------------- |
+| a command, an event, capabilities, the CSP                          | `conventions/bridge.md`    |
+| tray, window, single instance, autostart, Dock, logs                | `flows/app-lifecycle.md`   |
+| the listener, connections, receipts, limits                         | `flows/print-job.md`       |
+| settings: fields, defaults, load/save, apply                        | `flows/settings.md`        |
+| the ESC/POS decoder (commands, layout, codes, images)               | `conventions/escpos.md`    |
+| a Rust module, a plugin, a security rule                            | `conventions/rust-core.md` |
+| translations or locale resolution                                   | `conventions/i18n.md`      |
+| tokens, theme, `cn()`, a UI primitive, window size                  | `design-system.md`         |
+| a dependency, the layout, CI/release, a feature, a product decision | `stack.md`                 |
+| a rule in this file                                                 | `rules.md`                 |
 
 New flows (settings, history) get a doc in `flows/` when they land, plus a row in this
 table.

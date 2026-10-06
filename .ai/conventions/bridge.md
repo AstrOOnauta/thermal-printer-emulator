@@ -1,6 +1,6 @@
 # Webview ↔ Rust bridge
 
-The webview gets **a handful of commands** and, from P1 on, **events** pushed by Rust.
+The webview gets **a handful of commands** and **events** pushed by Rust.
 Nothing else: no plugin APIs, no direct OS access.
 
 ## Commands
@@ -83,5 +83,5 @@ default.
 - CSP (`tauri.conf.json`):
   `default-src 'self'; script-src 'self'; connect-src ipc: http://ipc.localhost`. Bundled
   files only: no remote fonts, images or scripts.
-- Planned loosening: when decoded receipt images land (P2), add `img-src 'self' data:`.
-  Nothing else. Don't loosen the CSP to make a library work; pick another library.
+- Receipt images are 1-bit bitmaps drawn straight onto the canvas, so even they need no
+  `img-src` exception. Don't loosen the CSP to make a library work; pick another library.
