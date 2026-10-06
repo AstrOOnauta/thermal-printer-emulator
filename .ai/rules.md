@@ -15,7 +15,8 @@ over clever code.
 - **Product**: receives ESC/POS bytes on TCP port 9100, decodes them and renders the
   receipt. Keeps running from the tray when the window is closed.
 - Read [`stack.md`](stack.md) first, then the doc for the area you are touching (see
-  [Documentation](#documentation)).
+  [Documentation](#documentation)). UI work starts from [`product.md`](product.md) (users,
+  personality, design principles) and [`design-system.md`](design-system.md).
 - **Tauri v2**, not v1: there is no `allowlist`, and permissions live in `capabilities/`.
   **Tailwind v4**: CSS-first `@theme`, no `tailwind.config.js`. Check https://v2.tauri.app
   before relying on memory.
@@ -156,6 +157,7 @@ them with `grep -rn "ponytail:" src src-tauri/src`.
 | a Rust module, a plugin, a security rule                            | `conventions/rust-core.md` |
 | translations or locale resolution                                   | `conventions/i18n.md`      |
 | tokens, theme, `cn()`, a UI primitive, window size                  | `design-system.md`         |
+| users, personality, anti-references, design principles              | `product.md`               |
 | a dependency, the layout, CI/release, a feature, a product decision | `stack.md`                 |
 | a rule in this file                                                 | `rules.md`                 |
 
