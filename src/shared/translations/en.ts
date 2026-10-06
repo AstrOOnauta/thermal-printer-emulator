@@ -46,7 +46,7 @@ const en = {
     },
     sound: {
       label: 'Sound',
-      beep: "Play the printer's beep",
+      printing: 'Printing sound and beep',
     },
     errors: {
       port: 'Use a port from 1 to 65535.',

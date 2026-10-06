@@ -44,7 +44,7 @@ const es: TranslationKeys = {
     },
     sound: {
       label: 'Sonido',
-      beep: 'Reproducir el pitido de la impresora',
+      printing: 'Sonido de impresión y pitido',
     },
     errors: {
       port: 'Usa un puerto del 1 al 65535.',

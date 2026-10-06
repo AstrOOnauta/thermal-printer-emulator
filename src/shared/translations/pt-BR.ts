@@ -44,7 +44,7 @@ const ptBR: TranslationKeys = {
     },
     sound: {
       label: 'Som',
-      beep: 'Tocar o bipe da impressora',
+      printing: 'Som de impressão e bipe',
     },
     errors: {
       port: 'Use uma porta de 1 a 65535.',

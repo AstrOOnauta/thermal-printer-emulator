@@ -5,14 +5,15 @@ import { TestReceiptButton } from '@/screens/receipts/test-receipt-button';
 import { useFollowBottom } from '@/screens/receipts/use-follow-bottom';
 import { useTranslation } from '@/shared/hooks/use-translation';
 import type { IReceiptSummary } from '@/shared/interfaces/emulator';
-import { pendingBeeps, playBeeps } from '@/shared/utils/beep';
+import { feedDuration } from '@/shared/utils/paper-feed';
+import { pendingSounds, playBeeps, playPrint } from '@/shared/utils/sounds';
 
 interface IReceiptsScreenProps {
   /** `null` until the first answer from Rust. */
   receipts: IReceiptSummary[] | null;
   /** Where to print, for the empty-state hint; `null` while the port is not open. */
   address: string | null;
-  /** Play the printer's beep (setting). */
+  /** Play the printing sound and the printer's beep (setting). */
   sound: boolean;
 }
 
@@ -41,12 +42,18 @@ export function ReceiptsScreen({
   // Receipts that finish from now on print with motion; older ones are just there.
   const [openedAt] = useState(() => Date.now());
 
-  // Ring for receipts that finished with `ESC B` since the last list.
+  // The printing sound for each receipt that just finished (as long as its paper takes to
+  // come out), then the beeps it asked for with `ESC B`.
   useEffect(() => {
     if (receipts === null) return;
-    const { beeps, seen } = pendingBeeps(heard.current, receipts);
+    const { printed, beeps, seen } = pendingSounds(heard.current, receipts);
     heard.current = seen;
-    if (sound) playBeeps(beeps);
+    if (!sound || printed.length === 0) return;
+    const longest = Math.max(
+      ...printed.map((receipt) => feedDuration(receipt.height)),
+    );
+    playPrint(longest);
+    playBeeps(beeps, longest);
   }, [receipts, sound]);
 
   if (receipts === null) return null;

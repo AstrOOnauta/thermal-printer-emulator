@@ -148,13 +148,21 @@ rendering.
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
   Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.
 
-## Beep
+## Sound
 
-When a receipt finishes with `ESC B` (`beeps > 0`) and the `sound` setting is on, the
-webview plays a generated buzzer (`src/shared/utils/beep.ts`: WebAudio square wave,
-2.7 kHz, 120 ms per beep, at most 3). No sound file. `pendingBeeps` (tested) decides:
-each receipt rings once, after it stops printing; receipts already in the list when the
-screen opens never ring.
+When a receipt finishes and the `sound` setting is on, the webview plays
+(`src/shared/utils/sounds.ts`, WebAudio, no sound file):
+
+- **the printing sound** for every receipt: band-passed noise pulsing at 38 Hz (the print
+  head and its stepper motor), quiet, lasting as long as the paper takes to come out
+  (`feedDuration` of the receipt's height, the same as the feed animation);
+- then **the beep** when the POS asked for it with `ESC B`: a 2.7 kHz buzzer, 120 ms per
+  beep, at most 3.
+
+`pendingSounds` (tested) decides: each receipt sounds once, after it stops printing;
+receipts already in the list when the screen opens never sound. WebKit lets the
+`AudioContext` resume without a user gesture (checked: `suspended` → `running`), and
+sounds play with the window behind others.
 
 ## Test receipt (`test_receipt.rs`)
 

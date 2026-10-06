@@ -48,7 +48,8 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
   Retina screens; only the ones near the visible area are drawn.
 - One receipt per cut; status-only connections leave nothing in the list.
 - History in memory: clear it, or save a receipt's raw bytes as `.bin`.
-- Badges for the cash drawer and the beep; the beep can play a sound.
+- Badges for the cash drawer and the beep; a printing sound for every receipt and the
+  beep when asked (`ESC B`).
 
 **App**
 
@@ -153,7 +154,7 @@ src/                         # Webview (React)
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
     interfaces/emulator.ts   # bridge types (mirror of the Rust structs)
     hooks/                   # use-translation, use-synced (event + read), use-near-viewport
-    utils/                   # format, receipt-layout, ui-error, beep, paper-feed (+ tests), draw-receipt
+    utils/                   # format, receipt-layout, ui-error, sounds, paper-feed (+ tests), draw-receipt
     styles/                  # globals.css (tokens), cn.ts, patterns.ts (BUTTON, FIELD)
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts
 src-tauri/                   # Rust core

@@ -218,7 +218,7 @@ export function SettingsPanel({
                 save({ ...settings, sound: event.target.checked })
               }
             />
-            {t('settings.sound.beep')}
+            {t('settings.sound.printing')}
           </label>
         </fieldset>
       </div>
