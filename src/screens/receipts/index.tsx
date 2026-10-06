@@ -38,6 +38,9 @@ export function ReceiptsScreen({
     receipts,
   );
 
+  // Receipts that finish from now on print with motion; older ones are just there.
+  const [openedAt] = useState(() => Date.now());
+
   // Ring for receipts that finished with `ESC B` since the last list.
   useEffect(() => {
     if (receipts === null) return;
@@ -81,7 +84,12 @@ export function ReceiptsScreen({
       >
         <ol className="flex flex-col items-center gap-8">
           {receipts.map((receipt) => (
-            <ReceiptCard key={receipt.id} receipt={receipt} root={scroller} />
+            <ReceiptCard
+              key={receipt.id}
+              receipt={receipt}
+              root={scroller}
+              fresh={receipt.ended_at !== null && receipt.ended_at >= openedAt}
+            />
           ))}
         </ol>
       </section>

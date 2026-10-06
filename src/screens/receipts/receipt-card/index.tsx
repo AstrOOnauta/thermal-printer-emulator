@@ -1,4 +1,6 @@
 import { ExportButton } from '@/screens/receipts/export-button';
+import type { CSSProperties } from 'react';
+
 import { ReceiptPaper } from '@/screens/receipts/receipt-paper';
 import { useNearViewport } from '@/shared/hooks/use-near-viewport';
 import { getLocale, useTranslation } from '@/shared/hooks/use-translation';
@@ -8,6 +10,7 @@ import type {
 } from '@/shared/interfaces/emulator';
 import { cn } from '@/shared/styles/cn';
 import { formatBytes, peerHost } from '@/shared/utils/format';
+import { feedDuration } from '@/shared/utils/paper-feed';
 
 /** Paper margin around the printable area, in CSS pixels (= dots). */
 const MARGIN = 16;
@@ -25,9 +28,11 @@ interface IReceiptCardProps {
   receipt: IReceiptSummary;
   /** The scrolling element, for drawing only the receipts near the visible area. */
   root: Element | null;
+  /** Finished while the window was open: its paper comes out with motion. */
+  fresh: boolean;
 }
 
-export function ReceiptCard({ receipt, root }: IReceiptCardProps) {
+export function ReceiptCard({ receipt, root, fresh }: IReceiptCardProps) {
   const { t } = useTranslation();
   const { ref, near } = useNearViewport<HTMLDivElement>(root);
   const locale = getLocale();
@@ -64,8 +69,18 @@ export function ReceiptCard({ receipt, root }: IReceiptCardProps) {
         )}
         {!printing && <ExportButton id={receipt.id} />}
       </header>
-      {/* Paper and torn edge touch: no gap between them. */}
-      <div>
+      {/* Paper and torn edge touch: no gap between them. A fresh receipt is revealed top
+          to bottom while the list feeds it out (same duration as the scroll). */}
+      <div
+        className={fresh && !printing ? 'paper-print' : undefined}
+        style={
+          fresh && !printing
+            ? ({
+                '--feed-duration': `${feedDuration(receipt.height)}ms`,
+              } as CSSProperties)
+            : undefined
+        }
+      >
         <div
           ref={ref}
           className="bg-paper shadow-sm"

@@ -55,7 +55,13 @@ the printer's cells (see Receipt rendering below).
   the destructive one in `bg-error`. Nothing else is modal.
 - **Layers** (`--z-*` in globals.css, lowest first): `--z-pill` 10, `--z-panel` 20. Use
   `z-(--z-name)`, never a raw number.
-- **Motion curve**: `ease-out-quart` (`cubic-bezier(0.25, 1, 0.5, 1)`), no bounce.
+- **Motion curves**: `ease-out-quart` (`cubic-bezier(0.25, 1, 0.5, 1)`) for state changes
+  (the panel); `--ease-out-cubic` (`cubic-bezier(0.33, 1, 0.68, 1)`) for the paper feed,
+  mirrored by `easeOutCubic` in `paper-feed.ts`. No bounce. Motion means something
+  happened: the panel opening, a receipt printing. Every animation has a
+  `prefers-reduced-motion` path (none, or a short fade).
+- **The paper feed** is the one signature motion: a new receipt is revealed top to bottom
+  while the list scrolls with it at printer speed (`flows/print-job.md` § Webview).
 - **Icons**: `src/components/ui/icons/` (drawn for this app: 24×24, `currentColor`, 1.75
   stroke; gear, trash, close) inside `IconButton` (`src/components/ui/icon-button/`: square,
   `label` is both the tooltip and the accessible name, highlighted while `aria-expanded`).

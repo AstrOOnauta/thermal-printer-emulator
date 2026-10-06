@@ -33,6 +33,8 @@
 :root {
   --z-pill: 10;
   --z-panel: 20;
+  /* The paper feed's curve, also in paper-feed.ts (easeOutCubic). */
+  --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 @theme inline {
@@ -91,4 +93,31 @@ input {
       transparent 0
     )
     0 0 / 12px 100%;
+}
+
+/* A receipt being printed: revealed top to bottom while the list feeds it out, for
+   --feed-duration (paper-feed.ts). clip-path leaves the layout alone. */
+@keyframes paper-print {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes paper-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.paper-print {
+  animation: paper-print var(--feed-duration, 600ms) var(--ease-out-cubic) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-print {
+    animation: paper-fade 150ms ease-out both;
+  }
 }

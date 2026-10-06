@@ -153,7 +153,7 @@ src/                         # Webview (React)
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
     interfaces/emulator.ts   # bridge types (mirror of the Rust structs)
     hooks/                   # use-translation, use-synced (event + read), use-near-viewport
-    utils/                   # format, receipt-layout, ui-error, beep (+ tests), draw-receipt (canvas)
+    utils/                   # format, receipt-layout, ui-error, beep, paper-feed (+ tests), draw-receipt
     styles/                  # globals.css (tokens), cn.ts, patterns.ts (BUTTON, FIELD)
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts
 src-tauri/                   # Rust core

@@ -116,6 +116,15 @@ rendering.
   The list opens at the end. The scroller has `overflow-anchor: none`: it positions itself,
   and the browser's scroll anchoring must not move it too. Scroll writes go through a ref
   (the React Compiler forbids mutating a state-held element).
+- **Paper feed**: a receipt that finishes while the window is open (`ended_at` after the
+  screen opened) is revealed top to bottom (`.paper-print`, a `clip-path` animation), and,
+  when the user is at the end, the list scrolls to the end with the **same duration and
+  curve** (`paper-feed.ts`: about 1200 dots/s like a thermal printer, clamped to
+  300–1400 ms; `easeOutCubic` = `--ease-out-cubic`). The printed edge then stays on the
+  window's bottom edge, like paper leaving a printer's slot. Scroll events caused by the
+  feed are ignored; a wheel, touch or key from the user stops it. More paper arriving
+  mid-feed retargets it. Reduced motion: no scroll animation, a 150 ms fade instead of the
+  reveal. Receipts already there when the window opens never animate.
 - Canvases get their CSS size at render (`Slice`), not when drawn: a canvas without one is
   300×150 until its effect runs, and that brief shrink moved the scroll position.
 
