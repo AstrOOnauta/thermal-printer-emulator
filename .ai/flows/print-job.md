@@ -130,8 +130,11 @@ rendering.
 
 ## History tools
 
-- **Clear** (top bar, two clicks: the second within 3 s confirms "Clear all?"): drops every
-  finished receipt (`Receipts::clear`, the total is recomputed); one still printing stays.
+- **Clear** (trash icon in the top bar, shown when there are receipts) asks first, in a
+  native modal `<dialog>` ("Clear all receipts?", Cancel focused, Esc closes), then drops
+  every finished receipt (`Receipts::clear`, the total is recomputed); one still printing
+  stays. A modal fits here: it confirms a destructive action, and an inline "Clear all?"
+  label widened the bar until it wrapped.
 - **Save .bin** (each finished receipt's header): writes its raw bytes to
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
   Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.

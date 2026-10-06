@@ -94,8 +94,11 @@ const ptBR: TranslationKeys = {
     drawer: 'Gaveta aberta',
     beeps: 'Bipe ×%{count}',
     unavailable: 'Não está mais na memória',
-    clear: 'Limpar',
-    clearConfirm: 'Limpar tudo?',
+    clear: 'Limpar cupons',
+    clearTitle: 'Limpar todos os cupons?',
+    clearBody: 'Eles saem da lista e da memória. Não dá para desfazer.',
+    clearConfirm: 'Limpar',
+    cancel: 'Cancelar',
     export: 'Salvar .bin',
     exported: 'Salvo em Downloads',
     errors: {

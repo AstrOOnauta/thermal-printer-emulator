@@ -94,8 +94,11 @@ const es: TranslationKeys = {
     drawer: 'Cajón abierto',
     beeps: 'Pitido ×%{count}',
     unavailable: 'Ya no está en memoria',
-    clear: 'Limpiar',
-    clearConfirm: '¿Limpiar todo?',
+    clear: 'Limpiar recibos',
+    clearTitle: '¿Limpiar todos los recibos?',
+    clearBody: 'Se quitan de la lista y de la memoria. No se puede deshacer.',
+    clearConfirm: 'Limpiar',
+    cancel: 'Cancelar',
     export: 'Guardar .bin',
     exported: 'Guardado en Descargas',
     errors: {

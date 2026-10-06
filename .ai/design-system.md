@@ -50,11 +50,14 @@ the printer's cells (see Receipt rendering below).
   or ✕, focus moves to ✕ on open and back to the gear on close. Closed, it is `inert`
   (skipped by Tab and screen readers) and parked off-screen inside an `overflow-hidden`
   area (otherwise it adds a horizontal scrollbar).
+- **Confirmations** of destructive actions use a native `<dialog>` with `showModal()`
+  (focus trap, Esc, backdrop `bg-black/40`), `bg-raised`, the safe button focused first and
+  the destructive one in `bg-error`. Nothing else is modal.
 - **Layers** (`--z-*` in globals.css, lowest first): `--z-pill` 10, `--z-panel` 20. Use
   `z-(--z-name)`, never a raw number.
 - **Motion curve**: `ease-out-quart` (`cubic-bezier(0.25, 1, 0.5, 1)`), no bounce.
 - **Icons**: `src/components/ui/icons/` (drawn for this app: 24×24, `currentColor`, 1.75
-  stroke; gear, close) inside `IconButton` (`src/components/ui/icon-button/`: square,
+  stroke; gear, trash, close) inside `IconButton` (`src/components/ui/icon-button/`: square,
   `label` is both the tooltip and the accessible name, highlighted while `aria-expanded`).
 - A desktop tool, not a page: `-webkit-user-select` + `user-select: none` on the chrome
   (WebKit ignores the unprefixed one, and ⌘A would select the whole UI); inputs and

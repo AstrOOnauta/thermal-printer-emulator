@@ -148,7 +148,7 @@ src/                         # Webview (React)
   app/listener-status/       # failure hint banner
   screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/, toolbar buttons
   screens/settings/          # settings panel (slides in; saved and applied at once)
-  components/ui/             # icon-button, icons (gear, close)
+  components/ui/             # icon-button, icons (gear, trash, close)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
     interfaces/emulator.ts   # bridge types (mirror of the Rust structs)

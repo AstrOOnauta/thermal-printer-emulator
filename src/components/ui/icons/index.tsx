@@ -18,6 +18,15 @@ export function GearIcon() {
   );
 }
 
+/** Clear: a trash can. */
+export function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[18px]" aria-hidden {...STROKE}>
+      <path d="M4 7h16M9 7V4.5h6V7M6.5 7l.9 12.1a1.6 1.6 0 0 0 1.6 1.4h6a1.6 1.6 0 0 0 1.6-1.4L17.5 7M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
 export function CloseIcon() {
   return (
     <svg viewBox="0 0 24 24" className="size-[18px]" aria-hidden {...STROKE}>

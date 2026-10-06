@@ -96,8 +96,12 @@ const en = {
     drawer: 'Drawer opened',
     beeps: 'Beep ×%{count}',
     unavailable: 'No longer in memory',
-    clear: 'Clear',
-    clearConfirm: 'Clear all?',
+    clear: 'Clear receipts',
+    clearTitle: 'Clear all receipts?',
+    clearBody:
+      "They are removed from the list and from memory. This can't be undone.",
+    clearConfirm: 'Clear',
+    cancel: 'Cancel',
     export: 'Save .bin',
     exported: 'Saved to Downloads',
     errors: {
