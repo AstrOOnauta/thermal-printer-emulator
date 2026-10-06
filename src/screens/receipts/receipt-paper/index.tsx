@@ -79,5 +79,14 @@ function Slice({ positioned, width, top, bottom }: ISliceProps) {
       drawSlice(canvas.current, positioned, width, top, bottom);
   }, [positioned, width, top, bottom]);
 
-  return <canvas ref={canvas} className="block" aria-hidden />;
+  // The CSS size is set here, not in `drawSlice`: a canvas without one is 300×150 until
+  // the effect runs, and that brief shrink moved the scroll position.
+  return (
+    <canvas
+      ref={canvas}
+      className="block"
+      style={{ width, height: bottom - top }}
+      aria-hidden
+    />
+  );
 }

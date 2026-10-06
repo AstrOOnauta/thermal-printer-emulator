@@ -86,6 +86,8 @@ const es: TranslationKeys = {
   },
   receipts: {
     title: 'Recibos',
+    newOne: 'Nuevo recibo',
+    newMany: '%{count} recibos nuevos',
     empty: 'Esperando recibos',
     emptyHint: 'Envía trabajos ESC/POS a %{address}.',
     from: 'desde %{host}',

@@ -104,10 +104,20 @@ The server closes the connection in every case except a client close.
 
 ## Webview: receipts on paper
 
-`ReceiptsScreen` shows the receipts newest first, each as a `ReceiptCard`: a header (local
-time, client IP, size, state when not `done`, "Drawer opened" / "Beep ×n" badges) and the
-paper, white in both themes, with a torn edge when the receipt was cut. Drawing details in
-`design-system.md` § Receipt rendering.
+`ReceiptsScreen` shows the receipts **oldest first, newest at the bottom**, like a paper
+roll, each as a `ReceiptCard`: a header (local time, client IP, size, state when not
+`done`, "Drawer opened" / "Beep ×n" badges) and the paper, white in both themes, with a
+torn edge when the receipt was cut. Drawing details in `design-system.md` § Receipt
+rendering.
+
+- **Following the end** (`use-follow-bottom.ts`): while the user is at the end (within
+  64 px), the list follows new paper; once they scroll up to read, it stays put and a pill
+  ("↓ New receipt" / "↓ 3 new receipts") counts what arrived; clicking it goes to the end.
+  The list opens at the end. The scroller has `overflow-anchor: none`: it positions itself,
+  and the browser's scroll anchoring must not move it too. Scroll writes go through a ref
+  (the React Compiler forbids mutating a state-held element).
+- Canvases get their CSS size at render (`Slice`), not when drawn: a canvas without one is
+  300×150 until its effect runs, and that brief shrink moved the scroll position.
 
 - **Only receipts near the visible area are drawn** (`useNearViewport`, an
   `IntersectionObserver` on the scrolling section with a 1500 px margin). Far ones keep a

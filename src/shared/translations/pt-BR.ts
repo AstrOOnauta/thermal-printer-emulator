@@ -86,6 +86,8 @@ const ptBR: TranslationKeys = {
   },
   receipts: {
     title: 'Cupons',
+    newOne: 'Novo cupom',
+    newMany: '%{count} cupons novos',
     empty: 'Aguardando cupons',
     emptyHint: 'Envie impressões ESC/POS para %{address}.',
     from: 'de %{host}',

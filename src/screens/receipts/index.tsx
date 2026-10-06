@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ReceiptCard } from '@/screens/receipts/receipt-card';
 import { TestReceiptButton } from '@/screens/receipts/test-receipt-button';
+import { useFollowBottom } from '@/screens/receipts/use-follow-bottom';
 import { useTranslation } from '@/shared/hooks/use-translation';
 import type { IReceiptSummary } from '@/shared/interfaces/emulator';
 import { pendingBeeps, playBeeps } from '@/shared/utils/beep';
@@ -15,7 +16,7 @@ interface IReceiptsScreenProps {
   sound: boolean;
 }
 
-/** The printed receipts on paper, newest first. */
+/** The printed receipts on paper, oldest first: the newest is at the bottom, like a roll. */
 export function ReceiptsScreen({
   receipts,
   address,
@@ -24,7 +25,18 @@ export function ReceiptsScreen({
   const { t } = useTranslation();
   // State, not a ref: the cards' observers need the element once it exists.
   const [scroller, setScroller] = useState<HTMLElement | null>(null);
+  // The same element as a ref, which the follow logic may mutate (scrollTop).
+  const scrollerRef = useRef<HTMLElement | null>(null);
+  const attachScroller = useCallback((node: HTMLElement | null) => {
+    scrollerRef.current = node;
+    setScroller(node);
+  }, []);
   const heard = useRef<Set<number> | null>(null);
+  const { unseen, jumpToEnd } = useFollowBottom(
+    scrollerRef,
+    scroller,
+    receipts,
+  );
 
   // Ring for receipts that finished with `ESC B` since the last list.
   useEffect(() => {
@@ -59,16 +71,32 @@ export function ReceiptsScreen({
   }
 
   return (
-    <section
-      ref={setScroller}
-      aria-label={t('receipts.title')}
-      className="flex-1 overflow-y-auto px-4 py-6"
-    >
-      <ol className="flex flex-col items-center gap-8">
-        {[...receipts].reverse().map((receipt) => (
-          <ReceiptCard key={receipt.id} receipt={receipt} root={scroller} />
-        ))}
-      </ol>
-    </section>
+    <>
+      {/* overflow-anchor: none, the list scrolls itself (use-follow-bottom); the browser's
+          scroll anchoring must not move it too. */}
+      <section
+        ref={attachScroller}
+        aria-label={t('receipts.title')}
+        className="flex-1 overflow-y-auto px-4 py-6 [overflow-anchor:none]"
+      >
+        <ol className="flex flex-col items-center gap-8">
+          {receipts.map((receipt) => (
+            <ReceiptCard key={receipt.id} receipt={receipt} root={scroller} />
+          ))}
+        </ol>
+      </section>
+      {unseen > 0 && (
+        <button
+          type="button"
+          onClick={jumpToEnd}
+          className="absolute bottom-4 left-1/2 z-(--z-pill) -translate-x-1/2 cursor-pointer rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-surface shadow-lg transition-opacity hover:opacity-90"
+        >
+          ↓{' '}
+          {unseen === 1
+            ? t('receipts.newOne')
+            : t('receipts.newMany', { count: unseen })}
+        </button>
+      )}
+    </>
   );
 }

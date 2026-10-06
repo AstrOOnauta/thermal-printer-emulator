@@ -88,6 +88,8 @@ const en = {
   },
   receipts: {
     title: 'Receipts',
+    newOne: 'New receipt',
+    newMany: '%{count} new receipts',
     empty: 'Waiting for receipts',
     emptyHint: 'Send ESC/POS jobs to %{address}.',
     from: 'from %{host}',
