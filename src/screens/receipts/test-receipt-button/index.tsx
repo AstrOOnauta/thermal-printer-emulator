@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { printTestReceipt } from '@/shared/api/emulator';
 import {
@@ -14,8 +14,19 @@ export function TestReceiptButton() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<TranslationScope | null>(null);
 
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
   return (
-    <div className="flex flex-col items-center gap-2">
+    <span className="flex items-center gap-2">
+      {error && (
+        <span role="alert" className="text-xs text-error">
+          {t(error)}
+        </span>
+      )}
       <button
         type="button"
         className={BUTTON}
@@ -30,11 +41,6 @@ export function TestReceiptButton() {
       >
         {t('testReceipt.print')}
       </button>
-      {error && (
-        <p role="alert" className="text-sm text-error">
-          {t(error)}
-        </p>
-      )}
-    </div>
+    </span>
   );
 }

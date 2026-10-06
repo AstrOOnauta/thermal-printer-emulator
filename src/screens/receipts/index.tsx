@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { ClearButton } from '@/screens/receipts/clear-button';
 import { ReceiptCard } from '@/screens/receipts/receipt-card';
 import { TestReceiptButton } from '@/screens/receipts/test-receipt-button';
-import { getReceipts, onReceipts } from '@/shared/api/emulator';
-import { useSynced } from '@/shared/hooks/use-synced';
 import { useTranslation } from '@/shared/hooks/use-translation';
 import type { IReceiptSummary } from '@/shared/interfaces/emulator';
 import { pendingBeeps, playBeeps } from '@/shared/utils/beep';
 
-const NO_RECEIPTS: IReceiptSummary[] = [];
-
 interface IReceiptsScreenProps {
+  /** `null` until the first answer from Rust. */
+  receipts: IReceiptSummary[] | null;
   /** Where to print, for the empty-state hint; `null` while the port is not open. */
   address: string | null;
   /** Play the printer's beep (setting). */
@@ -19,9 +16,12 @@ interface IReceiptsScreenProps {
 }
 
 /** The printed receipts on paper, newest first. */
-export function ReceiptsScreen({ address, sound }: IReceiptsScreenProps) {
+export function ReceiptsScreen({
+  receipts,
+  address,
+  sound,
+}: IReceiptsScreenProps) {
   const { t } = useTranslation();
-  const receipts = useSynced(onReceipts, getReceipts, NO_RECEIPTS);
   // State, not a ref: the cards' observers need the element once it exists.
   const [scroller, setScroller] = useState<HTMLElement | null>(null);
   const heard = useRef<Set<number> | null>(null);
@@ -62,12 +62,8 @@ export function ReceiptsScreen({ address, sound }: IReceiptsScreenProps) {
     <section
       ref={setScroller}
       aria-label={t('receipts.title')}
-      className="flex-1 overflow-y-auto px-6 py-6"
+      className="flex-1 overflow-y-auto px-4 py-6"
     >
-      <div className="mb-6 flex items-start justify-end gap-2">
-        <TestReceiptButton />
-        <ClearButton />
-      </div>
       <ol className="flex flex-col items-center gap-8">
         {[...receipts].reverse().map((receipt) => (
           <ReceiptCard key={receipt.id} receipt={receipt} root={scroller} />

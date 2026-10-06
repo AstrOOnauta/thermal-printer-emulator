@@ -90,17 +90,17 @@ The server closes the connection in every case except a client close.
 
 ## Status in the UI
 
-- Header badge (`src/app/listener-status/`): colored dot + "Listening on port N" /
-  "Port N is in use" / "Port N is blocked" / "Can't open port N".
-- While failed, a banner under the header says what to do ("Close the other app; the
-  emulator starts on its own"): the bind retry makes it recover without a click.
-- The tray's first item shows the same line (`flows/app-lifecycle.md`).
-- While listening, a bar under the header says where to print, with a "Copy" button
-  (`src/app/connection-bar/`): "Point your POS at `192.168.1.20:9100`" (LAN, from
-  `get_lan_address`), "Only this computer can print, at `127.0.0.1:9100`" (`bind: local`),
-  or "No network found…" with `127.0.0.1` when there is no LAN address.
-- The empty list's hint ("Send ESC/POS jobs to `ip:port`") uses the same address and is
-  hidden while the port is not open, so it never contradicts the banner.
+- The top bar's left side (`src/app/status-bar/`) says whether and where the emulator
+  listens, in one line: "● Point your POS at `192.168.1.20:9100`" with a Copy button (LAN,
+  from `get_lan_address`), "Only this computer can print, at `127.0.0.1:9100`"
+  (`bind: local`), "No network found…" with `127.0.0.1`, "Starting…", or "● Port 9100 is in
+  use" / "is blocked" / "Can't open port".
+- While failed, a banner under the bar says what to do ("Close the other app; the emulator
+  starts on its own"): the bind retry makes it recover without a click.
+- The tray's first item shows the same status (`flows/app-lifecycle.md`).
+- The empty list's hint ("Send ESC/POS jobs to `ip:port`") and its Print test receipt button
+  use the same address and are hidden while the port is not open, so they never contradict
+  the banner.
 
 ## Webview: receipts on paper
 
@@ -120,7 +120,7 @@ paper, white in both themes, with a torn edge when the receipt was cut. Drawing 
 
 ## History tools
 
-- **Clear** (toolbar, two clicks: the second within 3 s confirms "Clear all?"): drops every
+- **Clear** (top bar, two clicks: the second within 3 s confirms "Clear all?"): drops every
   finished receipt (`Receipts::clear`, the total is recomputed); one still printing stays.
 - **Save .bin** (each finished receipt's header): writes its raw bytes to
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
@@ -136,7 +136,7 @@ screen opens never ring.
 
 ## Test receipt (`test_receipt.rs`)
 
-"Print test receipt" (tray, the empty list, the toolbar above the receipts) builds a sample
+"Print test receipt" (tray, the empty list, the top bar) builds a sample
 receipt and **sends it through our own socket** to `127.0.0.1:<port>`, like a POS would,
 so it proves the listener is up. It then shows up in the list like any receipt.
 

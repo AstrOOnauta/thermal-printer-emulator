@@ -44,9 +44,10 @@ returns the saved settings
 - `Printer::with_code_page`: `ESC @` returns to the configured default, not to CP437.
 - Connections already open keep running on the old socket's tasks until they end.
 
-## Screen (`src/screens/settings/`)
+## Panel (`src/screens/settings/`)
 
-Opened from the header's "Settings" button (it becomes "Receipts" to go back). Every
-choice is saved at once; the port waits for "Apply" (restarting the listener on every
-keystroke would be wrong) and is validated as you type. A refused change shows its
-translated error (`uiErrorKey`) in an alert.
+Opened by the gear in the top bar; a panel slides in from the right over the receipts
+(`design-system.md` § Window), closed by Esc or ✕. Every choice is saved at once; the
+port waits for "Apply" (restarting the listener on every keystroke would be wrong) and is
+validated as you type. A refused change shows its translated error (`uiErrorKey`) in an
+alert.

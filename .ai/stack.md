@@ -143,11 +143,12 @@ install. That is safe because the package is `private` and never published.
 .ai/                         # AI + contributor context (this folder); AGENTS.md / CLAUDE.md point here
 src/                         # Webview (React)
   main.tsx                   # initLocale() → createRoot
-  app/index.tsx              # header (status, settings button), failure hint, address bar, screen
-  app/listener-status/       # status badge, failure hint
-  app/connection-bar/        # "Point your POS at ip:port" + copy
+  app/index.tsx              # top bar (status, actions, gear), failure hint, receipts, settings panel
+  app/status-bar/            # status + address + copy, in one line
+  app/listener-status/       # failure hint banner
   screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/, toolbar buttons
-  screens/settings/          # settings form (saved and applied at once)
+  screens/settings/          # settings panel (slides in; saved and applied at once)
+  components/ui/             # icon-button, icons (gear, close)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
     interfaces/emulator.ts   # bridge types (mirror of the Rust structs)

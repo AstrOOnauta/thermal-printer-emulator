@@ -3,6 +3,8 @@
 /* Neutral app chrome that follows the OS theme. The receipt paper stays white in both. */
 :root {
   --surface: #f4f4f5;
+  /* Panels over the surface (settings). */
+  --raised: #ffffff;
   --paper: #ffffff;
   --ink: #18181b;
   --muted: #71717a;
@@ -16,6 +18,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --surface: #18181b;
+    --raised: #222226;
     --ink: #f4f4f5;
     --muted: #a1a1aa;
     --border: #3f3f46;
@@ -26,8 +29,15 @@
   }
 }
 
+/* Layers, lowest first. */
+:root {
+  --z-pill: 10;
+  --z-panel: 20;
+}
+
 @theme inline {
   --color-surface: var(--surface);
+  --color-raised: var(--raised);
   --color-paper: var(--paper);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
@@ -36,6 +46,9 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
+
+  /* Natural deceleration for state changes; no bounce. */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 
   /* System stack: the window works offline and the CSP allows only bundled files. */
   --font-sans:

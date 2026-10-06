@@ -1,16 +1,12 @@
 import type { TranslationKeys } from './en';
 
 const es: TranslationKeys = {
-  app: {
-    name: 'Thermal Printer Emulator',
-    tagline: 'Impresora térmica virtual para ESC/POS',
-  },
   nav: {
     settings: 'Configuración',
-    receipts: 'Recibos',
   },
   settings: {
     title: 'Configuración',
+    close: 'Cerrar configuración',
     language: {
       label: 'Idioma',
       system: 'Igual que el sistema',
@@ -75,7 +71,6 @@ const es: TranslationKeys = {
   },
   listener: {
     starting: 'Iniciando…',
-    listening: 'Escuchando en el puerto %{port}',
     failed: {
       port_in_use: 'El puerto %{port} está en uso',
       permission_denied: 'El puerto %{port} está bloqueado',

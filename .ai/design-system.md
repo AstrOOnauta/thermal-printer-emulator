@@ -12,6 +12,7 @@ always white**, as real paper is.
 | Token                           | Light                             | Dark                              | Use                                     |
 | ------------------------------- | --------------------------------- | --------------------------------- | --------------------------------------- |
 | `surface`                       | `#f4f4f5`                         | `#18181b`                         | Window background                       |
+| `raised`                        | `#ffffff`                         | `#222226`                         | Panels over the surface (settings)      |
 | `paper`                         | `#ffffff`                         | `#ffffff`                         | Receipt paper (same in both themes)     |
 | `ink`                           | `#18181b`                         | `#f4f4f5`                         | Primary text on the surface             |
 | `muted`                         | `#71717a`                         | `#a1a1aa`                         | Secondary text                          |
@@ -32,13 +33,29 @@ the printer's cells (see Receipt rendering below).
   classes.
 - `src/shared/styles/patterns.ts`: `INTERACTIVE` (hover/active/disabled feedback),
   `BUTTON` (bordered secondary button), `FIELD` (inputs and selects). Use them directly.
-- UI primitives go to `src/components/ui/<name>/index.tsx` **on their second use**. There
-  are none yet.
+- UI primitives go to `src/components/ui/<name>/index.tsx` **on their second use**:
+  `icon-button`, `icons`.
 
 ## Window
 
-- 680×820 by default, resizable, minimum 640×480, centered. The width fits 80 mm paper
-  (576 dots) plus margins.
+- 680×820 by default, resizable, minimum 640×480, centered. The receipt list has 16 px
+  side padding, so 80 mm paper (576 dots + 2 × 16 margin) fits exactly at the minimum width.
+- **One top bar** (`App`): on the left the status and the address in one line
+  (`StatusBar`: dot + "Point your POS at `ip:port`" + Copy, or "Port N is in use"); on the
+  right Print test receipt and Clear (when there are receipts) and the settings gear. The
+  window title already names the app: no in-app title or tagline. While the port fails,
+  the hint banner sits under the bar.
+- **Settings is a panel**, not a screen: 22 rem wide, sliding in from the right over the
+  receipts (`translate`, 200 ms, `ease-out-quart`, none with reduced motion), closed by Esc
+  or ✕, focus moves to ✕ on open and back to the gear on close. Closed, it is `inert`
+  (skipped by Tab and screen readers) and parked off-screen inside an `overflow-hidden`
+  area (otherwise it adds a horizontal scrollbar).
+- **Layers** (`--z-*` in globals.css, lowest first): `--z-pill` 10, `--z-panel` 20. Use
+  `z-(--z-name)`, never a raw number.
+- **Motion curve**: `ease-out-quart` (`cubic-bezier(0.25, 1, 0.5, 1)`), no bounce.
+- **Icons**: `src/components/ui/icons/` (drawn for this app: 24×24, `currentColor`, 1.75
+  stroke; gear, close) inside `IconButton` (`src/components/ui/icon-button/`: square,
+  `label` is both the tooltip and the accessible name, highlighted while `aria-expanded`).
 - A desktop tool, not a page: `-webkit-user-select` + `user-select: none` on the chrome
   (WebKit ignores the unprefixed one, and ⌘A would select the whole UI); inputs and
   `select-text` elements (the address to copy) turn it back on. No overscroll bounce.

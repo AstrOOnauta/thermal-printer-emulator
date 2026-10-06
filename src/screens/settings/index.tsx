@@ -1,4 +1,7 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+
+import { CloseIcon } from '@/components/ui/icons';
+import { IconButton } from '@/components/ui/icon-button';
 
 import { setSettings } from '@/shared/api/settings';
 import {
@@ -11,6 +14,7 @@ import type {
   IPaper,
   ISettings,
 } from '@/shared/interfaces/emulator';
+import { cn } from '@/shared/styles/cn';
 import { BUTTON, FIELD } from '@/shared/styles/patterns';
 import { uiErrorKey } from '@/shared/utils/ui-error';
 
@@ -34,14 +38,36 @@ const LANGUAGES: { value: Exclude<ILanguage, 'system'>; name: string }[] = [
   { value: 'pt-BR', name: 'Português (Brasil)' },
 ];
 
-interface ISettingsScreenProps {
+interface ISettingsPanelProps {
+  open: boolean;
   settings: ISettings;
   onSaved: (settings: ISettings) => void;
+  onClose: () => void;
 }
 
-/** Every change is saved and applied at once; the port waits for "Apply". */
-export function SettingsScreen({ settings, onSaved }: ISettingsScreenProps) {
+/**
+ * A panel that slides in over the receipts from the right; Esc or ✕ closes it. Every
+ * change is saved and applied at once; the port waits for "Apply". While closed it is
+ * `inert`, so focus and screen readers skip it.
+ */
+export function SettingsPanel({
+  open,
+  settings,
+  onSaved,
+  onClose,
+}: ISettingsPanelProps) {
   const { t } = useTranslation();
+  const closeButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    closeButton.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
   const [port, setPort] = useState(String(settings.port));
   const [error, setError] = useState<TranslationScope | null>(null);
   const portId = useId();
@@ -60,9 +86,29 @@ export function SettingsScreen({ settings, onSaved }: ISettingsScreenProps) {
     Number.isInteger(portNumber) && portNumber >= 1 && portNumber <= 65535;
 
   return (
-    <section className="flex-1 overflow-y-auto px-6 py-6">
-      <div className="mx-auto flex max-w-lg flex-col gap-6">
-        <h2 className="text-lg font-bold text-ink">{t('settings.title')}</h2>
+    <aside
+      id="settings-panel"
+      aria-labelledby="settings-title"
+      inert={!open}
+      className={cn(
+        'absolute inset-y-0 right-0 z-(--z-panel) flex w-[22rem] max-w-full flex-col border-l border-border bg-raised shadow-xl',
+        'transition-[translate,visibility] duration-200 ease-out-quart motion-reduce:transition-none',
+        open ? 'visible translate-x-0' : 'invisible translate-x-full',
+      )}
+    >
+      <div className="flex items-center justify-between border-b border-border px-5 py-3">
+        <h2 id="settings-title" className="text-base font-semibold text-ink">
+          {t('settings.title')}
+        </h2>
+        <IconButton
+          ref={closeButton}
+          label={t('settings.close')}
+          onClick={onClose}
+        >
+          <CloseIcon />
+        </IconButton>
+      </div>
+      <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 py-5">
         {error && (
           <p
             role="alert"
@@ -176,7 +222,7 @@ export function SettingsScreen({ settings, onSaved }: ISettingsScreenProps) {
           </label>
         </fieldset>
       </div>
-    </section>
+    </aside>
   );
 }
 

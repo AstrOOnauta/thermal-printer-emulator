@@ -3,16 +3,12 @@
  * missing or extra key fails `tsc`. Native menu labels live in Rust (`locale.rs`).
  */
 const en = {
-  app: {
-    name: 'Thermal Printer Emulator',
-    tagline: 'Virtual thermal printer for ESC/POS',
-  },
   nav: {
     settings: 'Settings',
-    receipts: 'Receipts',
   },
   settings: {
     title: 'Settings',
+    close: 'Close settings',
     language: {
       label: 'Language',
       system: 'Same as the system',
@@ -77,7 +73,6 @@ const en = {
   },
   listener: {
     starting: 'Starting…',
-    listening: 'Listening on port %{port}',
     failed: {
       port_in_use: 'Port %{port} is in use',
       permission_denied: 'Port %{port} is blocked',
