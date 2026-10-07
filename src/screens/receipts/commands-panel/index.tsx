@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { getReceiptCommands } from '@/shared/api/emulator';
 import {
@@ -6,7 +6,6 @@ import {
   useTranslation,
 } from '@/shared/hooks/use-translation';
 import type { IInspection } from '@/shared/interfaces/emulator';
-import { prefersReducedMotion } from '@/shared/utils/paper-feed';
 
 interface ICommandsPanelProps {
   id: number;
@@ -22,7 +21,6 @@ export function CommandsPanel({ id, width }: ICommandsPanelProps) {
   const { t } = useTranslation();
   // `undefined` while loading, `null` once Rust dropped the receipt.
   const [inspection, setInspection] = useState<IInspection | null>();
-  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,14 +32,6 @@ export function CommandsPanel({ id, width }: ICommandsPanelProps) {
     };
   }, [id]);
 
-  // Opened below the paper, often off-screen: bring the table into view, just enough.
-  useEffect(() => {
-    panel.current?.scrollIntoView({
-      block: 'nearest',
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-    });
-  }, [inspection]);
-
   if (inspection === undefined) {
     return <p className="text-xs text-muted">{t('inspect.loading')}</p>;
   }
@@ -51,7 +41,6 @@ export function CommandsPanel({ id, width }: ICommandsPanelProps) {
 
   return (
     <div
-      ref={panel}
       className="max-h-96 overflow-auto rounded-md border border-border select-text"
       style={{ width }}
     >

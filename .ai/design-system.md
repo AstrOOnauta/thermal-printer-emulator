@@ -64,8 +64,11 @@ the printer's cells (see Receipt rendering below).
 - **The paper feed** is the one signature motion: a new receipt is revealed top to bottom
   while the list scrolls with it at printer speed (`flows/print-job.md` § Webview).
 - **Receipt header**: as wide as the paper. Facts on the left in muted text, separated
-  by `·` (only the time in ink); actions on the right: muted icon buttons (copy text, save
-  .bin) and one accent text toggle (Show commands, with a chevron). An action confirms in
+  by `·` (only the time in ink; the date joins the facts when the receipt is not from
+  today); on narrow paper they wrap inside their own block. Actions on the right, on the
+  first line: muted icon buttons (copy text, save .bin). The accent text toggle "Show
+  commands" (with a chevron) sits under the paper, the table opening below it, so the
+  header stays one line even on 58 mm at 75 %. An action confirms in
   place (`ReceiptAction`: the icon becomes a green check for 1.5 s, announced to screen
   readers), so nothing moves; only an error shows as text, below the header. Toolbar
   actions are bordered buttons or icon buttons; shortcuts appear in tooltips

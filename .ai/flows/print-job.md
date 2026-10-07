@@ -124,7 +124,8 @@ never stays "printing" and in memory.
 ## Webview: receipts on paper
 
 `ReceiptsScreen` shows the receipts **oldest first, newest at the bottom**, like a paper
-roll, each as a `ReceiptCard`: a header (local time, client IP, size, state when not
+roll, each as a `ReceiptCard`: a header (local time, with the date when it is not from
+today, client IP, size, state when not
 `done`, "Drawer opened" / "Beep ×n" badges) and the paper, white in both themes, with a
 torn edge when the receipt was cut. Drawing details in `design-system.md` § Receipt
 rendering.
@@ -185,11 +186,11 @@ rendering.
   right-aligned prices stay right-aligned; feeds become blank lines, images
   `[image W×H]`; barcodes keep their human-readable text. For bug reports and test
   assertions.
-- **Show commands** (each finished receipt's header): a table under the paper, scrolled
-  into view when it opens, with every
-  ESC/POS command of the receipt: offset, mnemonic, what it does (translated) and bytes
-  (`commands-panel/`, `conventions/escpos.md` § Inspect). Text is decoded in the code page
-  the receipt started with (each receipt keeps it, `CodePages`), not today's setting.
+- **Show commands** (a toggle under each finished receipt's paper): a table below it,
+  with every ESC/POS command of the receipt: offset, mnemonic,
+  what it does (translated) and bytes (`commands-panel/`, `conventions/escpos.md`
+  § Inspect). Text is decoded in the code page the receipt started with (each receipt
+  keeps it, `CodePages`), not today's setting.
 - **Save .bin** (download icon in each finished receipt's header): writes its raw bytes to
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side,
   written on a blocking thread). A receipt that does not open with `ESC @` (any but the

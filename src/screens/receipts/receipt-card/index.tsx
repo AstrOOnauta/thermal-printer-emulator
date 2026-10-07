@@ -47,6 +47,8 @@ interface IReceiptCardProps {
   fresh: boolean;
   /** Paper zoom: CSS pixels per dot. */
   scale: number;
+  /** Today's `Date.toDateString()`: an older receipt shows its date too. */
+  today: string;
 }
 
 export function ReceiptCard({
@@ -54,6 +56,7 @@ export function ReceiptCard({
   root,
   fresh,
   scale,
+  today,
 }: IReceiptCardProps) {
   const [showCommands, setShowCommands] = useState(false);
   const [error, setError] = useState<TranslationScope | null>(null);
@@ -95,12 +98,13 @@ export function ReceiptCard({
 
   return (
     <li className="flex flex-col gap-2" data-receipt-id={receipt.id}>
-      {/* As wide as the paper: the actions end at its right edge. */}
+      {/* As wide as the paper, so the actions end at its right edge. On narrow paper the
+          facts wrap inside their own block; the actions stay on the first line. */}
       <header
-        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
+        className="flex items-start justify-between gap-x-3"
         style={{ width: paperWidth }}
       >
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 py-1 text-sm text-muted">
           <time
             dateTime={startedAt.toISOString()}
             className="text-ink tabular-nums"
@@ -108,6 +112,14 @@ export function ReceiptCard({
             {startedAt.toLocaleTimeString(locale)}
           </time>
           <Dot />
+          {startedAt.toDateString() !== today && (
+            <>
+              <span className="tabular-nums">
+                {startedAt.toLocaleDateString(locale, { dateStyle: 'short' })}
+              </span>
+              <Dot />
+            </>
+          )}
           <span>{peerHost(receipt.peer)}</span>
           {!printing && (
             <>
@@ -132,7 +144,7 @@ export function ReceiptCard({
           )}
         </div>
         {!printing && (
-          <div className="ml-auto flex items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-0.5">
             <ReceiptAction
               label={t('receipts.copyText')}
               done={t('receipts.copied')}
@@ -155,20 +167,6 @@ export function ReceiptCard({
             >
               <DownloadIcon />
             </ReceiptAction>
-            <button
-              type="button"
-              aria-expanded={showCommands}
-              className={`ml-1.5 flex items-center gap-1 text-xs text-accent ${INTERACTIVE}`}
-              onClick={() => setShowCommands((shown) => !shown)}
-            >
-              {showCommands ? t('inspect.hide') : t('inspect.show')}
-              <ChevronIcon
-                className={cn(
-                  'size-3.5 transition-transform motion-reduce:transition-none',
-                  showCommands && 'rotate-180',
-                )}
-              />
-            </button>
           </div>
         )}
       </header>
@@ -224,8 +222,24 @@ export function ReceiptCard({
           />
         )}
       </div>
-      {showCommands && !printing && (
-        <CommandsPanel id={receipt.id} width={paperWidth} />
+      {!printing && (
+        <div className="flex flex-col gap-2" style={{ width: paperWidth }}>
+          <button
+            type="button"
+            aria-expanded={showCommands}
+            className={`flex items-center gap-1 self-start text-xs text-accent ${INTERACTIVE}`}
+            onClick={() => setShowCommands((shown) => !shown)}
+          >
+            {showCommands ? t('inspect.hide') : t('inspect.show')}
+            <ChevronIcon
+              className={cn(
+                'size-3.5 transition-transform motion-reduce:transition-none',
+                showCommands && 'rotate-180',
+              )}
+            />
+          </button>
+          {showCommands && <CommandsPanel id={receipt.id} width={paperWidth} />}
+        </div>
       )}
     </li>
   );

@@ -54,6 +54,13 @@ export function ReceiptsScreen({
 
   // Receipts that finish from now on print with motion; older ones are just there.
   const [openedAt] = useState(() => Date.now());
+  // The app runs for days in the tray: refreshed whenever the window comes back.
+  const [today, setToday] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    const refresh = () => setToday(new Date().toDateString());
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, []);
 
   // The printing sound for each receipt that just finished (as long as its paper takes to
   // come out), then the beeps it asked for with `ESC B`.
@@ -114,6 +121,7 @@ export function ReceiptsScreen({
               root={scroller}
               fresh={receipt.ended_at !== null && receipt.ended_at >= openedAt}
               scale={scale}
+              today={today}
             />
           ))}
         </ol>
