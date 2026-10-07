@@ -81,6 +81,9 @@ Rules for the wire:
 5. Add a typed wrapper in `src/shared/api/`.
 6. Update the table above.
 
+Steps 2–5 are checked by a test (`commands::tests::every_command_is_listed_allowed_handled_and_wrapped`):
+`cargo test` fails when one of the four lists is missing a command.
+
 Without steps 2 and 3 the command is **denied** at runtime. That is on purpose: listing
 the commands in `build.rs` stops Tauri from exposing every command to every window by
 default.

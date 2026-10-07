@@ -302,4 +302,27 @@ mod tests {
         assert_eq!(inspection.rows.len(), MAX_ROWS);
         assert!(inspection.truncated);
     }
+
+    #[test]
+    fn random_bytes_never_panic() {
+        let mut state: u64 = 0x2545_f491_4f6c_dd1d;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for _ in 0..2_000 {
+            let len = (next() % 512) as usize;
+            let bytes: Vec<u8> = (0..len)
+                .map(|_| match next() % 4 {
+                    0 => [0x1b, 0x1d, 0x1c, 0x10][(next() % 4) as usize],
+                    _ => next() as u8,
+                })
+                .collect();
+            let inspection = inspect(&bytes, CodePage::Cp850, CodePage::DEFAULT);
+            let covered: usize = inspection.rows.iter().map(|row| row.length).sum();
+            assert!(covered <= bytes.len());
+        }
+    }
 }

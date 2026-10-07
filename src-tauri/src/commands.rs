@@ -290,6 +290,8 @@ pub fn get_listener_status(shared: State<'_, Arc<Shared>>) -> ListenerStatus {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::replayable;
     use crate::escpos::codepage::CodePage;
     use crate::receipts::CodePages;
@@ -310,5 +312,54 @@ mod tests {
             b"\x1b@One\n",
             "already opens with ESC @: as received"
         );
+    }
+
+    /// The text between `start` and the next `end`.
+    fn between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
+        let from = text.find(start).expect(start) + start.len();
+        &text[from..from + text[from..].find(end).expect(end)]
+    }
+
+    fn names<'a>(list: impl Iterator<Item = &'a str>) -> BTreeSet<String> {
+        list.map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .collect()
+    }
+
+    /// A command lives in four places (`conventions/bridge.md`); one left out is found only
+    /// at runtime, as a denied or unknown command.
+    #[test]
+    fn every_command_is_listed_allowed_handled_and_wrapped() {
+        let listed = names(
+            between(include_str!("../build.rs"), ".commands(&[", "]")
+                .split(',')
+                .map(|name| name.trim().trim_matches('"')),
+        );
+        let allowed = include_str!("../capabilities/main.json")
+            .split('"')
+            .filter_map(|word| word.strip_prefix("allow-"))
+            .map(|word| word.replace('-', "_"))
+            .collect::<BTreeSet<_>>();
+        let handled = names(
+            between(include_str!("lib.rs"), "generate_handler![", "]")
+                .split(',')
+                .map(|name| name.trim().trim_start_matches("commands::")),
+        );
+        let wrappers = [
+            include_str!("../../src/shared/api/app.ts"),
+            include_str!("../../src/shared/api/emulator.ts"),
+            include_str!("../../src/shared/api/settings.ts"),
+        ]
+        .concat();
+        // `invoke<T>('name', …)`
+        let wrapped = names(wrappers.split("invoke<").skip(1).filter_map(|rest| {
+            let (_, name) = rest.split_once("('")?;
+            name.split('\'').next()
+        }));
+        assert!(listed.len() > 10, "parsed {listed:?}");
+        assert_eq!(allowed, listed, "capabilities/main.json vs build.rs");
+        assert_eq!(handled, listed, "lib.rs generate_handler! vs build.rs");
+        assert_eq!(wrapped, listed, "src/shared/api/*.ts vs build.rs");
     }
 }

@@ -23,8 +23,9 @@ Guarantees:
 - **No quadratic scans**: commands that end at a NUL look at a bounded window (`ESC D` 33
   bytes, `GS k` function A 256: past it, `GS k m` is skipped and the rest is data).
 - **Alignment**: every command in the reference has a known length, including the ones
-  the emulator ignores. An unknown `ESC x` / `GS x` / `FS x` skips two bytes
-  (`Command::Unknown`); a lone `DLE` skips one, as the printer does.
+  the emulator ignores, each tested by name (`every_skipped_command_has_its_documented_length`).
+  An unknown `ESC x` / `GS x` / `FS x` skips two bytes (`Command::Unknown`); a lone `DLE`
+  skips one, as the printer does.
 - **Out of range is ignored**, as the reference says: the command keeps the previous
   setting instead of being clamped (`ESC a 3`, `ESC - 3`, `GS !` with bit 3 or 7, `GS h 0`,
   `GS w 0`, a QR size outside 1–16 or a level outside 48–51).
@@ -73,7 +74,9 @@ Other control bytes (`0x00–0x1F`, `0x7F`) are `Ignored`, one byte each.
 ## Printer (`printer.rs`, `model.rs`)
 
 Barcode and QR printing is in `printer/codes.rs`, the print model types in `model.rs`, the
-tests in `printer/tests.rs`.
+tests in `printer/tests.rs`. Streaming end to end: 1,000 random streams decode to the same
+outputs, cut at the same byte, whether fed whole, byte by byte or in random chunks
+(`escpos::tests`).
 
 `Printer::apply(command, &mut out)` updates the state and pushes `Output`s:
 `Block(Block)`, `Cut { partial }`, `DrawerPulse`, `Beep`. `finish` prints what is left.

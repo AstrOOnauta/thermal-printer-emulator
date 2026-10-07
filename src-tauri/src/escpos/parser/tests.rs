@@ -146,6 +146,80 @@ fn skips_data_carrying_commands_by_their_length() {
     }
 }
 
+/// Every command skipped or ignored by its documented length, by name: a wrong length is
+/// where a stream goes out of step. Each is followed by text that must come out intact.
+#[test]
+fn every_skipped_command_has_its_documented_length() {
+    let cases: &[(&str, &[u8])] = &[
+        ("ESC c 3", b"\x1bc3\x01"),
+        ("ESC W", b"\x1bW\x00\x00\x00\x00\x40\x02\x00\x01"),
+        ("ESC L", b"\x1bL"),
+        ("ESC S", b"\x1bS"),
+        ("ESC FF", b"\x1b\x0c"),
+        ("ESC %", b"\x1b%\x01"),
+        ("ESC =", b"\x1b=\x01"),
+        ("ESC ?", b"\x1b?A"),
+        ("ESC K", b"\x1bK\x01"),
+        ("ESC R", b"\x1bR\x00"),
+        ("ESC T", b"\x1bT\x00"),
+        ("ESC U", b"\x1bU\x01"),
+        ("ESC V", b"\x1bV\x01"),
+        ("ESC e", b"\x1be\x01"),
+        ("ESC r", b"\x1br\x00"),
+        ("ESC u", b"\x1bu\x00"),
+        ("ESC {", b"\x1b{\x01"),
+        ("ESC v", b"\x1bv"),
+        ("ESC ( A", b"\x1b(A\x04\x00\x30\x33\x01\x01"),
+        ("GS /", b"\x1d/\x00"),
+        ("GS E", b"\x1dE\x01"),
+        ("GS T", b"\x1dT\x00"),
+        ("GS a", b"\x1da\x00"),
+        ("GS b", b"\x1db\x01"),
+        ("GS j", b"\x1dj\x00"),
+        ("GS $", b"\x1d$\x00\x00"),
+        ("GS \\", b"\x1d\\\x00\x00"),
+        ("GS P", b"\x1dP\xcb\xcb"),
+        ("GS ^", b"\x1d^\x01\x00\x00"),
+        ("GS g", b"\x1dg2\x00\x14\x00"),
+        ("GS z", b"\x1dz0\x01\x01"),
+        ("GS :", b"\x1d:"),
+        ("GS c", b"\x1dc"),
+        ("GS *", b"\x1d*\x01\x01\x01\x02\x03\x04\x05\x06\x07\x08"),
+        ("FS !", b"\x1c!\x00"),
+        ("FS -", b"\x1c-\x00"),
+        ("FS C", b"\x1cC\x00"),
+        ("FS W", b"\x1cW\x00"),
+        ("FS S", b"\x1cS\x00\x00"),
+        ("FS p", b"\x1cp\x01\x00"),
+        ("FS ?", b"\x1c?\xfe\xa1"),
+        ("FS &", b"\x1c&"),
+        ("FS .", b"\x1c."),
+        ("FS ( A", b"\x1c(A\x02\x00\x30\x00"),
+        ("DLE ENQ", b"\x10\x05\x01"),
+        ("DLE DC4 2", b"\x10\x14\x02\x01\x08"),
+        ("DLE DC4 3", b"\x10\x14\x03\x01\x01"),
+        ("DLE DC4 7", b"\x10\x14\x07\x01"),
+        ("DLE DC4 8", b"\x10\x14\x08\x01\x03\x14\x01\x06\x02\x08"),
+    ];
+    for (name, bytes) in cases {
+        let mut stream = bytes.to_vec();
+        stream.extend_from_slice(b"ok");
+        assert_eq!(
+            commands(&stream),
+            vec![Command::Ignored, Command::Text(b"ok".to_vec())],
+            "{name}"
+        );
+    }
+    let mut fs2 = b"\x1c2\xfe\xa1".to_vec();
+    fs2.extend([0u8; 72]);
+    fs2.extend_from_slice(b"ok");
+    assert_eq!(
+        commands(&fs2),
+        vec![Command::Ignored, Command::Text(b"ok".to_vec())],
+        "FS 2"
+    );
+}
+
 #[test]
 fn out_of_range_parameters_ignore_the_command() {
     // The printer keeps the setting it had.
@@ -161,6 +235,29 @@ fn out_of_range_parameters_ignore_the_command() {
         },
         "GS ! 0x77"
     );
+}
+
+#[test]
+fn cut_forms_with_a_feed_byte() {
+    for (name, function) in [
+        ("GS V 97", 97),
+        ("GS V 98", 98),
+        ("GS V 103", 103),
+        ("GS V 104", 104),
+    ] {
+        assert_eq!(
+            commands(&[0x1d, b'V', function, 0x10, b'o', b'k']),
+            vec![
+                Command::Cut {
+                    partial: function % 2 == 0,
+                    feed: 0x10
+                },
+                Command::Text(b"ok".to_vec())
+            ],
+            "{name}"
+        );
+    }
+    assert!(matches!(one(b"\x1bi"), Command::Cut { .. }), "ESC i");
 }
 
 #[test]
@@ -329,7 +426,11 @@ fn reports_stream_offsets_after_each_command() {
 
 const SAMPLE: &[u8] = b"\x1b@\x1ba\x01\x1b!\x30Store\n\x1b!\x00\x1bt\x02Caf\x82 1,50\n\
     \x1dv0\x00\x01\x00\x02\x00\xf0\x0f\x1dkI\x04{B12\x1d(k\x03\x00\x31\x45\x31\
-    \x1bD\x08\x00\tTab\n\x10\x04\x01\x1bd\x03\x1dVA\x10";
+    \x1bD\x08\x00\tTab\n\x10\x04\x01\x1bd\x03\
+    \x1b&\x03\x41\x41\x01\x01\x02\x03\x1b*\x00\x02\x00\x01\x02\
+    \x1d(L\x0b\x000p0\x01\x01\x31\x08\x00\x01\x00\xff\
+    \x1d8L\x0b\x00\x00\x000p0\x01\x01\x31\x08\x00\x01\x00\x0f\
+    \x1cq\x01\x01\x00\x01\x00\x01\x02\x03\x04\x05\x06\x07\x08\x1dVA\x10";
 
 #[test]
 fn any_split_parses_like_the_whole_stream() {
