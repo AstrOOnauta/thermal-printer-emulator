@@ -13,6 +13,12 @@ const en = {
       label: 'Language',
       system: 'Same as the system',
     },
+    theme: {
+      label: 'Theme',
+      system: 'Same as the system',
+      light: 'Light',
+      dark: 'Dark',
+    },
     port: {
       label: 'Port',
       hint: 'The TCP port the POS sends jobs to. Network printers use 9100.',

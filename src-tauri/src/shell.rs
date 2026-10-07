@@ -17,6 +17,7 @@ use crate::commands::send_test_receipt;
 use crate::listener::{lock, BindError, ListenerStatus, Shared};
 use crate::locale::{Locale, Strings};
 use crate::receipts::ReceiptSummary;
+use crate::settings::Theme;
 
 /// The tray tooltip's name.
 pub(crate) const PRODUCT_NAME: &str = "Thermal Printer Emulator";
@@ -164,6 +165,21 @@ pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         ],
     )?;
     Menu::with_items(app, &[&app_submenu, &edit_submenu])
+}
+
+/// The window's appearance: its title bar, and the webview's `prefers-color-scheme` on macOS
+/// and Windows (the webview also gets `data-theme`, for Linux). `System` follows the OS.
+pub fn apply_theme(app: &AppHandle, theme: Theme) {
+    let theme = match theme {
+        Theme::System => None,
+        Theme::Light => Some(tauri::Theme::Light),
+        Theme::Dark => Some(tauri::Theme::Dark),
+    };
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(error) = window.set_theme(theme) {
+            log::warn!("theme_failed error={error}");
+        }
+    }
 }
 
 fn set_autostart(app: &AppHandle, enabled: bool) {

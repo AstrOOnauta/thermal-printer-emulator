@@ -14,6 +14,7 @@ import type {
   IPaper,
   ISettings,
   ISettingsChange,
+  ITheme,
 } from '@/shared/interfaces/emulator';
 import { cn } from '@/shared/styles/cn';
 import { BUTTON, FIELD } from '@/shared/styles/patterns';
@@ -80,6 +81,7 @@ export function SettingsPanel({
   const portId = useId();
   const codePageId = useId();
   const languageId = useId();
+  const themeId = useId();
   const zoomId = useId();
 
   const save = (change: ISettingsChange) => {
@@ -139,6 +141,19 @@ export function SettingsPanel({
                 {name}
               </option>
             ))}
+          </select>
+        </Field>
+
+        <Field label={t('settings.theme.label')} htmlFor={themeId}>
+          <select
+            id={themeId}
+            className={`${FIELD} w-full`}
+            value={settings.theme}
+            onChange={(event) => save({ theme: event.target.value as ITheme })}
+          >
+            <option value="system">{t('settings.theme.system')}</option>
+            <option value="light">{t('settings.theme.light')}</option>
+            <option value="dark">{t('settings.theme.dark')}</option>
           </select>
         </Field>
 

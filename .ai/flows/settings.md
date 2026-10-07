@@ -12,6 +12,7 @@ only through `get_settings` / `set_settings`, and Rust validates every value.
 | `code_page` | 0        | a supported `ESC t` table (`codepage.rs`)                                            | next connections (decision 4)                                |
 | `sound`     | true     | printing sound for every receipt + the printer's beep (`flows/print-job.md` § Sound) | at once (webview)                                            |
 | `language`  | `system` | `system` (follow the OS) / `en` / `es` / `pt-BR`                                     | at once: window, tray and macOS menu (`conventions/i18n.md`) |
+| `theme`     | `system` | `system` (follow the OS) / `light` / `dark`                                          | at once: window and webview (`design-system.md`)             |
 | `zoom`      | 100      | 75 / 100 / 125 / 150 / 200 (`ZOOM_STEPS`, percent)                                   | at once: paper redrawn at the new scale; ⌘+ ⌘− ⌘0            |
 
 ## Load and save
@@ -40,6 +41,8 @@ save ─ fails ─▶ UiError { key: settings.errors.save } (logged)
 Shared.settings ← new value (log settings_changed)
    │
 language changed? ─ yes ─▶ Locale::prefer + shell::refresh_menus (tray, macOS app menu)
+   │
+theme changed? ─ yes ─▶ shell::apply_theme (the window; the webview sets data-theme itself)
    │
 address changed? ─ yes ─▶ commands::restart_listener: abort the running listener task, await it
    │                        (its socket is closed), spawn listener::run on the new address

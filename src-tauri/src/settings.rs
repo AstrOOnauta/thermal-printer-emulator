@@ -25,6 +25,17 @@ pub enum Bind {
     Local,
 }
 
+/// The window's look. The receipt paper stays white either way.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Theme {
+    /// Follow the OS.
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
 /// No `#[serde(default)]`: a change from the webview must carry every field (a missing one
 /// would silently fall back, `bind` to `lan` included). The file fills gaps in `load`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,6 +48,7 @@ pub struct Settings {
     /// Play the printing sound for each receipt and the printer's beep (`ESC B`).
     pub sound: bool,
     pub language: Language,
+    pub theme: Theme,
     /// Paper zoom in percent, one of `ZOOM_STEPS`.
     pub zoom: u16,
 }
@@ -50,6 +62,7 @@ impl Default for Settings {
             code_page: 0,
             sound: true,
             language: Language::System,
+            theme: Theme::System,
             zoom: 100,
         }
     }
@@ -183,6 +196,7 @@ mod tests {
             code_page: 2,
             sound: false,
             language: Language::PtBr,
+            theme: Theme::Dark,
             zoom: 150,
         };
         settings.save(&path).expect("saves");

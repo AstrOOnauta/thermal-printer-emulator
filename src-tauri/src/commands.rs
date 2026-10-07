@@ -14,7 +14,7 @@ use crate::listener::{self, lock, Limits, ListenerStatus, Shared};
 use crate::locale::Locale;
 use crate::receipts::{CodePages, ReceiptSummary, ReceiptView};
 use crate::settings::{self, Settings};
-use crate::shell::{refresh_menus, show_unseen_in_tray, UNSEEN};
+use crate::shell::{apply_theme, refresh_menus, show_unseen_in_tray, UNSEEN};
 
 /// A refused command: an i18n key the webview translates. Rust never sends a sentence.
 #[derive(Debug, Serialize)]
@@ -224,12 +224,13 @@ pub async fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings
         log::error!("settings_save_failed path={} error={error}", path.display());
         return Err(UiError::new("settings.errors.save"));
     }
-    let (restart, language_changed) = {
+    let (restart, language_changed, theme_changed) = {
         let shared = app.state::<Arc<Shared>>();
         let mut current = lock(&shared.settings);
         let changes = (
             current.addr() != settings.addr(),
             current.language != settings.language,
+            current.theme != settings.theme,
         );
         *current = settings.clone();
         changes
@@ -240,14 +241,19 @@ pub async fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings
             log::error!("menus_refresh_failed error={error}");
         }
     }
+    if theme_changed {
+        apply_theme(&app, settings.theme);
+    }
     log::info!(
-        "settings_changed port={} bind={:?} paper={:?} code_page={} sound={} language={:?}",
+        "settings_changed port={} bind={:?} paper={:?} code_page={} sound={} language={:?} theme={:?} zoom={}",
         settings.port,
         settings.bind,
         settings.paper,
         settings.code_page,
         settings.sound,
-        settings.language
+        settings.language,
+        settings.theme,
+        settings.zoom
     );
     if restart {
         restart_listener(&app).await;

@@ -87,6 +87,9 @@ export type IBind = 'lan' | 'local';
 /** Mirrors `locale::Language`: `system` follows the OS. */
 export type ILanguage = 'system' | 'en' | 'es' | 'pt-BR';
 
+/** `settings::Theme`: `system` follows the OS. */
+export type ITheme = 'system' | 'light' | 'dark';
+
 /** Mirrors `settings::Settings`. */
 export interface ISettings {
   port: number;
@@ -96,6 +99,7 @@ export interface ISettings {
   code_page: number;
   sound: boolean;
   language: ILanguage;
+  theme: ITheme;
   /** Paper zoom in percent: 75, 100, 125, 150 or 200. */
   zoom: number;
 }

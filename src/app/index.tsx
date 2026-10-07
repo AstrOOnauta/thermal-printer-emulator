@@ -83,6 +83,15 @@ export function App() {
 
   const listening = status.state === 'listening';
 
+  // Rust sets the window's look too (`apply_theme`); `data-theme` covers webviews that do
+  // not follow it (Linux).
+  const theme = settings?.theme;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!theme || theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }, [theme]);
+
   // The network may change while the app runs (Wi-Fi, DHCP, VPN): ask again whenever the
   // listener (re)starts and whenever the window comes back to the front.
   useEffect(() => {

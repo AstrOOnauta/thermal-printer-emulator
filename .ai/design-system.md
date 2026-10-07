@@ -6,8 +6,11 @@ Defined in `src/shared/styles/globals.css` and exposed to Tailwind v4 through
 `@theme inline` (`bg-surface`, `text-muted`, `border-border`, …). **Never** use raw
 Tailwind colors like `bg-blue-500`: add a token instead.
 
-The app chrome follows the OS theme (`prefers-color-scheme`). **The receipt paper is
-always white**, as real paper is.
+The app chrome follows the OS theme (`prefers-color-scheme`) unless Settings picks light
+or dark: Rust sets the window's appearance (`shell::apply_theme`: title bar, and the
+webview's `prefers-color-scheme` on macOS and Windows) and `App` sets `data-theme` on
+`<html>`, which `globals.css` honors (the dark tokens appear twice, keep them in sync).
+**The receipt paper is always white**, as real paper is.
 
 | Token                           | Light                             | Dark                              | Use                                          |
 | ------------------------------- | --------------------------------- | --------------------------------- | -------------------------------------------- |

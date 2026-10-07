@@ -11,6 +11,12 @@ const es: TranslationKeys = {
       label: 'Idioma',
       system: 'Igual que el sistema',
     },
+    theme: {
+      label: 'Tema',
+      system: 'Igual que el sistema',
+      light: 'Claro',
+      dark: 'Oscuro',
+    },
     port: {
       label: 'Puerto',
       hint: 'El puerto TCP al que el POS envía los trabajos. Las impresoras de red usan el 9100.',

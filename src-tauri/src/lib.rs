@@ -63,6 +63,7 @@ pub fn run() {
             let settings = settings::Settings::load(&settings_path);
             // Before any native menu is built, so they all start in the chosen language.
             locale::Locale::prefer(settings.language);
+            let theme = settings.theme;
             app.manage(commands::SettingsPath(tokio::sync::Mutex::new(
                 settings_path,
             )));
@@ -80,6 +81,8 @@ pub fn run() {
             let starter = handle.clone();
             tauri::async_runtime::spawn(async move { commands::restart_listener(&starter).await });
 
+            // Before the window shows, so its first frame already has the chosen look.
+            shell::apply_theme(handle, theme);
             // The window is created hidden (tauri.conf.json) so a login launch never flashes it.
             let autostart = std::env::args().any(|arg| arg == AUTOSTART_ARG);
             if !autostart {
