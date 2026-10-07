@@ -132,7 +132,11 @@ rendering.
 - **Following the end** (`use-follow-bottom.ts`): while the user is at the end (within
   64 px), the list follows new paper; once they scroll up to read, it stays put and a pill
   ("↓ New receipt" / "↓ 3 new receipts") counts what arrived; clicking it goes to the end.
-  The list opens at the end. The scroller has `overflow-anchor: none`: it positions itself,
+  The list opens at the end. Arrivals are counted by id (ids only grow), so the count is
+  right at the 100-receipt limit too. When the oldest receipts are dropped while the user
+  reads above the end, the list scrolls by their height so the receipt being read stays
+  put (each card's `offsetTop` is compared with the last change's, `data-receipt-id`).
+  Clearing (the list unmounts) starts over: at the end, nothing unseen. The scroller has `overflow-anchor: none`: it positions itself,
   and the browser's scroll anchoring must not move it too. Scroll writes go through a ref
   (the React Compiler forbids mutating a state-held element).
 - **Paper feed**: a receipt that finishes while the window is open (`ended_at` after the
@@ -141,7 +145,8 @@ rendering.
   curve** (`paper-feed.ts`: about 1200 dots/s like a thermal printer, clamped to
   300–1400 ms; `easeOutCubic` = `--ease-out-cubic`). The printed edge then stays on the
   window's bottom edge, like paper leaving a printer's slot. Scroll events caused by the
-  feed are ignored; a wheel, touch or key from the user stops it. More paper arriving
+  feed are ignored; a wheel, touch, pointer press (a scrollbar drag) or key from the user
+  stops it. More paper arriving
   mid-feed retargets it. Reduced motion: no scroll animation, a 150 ms fade instead of the
   reveal. Receipts already there when the window opens never animate.
 - Canvases get their CSS size at render (`Slice`), not when drawn: a canvas without one is

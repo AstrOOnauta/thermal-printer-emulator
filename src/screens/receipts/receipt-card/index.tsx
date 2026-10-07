@@ -91,7 +91,7 @@ export function ReceiptCard({
     });
 
   return (
-    <li className="flex flex-col gap-2">
+    <li className="flex flex-col gap-2" data-receipt-id={receipt.id}>
       {/* As wide as the paper: the actions end at its right edge. */}
       <header
         className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
