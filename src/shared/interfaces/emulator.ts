@@ -96,6 +96,8 @@ export interface ISettings {
   code_page: number;
   sound: boolean;
   language: ILanguage;
+  /** Paper zoom in percent: 75, 100, 125, 150 or 200. */
+  zoom: number;
 }
 
 /** A refused command (`ui::UiError`): an i18n key. */

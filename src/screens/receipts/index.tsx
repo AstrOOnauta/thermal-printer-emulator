@@ -18,6 +18,8 @@ interface IReceiptsScreenProps {
   sound: boolean;
   /** For the empty state's button. */
   testReceipt: ITestReceipt;
+  /** Paper zoom: CSS pixels per dot. */
+  scale: number;
 }
 
 /** The printed receipts on paper, oldest first: the newest is at the bottom, like a roll. */
@@ -26,6 +28,7 @@ export function ReceiptsScreen({
   address,
   sound,
   testReceipt,
+  scale,
 }: IReceiptsScreenProps) {
   const { t } = useTranslation();
   // State, not a ref: the cards' observers need the element once it exists.
@@ -41,6 +44,7 @@ export function ReceiptsScreen({
     scrollerRef,
     scroller,
     receipts,
+    scale,
   );
 
   // Receipts that finish from now on print with motion; older ones are just there.
@@ -93,13 +97,16 @@ export function ReceiptsScreen({
         aria-label={t('receipts.title')}
         className="flex-1 overflow-y-auto px-4 py-6 [overflow-anchor:none]"
       >
-        <ol className="flex flex-col items-center gap-8">
+        {/* w-max + min-w-full: a zoomed receipt wider than the window scrolls sideways
+            from its left edge instead of being cut off by centering. */}
+        <ol className="flex w-max min-w-full flex-col items-center gap-8">
           {receipts.map((receipt) => (
             <ReceiptCard
               key={receipt.id}
               receipt={receipt}
               root={scroller}
               fresh={receipt.ended_at !== null && receipt.ended_at >= openedAt}
+              scale={scale}
             />
           ))}
         </ol>

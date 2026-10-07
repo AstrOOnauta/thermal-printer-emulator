@@ -157,6 +157,13 @@ menu bar icon on macOS (the Dock icon is hidden while the window is closed), and
 tooltip ("Thermal Printer Emulator · 3 new") everywhere. Windows has no badge count. The
 count clears when the window gets focus.
 
+## Zoom
+
+The paper zoom setting (75–200 %) scales the receipts: the canvas is redrawn at the new
+scale (`drawSlice(…, scale)`), never stretched, so codes and font B stay sharp. Margins,
+widths and placeholders scale with it; the feed's speed stays in printer dots
+(`feedDuration(distance / scale)`). A receipt wider than the window scrolls sideways.
+
 ## Sound
 
 When a receipt finishes and the `sound` setting is on, the webview plays

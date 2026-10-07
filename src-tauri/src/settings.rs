@@ -13,6 +13,9 @@ use crate::locale::Language;
 
 pub const FILE_NAME: &str = "settings.json";
 
+/// Paper zoom steps, in percent.
+pub const ZOOM_STEPS: [u16; 5] = [75, 100, 125, 150, 200];
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Bind {
@@ -33,6 +36,8 @@ pub struct Settings {
     /// Play the printer's beep (`ESC B`).
     pub sound: bool,
     pub language: Language,
+    /// Paper zoom in percent, one of `ZOOM_STEPS`.
+    pub zoom: u16,
 }
 
 impl Default for Settings {
@@ -44,6 +49,7 @@ impl Default for Settings {
             code_page: 0,
             sound: true,
             language: Language::System,
+            zoom: 100,
         }
     }
 }
@@ -53,6 +59,7 @@ impl Default for Settings {
 pub enum Invalid {
     Port,
     CodePage,
+    Zoom,
 }
 
 impl Invalid {
@@ -60,6 +67,7 @@ impl Invalid {
         match self {
             Self::Port => "settings.errors.port",
             Self::CodePage => "settings.errors.codePage",
+            Self::Zoom => "settings.errors.zoom",
         }
     }
 }
@@ -71,6 +79,9 @@ impl Settings {
         }
         if CodePage::from_table(self.code_page).is_none() {
             return Err(Invalid::CodePage);
+        }
+        if !ZOOM_STEPS.contains(&self.zoom) {
+            return Err(Invalid::Zoom);
         }
         Ok(())
     }
@@ -147,6 +158,7 @@ mod tests {
             code_page: 2,
             sound: false,
             language: Language::PtBr,
+            zoom: 150,
         };
         settings.save(&path).expect("saves");
         assert_eq!(Settings::load(&path), settings);
@@ -189,6 +201,15 @@ mod tests {
             }
             .validate(),
             Err(Invalid::Port)
+        );
+        assert_eq!(
+            Settings {
+                zoom: 110,
+                ..valid.clone()
+            }
+            .validate(),
+            Err(Invalid::Zoom),
+            "zoom moves in steps"
         );
         assert_eq!(
             Settings {

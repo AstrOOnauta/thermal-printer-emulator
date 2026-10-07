@@ -12,6 +12,7 @@ only through `get_settings` / `set_settings`, and Rust validates every value.
 | `code_page` | 0        | a supported `ESC t` table (`codepage.rs`)                                            | next connections (decision 4)                                |
 | `sound`     | true     | printing sound for every receipt + the printer's beep (`flows/print-job.md` § Sound) | at once (webview)                                            |
 | `language`  | `system` | `system` (follow the OS) / `en` / `es` / `pt-BR`                                     | at once: window, tray and macOS menu (`conventions/i18n.md`) |
+| `zoom`      | 100      | 75 / 100 / 125 / 150 / 200 (`ZOOM_STEPS`, percent)                                   | at once: paper redrawn at the new scale; ⌘+ ⌘− ⌘0            |
 
 ## Load and save
 

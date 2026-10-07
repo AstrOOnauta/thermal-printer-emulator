@@ -126,8 +126,9 @@ function drawBlock(
 }
 
 /**
- * Draws the slice `[sliceTop, sliceBottom)` of a receipt onto `canvas`, one dot per CSS
- * pixel, at the device's pixel ratio.
+ * Draws the slice `[sliceTop, sliceBottom)` of a receipt onto `canvas`, `scale` CSS pixels
+ * per dot (the paper zoom), at the device's pixel ratio: redrawn, never stretched, so it
+ * stays sharp at any zoom. The caller sets the canvas' CSS size.
  */
 export function drawSlice(
   canvas: HTMLCanvasElement,
@@ -135,16 +136,15 @@ export function drawSlice(
   width: number,
   sliceTop: number,
   sliceBottom: number,
+  scale: number,
 ) {
-  const ratio = window.devicePixelRatio || 1;
+  const pixels = (window.devicePixelRatio || 1) * scale;
   const height = sliceBottom - sliceTop;
-  canvas.width = Math.round(width * ratio);
-  canvas.height = Math.round(height * ratio);
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
+  canvas.width = Math.round(width * pixels);
+  canvas.height = Math.round(height * pixels);
   const context = canvas.getContext('2d');
   if (!context) return;
-  context.setTransform(ratio, 0, 0, ratio, 0, -sliceTop * ratio);
+  context.setTransform(pixels, 0, 0, pixels, 0, -sliceTop * pixels);
   context.clearRect(0, sliceTop, width, height);
   for (const { y, block } of blocksIn(positioned, sliceTop, sliceBottom)) {
     drawBlock(context, block, y);

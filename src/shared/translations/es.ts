@@ -27,6 +27,10 @@ const es: TranslationKeys = {
       mm58: '58 mm (32 columnas)',
       hint: 'Se aplica a los recibos nuevos.',
     },
+    zoom: {
+      label: 'Zoom del papel',
+      hint: '%{in} para acercar, %{out} para alejar, %{reset} para 100 %.',
+    },
     codePage: {
       label: 'Página de códigos predeterminada',
       hint: 'Se usa hasta que el POS elige otra con ESC t.',
@@ -49,6 +53,7 @@ const es: TranslationKeys = {
     errors: {
       port: 'Usa un puerto del 1 al 65535.',
       codePage: 'Esta página de códigos no es compatible.',
+      zoom: 'Elige uno de los niveles de zoom de la lista.',
       save: 'No se pudo guardar la configuración.',
     },
   },

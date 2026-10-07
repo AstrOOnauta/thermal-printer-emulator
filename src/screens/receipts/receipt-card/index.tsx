@@ -30,9 +30,18 @@ interface IReceiptCardProps {
   root: Element | null;
   /** Finished while the window was open: its paper comes out with motion. */
   fresh: boolean;
+  /** Paper zoom: CSS pixels per dot. */
+  scale: number;
 }
 
-export function ReceiptCard({ receipt, root, fresh }: IReceiptCardProps) {
+export function ReceiptCard({
+  receipt,
+  root,
+  fresh,
+  scale,
+}: IReceiptCardProps) {
+  const margin = MARGIN * scale;
+  const paperWidth = receipt.width * scale + 2 * margin;
   const { t } = useTranslation();
   const { ref, near } = useNearViewport<HTMLDivElement>(root);
   const locale = getLocale();
@@ -85,22 +94,22 @@ export function ReceiptCard({ receipt, root, fresh }: IReceiptCardProps) {
           ref={ref}
           className="bg-paper shadow-sm"
           style={{
-            width: receipt.width + 2 * MARGIN,
-            padding: `${MARGIN}px ${MARGIN}px ${receipt.cut ? 4 : MARGIN}px`,
+            width: paperWidth,
+            padding: `${margin}px ${margin}px ${receipt.cut ? 4 : margin}px`,
             minHeight: printing ? PRINTING_HEIGHT : undefined,
           }}
         >
           {near && !printing ? (
-            <ReceiptPaper receipt={receipt} />
+            <ReceiptPaper receipt={receipt} scale={scale} />
           ) : (
-            <div style={{ height: printing ? 0 : receipt.height }} />
+            <div style={{ height: printing ? 0 : receipt.height * scale }} />
           )}
         </div>
         {receipt.cut && (
           <div
             aria-hidden
             className="paper-cut"
-            style={{ width: receipt.width + 2 * MARGIN }}
+            style={{ width: paperWidth }}
           />
         )}
       </div>

@@ -33,6 +33,8 @@ export function useFollowBottom(
   scrollerRef: RefObject<HTMLElement | null>,
   attached: HTMLElement | null,
   receipts: IReceiptSummary[] | null,
+  /** Paper zoom: CSS pixels per dot. The feed's speed is in printer dots. */
+  scale: number,
 ) {
   const atEnd = useRef(true);
   const lastCount = useRef(0);
@@ -58,7 +60,7 @@ export function useFollowBottom(
         element.scrollTop = from + distance;
         return;
       }
-      const duration = feedDuration(distance);
+      const duration = feedDuration(distance / scale);
       const startedAt = performance.now();
       const step = (now: number) => {
         const progress = Math.min(1, (now - startedAt) / duration);
@@ -69,7 +71,7 @@ export function useFollowBottom(
       };
       frame.current = requestAnimationFrame(step);
     },
-    [scrollerRef, stopFeed],
+    [scrollerRef, stopFeed, scale],
   );
 
   useEffect(() => {

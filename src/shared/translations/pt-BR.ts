@@ -27,6 +27,10 @@ const ptBR: TranslationKeys = {
       mm58: '58 mm (32 colunas)',
       hint: 'Vale para os próximos cupons.',
     },
+    zoom: {
+      label: 'Zoom do papel',
+      hint: '%{in} para aproximar, %{out} para afastar, %{reset} para 100%.',
+    },
     codePage: {
       label: 'Página de código padrão',
       hint: 'Usada até o PDV escolher outra com ESC t.',
@@ -49,6 +53,7 @@ const ptBR: TranslationKeys = {
     errors: {
       port: 'Use uma porta de 1 a 65535.',
       codePage: 'Esta página de código não é suportada.',
+      zoom: 'Escolha um dos níveis de zoom da lista.',
       save: 'Não foi possível salvar as configurações.',
     },
   },

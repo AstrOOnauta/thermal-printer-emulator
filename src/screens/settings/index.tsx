@@ -16,7 +16,9 @@ import type {
 } from '@/shared/interfaces/emulator';
 import { cn } from '@/shared/styles/cn';
 import { BUTTON, FIELD } from '@/shared/styles/patterns';
+import { shortcutLabel } from '@/shared/utils/shortcut';
 import { uiErrorKey } from '@/shared/utils/ui-error';
+import { ZOOM_STEPS } from '@/shared/utils/zoom';
 
 /** `ESC t` tables the emulator has, as in `codepage.rs`. */
 const CODE_PAGES: { table: number; label: TranslationScope }[] = [
@@ -73,6 +75,7 @@ export function SettingsPanel({
   const portId = useId();
   const codePageId = useId();
   const languageId = useId();
+  const zoomId = useId();
 
   const save = (next: ISettings) => {
     setError(null);
@@ -187,6 +190,30 @@ export function SettingsPanel({
           ]}
           onChange={(paper) => save({ ...settings, paper })}
         />
+
+        <Field label={t('settings.zoom.label')} htmlFor={zoomId}>
+          <select
+            id={zoomId}
+            className={`${FIELD} w-full`}
+            value={settings.zoom}
+            onChange={(event) =>
+              save({ ...settings, zoom: Number(event.target.value) })
+            }
+          >
+            {ZOOM_STEPS.map((zoom) => (
+              <option key={zoom} value={zoom}>
+                {zoom}%
+              </option>
+            ))}
+          </select>
+          <Hint>
+            {t('settings.zoom.hint', {
+              in: shortcutLabel('+'),
+              out: shortcutLabel('−'),
+              reset: shortcutLabel('0'),
+            })}
+          </Hint>
+        </Field>
 
         <Field label={t('settings.codePage.label')} htmlFor={codePageId}>
           <select

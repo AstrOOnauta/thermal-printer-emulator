@@ -16,7 +16,10 @@ import {
   onListenerStatus,
   onReceipts,
 } from '@/shared/api/emulator';
-import { getSettings } from '@/shared/api/settings';
+import {
+  getSettings,
+  setSettings as saveSettings,
+} from '@/shared/api/settings';
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTestReceipt } from '@/shared/hooks/use-test-receipt';
 import { useUnseenBadge } from '@/shared/hooks/use-unseen-badge';
@@ -31,6 +34,7 @@ import {
   isTyping,
   shortcutLabel,
 } from '@/shared/utils/shortcut';
+import { stepZoom } from '@/shared/utils/zoom';
 
 const STARTING: IListenerStatus = { state: 'starting' };
 const NO_RECEIPTS: IReceiptSummary[] = [];
@@ -91,10 +95,33 @@ export function App() {
   const hasReceipts = (receipts?.length ?? 0) > 0;
   const printTest = testReceipt.print;
 
-  // ⌘, settings · ⌘T test receipt · ⌘⌫ clear (Ctrl on Windows and Linux).
+  // ⌘, settings · ⌘T test receipt · ⌘⌫ clear · ⌘+ ⌘− ⌘0 zoom (Ctrl on Windows and Linux).
   useEffect(() => {
+    const zoomTo = (zoom: number) => {
+      if (!settings || zoom === settings.zoom) return;
+      saveSettings({ ...settings, zoom })
+        .then(setSettings)
+        .catch(() => {
+          // Refused or not in Tauri: the zoom stays.
+        });
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (!hasCommandKey(event)) return;
+      if (settings && (event.key === '=' || event.key === '+')) {
+        event.preventDefault();
+        zoomTo(stepZoom(settings.zoom, 1));
+        return;
+      }
+      if (settings && event.key === '-') {
+        event.preventDefault();
+        zoomTo(stepZoom(settings.zoom, -1));
+        return;
+      }
+      if (settings && event.key === '0') {
+        event.preventDefault();
+        zoomTo(100);
+        return;
+      }
       if (event.key === ',' && settings) {
         event.preventDefault();
         setSettingsOpen((open) => !open);
@@ -148,6 +175,7 @@ export function App() {
           address={address}
           sound={settings?.sound ?? true}
           testReceipt={testReceipt}
+          scale={(settings?.zoom ?? 100) / 100}
         />
         {settings && (
           <SettingsPanel

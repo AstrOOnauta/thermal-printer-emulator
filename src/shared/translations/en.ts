@@ -29,6 +29,10 @@ const en = {
       mm58: '58 mm (32 columns)',
       hint: 'Applies to new receipts.',
     },
+    zoom: {
+      label: 'Paper zoom',
+      hint: '%{in} to zoom in, %{out} to zoom out, %{reset} for 100%.',
+    },
     codePage: {
       label: 'Default code page',
       hint: 'Used until the POS selects one with ESC t.',
@@ -51,6 +55,7 @@ const en = {
     errors: {
       port: 'Use a port from 1 to 65535.',
       codePage: 'This code page is not supported.',
+      zoom: 'Pick one of the listed zoom levels.',
       save: "Couldn't save the settings.",
     },
   },
