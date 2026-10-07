@@ -16,6 +16,7 @@
     "allow-export-receipt",
     "allow-set-unseen",
     "allow-quit-app",
+    "allow-open-repository",
     "allow-get-receipt-commands",
     "allow-set-settings"
   ]

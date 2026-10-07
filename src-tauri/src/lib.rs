@@ -114,6 +114,7 @@ pub fn run() {
             commands::export_receipt,
             commands::set_unseen,
             commands::quit_app,
+            commands::open_repository,
             commands::get_receipt_commands,
             commands::set_settings
         ])

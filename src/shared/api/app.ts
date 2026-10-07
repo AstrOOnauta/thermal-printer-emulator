@@ -10,7 +10,12 @@ export function setUnseen(count: number): Promise<void> {
   return invoke<void>('set_unseen', { count });
 }
 
-/** Quits the app: the listener stops and the port is free. */
+/** Quits the app (Ctrl+Q off macOS): the listener stops and the port is free. */
 export function quitApp(): Promise<void> {
   return invoke<void>('quit_app');
+}
+
+/** Opens the project's GitHub page in the browser (a fixed URL, chosen by Rust). */
+export function openRepository(): Promise<void> {
+  return invoke<void>('open_repository');
 }

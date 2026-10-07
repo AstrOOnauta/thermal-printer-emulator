@@ -12,6 +12,9 @@ webview's `prefers-color-scheme` on macOS and Windows) and `App` sets `data-them
 `<html>`, which `globals.css` honors (the dark tokens appear twice, keep them in sync).
 **The receipt paper is always white**, as real paper is.
 
+The Settings panel ends with the version (`__APP_VERSION__`, from `package.json` through
+`vite.config.ts`) and the credits ("Made by AstrOOnauta · GitHub"), small and muted.
+
 | Token                           | Light                             | Dark                              | Use                                          |
 | ------------------------------- | --------------------------------- | --------------------------------- | -------------------------------------------- |
 | `surface`                       | `#f4f4f5`                         | `#18181b`                         | Window background                            |

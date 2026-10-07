@@ -14,7 +14,7 @@ use crate::listener::{self, lock, Limits, ListenerStatus, Shared};
 use crate::locale::Locale;
 use crate::receipts::{CodePages, ReceiptSummary, ReceiptView};
 use crate::settings::{self, Settings};
-use crate::shell::{apply_theme, refresh_menus, show_unseen_in_tray, UNSEEN};
+use crate::shell::{apply_theme, refresh_menus, show_unseen_in_tray, REPOSITORY, UNSEEN};
 
 /// A refused command: an i18n key the webview translates. Rust never sends a sentence.
 #[derive(Debug, Serialize)]
@@ -190,6 +190,15 @@ pub fn set_unseen(app: AppHandle, count: u32) {
 pub fn quit_app(app: AppHandle) {
     log::info!("quit from=window");
     app.exit(0);
+}
+
+/// Opens the project's page in the browser (the credits in the Settings panel). The URL is
+/// fixed: the webview never chooses what gets opened.
+#[tauri::command]
+pub fn open_repository(app: AppHandle) {
+    if let Err(error) = app.opener().open_url(REPOSITORY, None::<&str>) {
+        log::warn!("open_repository_failed error={error}");
+    }
 }
 
 /// This computer's LAN IPv4 address (`network.rs`), `None` offline.

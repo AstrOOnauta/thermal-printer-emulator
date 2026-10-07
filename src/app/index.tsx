@@ -8,7 +8,7 @@ import { ReceiptsScreen } from '@/screens/receipts';
 import { ClearButton } from '@/screens/receipts/clear-button';
 import { TestReceiptButton } from '@/screens/receipts/test-receipt-button';
 import { SettingsPanel } from '@/screens/settings';
-import { getAppLocale } from '@/shared/api/app';
+import { getAppLocale, quitApp } from '@/shared/api/app';
 import {
   getLanAddress,
   getListenerStatus,
@@ -34,7 +34,7 @@ import type {
   ISettings,
   ISettingsChange,
 } from '@/shared/interfaces/emulator';
-import { hasCommandKey, isTyping } from '@/shared/utils/shortcut';
+import { hasCommandKey, IS_MAC, isTyping } from '@/shared/utils/shortcut';
 import { stepZoom } from '@/shared/utils/zoom';
 
 const STARTING: IListenerStatus = { state: 'starting' };
@@ -168,6 +168,16 @@ export function App() {
       });
     };
     const onKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+Q quits on Windows and Linux, as there; on macOS ⌘Q only closes the window
+      // (the app menu). Closing the window keeps the emulator running in the tray, and on
+      // GNOME without a tray icon this is the way out.
+      if (!IS_MAC && hasCommandKey(event) && event.key.toLowerCase() === 'q') {
+        event.preventDefault();
+        quitApp().catch(() => {
+          // Not running inside Tauri.
+        });
+        return;
+      }
       if (!hasCommandKey(event) || !settings || dialogOpen()) return;
       if (event.key === '=' || event.key === '+') {
         event.preventDefault();

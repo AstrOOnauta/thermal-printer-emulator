@@ -50,8 +50,8 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
 - History in memory: clear it, copy a receipt as text, save its raw bytes as `.bin`, or
   list the ESC/POS commands that printed it.
 - Paper zoom (75–200 %), keyboard shortcuts, a count of unseen receipts on the Dock icon
-  and the menu bar, Quit from the window as well as from the tray, a light or dark theme
-  (or the OS's).
+  and the menu bar, a light or dark theme (or the OS's), the version and credits in
+  Settings and in the macOS About panel.
 - Badges for the cash drawer and the beep; a printing sound for every receipt and the
   beep when asked (`ESC B`).
 

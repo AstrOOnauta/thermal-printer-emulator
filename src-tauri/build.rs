@@ -14,6 +14,7 @@ fn main() {
             "export_receipt",
             "set_unseen",
             "quit_app",
+            "open_repository",
             "get_receipt_commands",
             "set_settings",
         ]),

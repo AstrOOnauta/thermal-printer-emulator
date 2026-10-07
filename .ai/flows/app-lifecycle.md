@@ -43,6 +43,8 @@ without a Dock icon, so a login launch with a hidden window never shows one.
 - **Quitting**: `terminate:` (⌘Q in Tauri's default menu, Dock › Quit, logout, shutdown)
   goes straight to `RunEvent::Exit`, which **cannot be cancelled**. So the app menu is
   replaced: ⌘Q = "Close window" (hides) and ⌘W = close. Dock › Quit still quits for real.
+  It starts with "About Thermal Printer Emulator": the native About panel with the
+  version and the credits (`made_by` in `locale.rs`, the repository URL from `Cargo.toml`).
   That is acceptable because the icon is only there while someone is looking at the
   window, and logout/shutdown are never blocked.
 - The **Edit** menu (undo/redo/cut/copy/paste/select all) must stay: without it ⌘C/⌘V
@@ -69,9 +71,9 @@ whenever the status changes. When the language changes, `shell::refresh_menus` r
 (`tray_menu`, with the current status line), the macOS app menu and the tray tooltip.
 The autostart item reads the OS state on click, so it works with any rebuilt menu.
 
-**Quit from the window**: the Settings panel ends with Quit (`quit_app`). On GNOME without
-the AppIndicator extension no tray icon shows and closing the window only hides it, so
-this is the way out there, and a plain one everywhere.
+**Quit from the window**: Ctrl+Q on Windows and Linux (`quit_app`), as apps there do. On
+GNOME without the AppIndicator extension no tray icon shows and closing the window only
+hides it, so this is the way out there. On macOS ⌘Q only closes the window (above).
 
 Linux: the tray needs an AppIndicator host (GNOME requires an extension). Without one,
 launching the app again focuses the window, which is the way back in.
@@ -80,7 +82,7 @@ launching the app again focuses the window, which is the way back in.
 
 In the window (`App`), ⌘ on macOS and Ctrl elsewhere (`shortcut.ts`): ⌘, settings, ⌘T test
 receipt, ⌘⌫ clear (the same confirmation dialog; ignored while typing in a field), ⌘+ ⌘−
-⌘0 paper zoom. While a modal dialog is open they do nothing (and Esc closes only the
+⌘0 paper zoom, Ctrl+Q quit (Windows and Linux only). While a modal dialog is open they do nothing (and Esc closes only the
 dialog, not the settings panel behind it). ⌘, ⌘T ⌘⌫ act once per press, not on key
 repeat, and ⌘T waits for the test receipt in flight. Tooltips show them ("Ctrl+Backspace"
 off macOS); `aria-keyshortcuts` gets the spec's names (`Meta+,`, `Control+Backspace`).

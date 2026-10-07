@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { CloseIcon } from '@/components/ui/icons';
 import { IconButton } from '@/components/ui/icon-button';
-import { quitApp } from '@/shared/api/app';
+import { openRepository } from '@/shared/api/app';
 
 import {
   type TranslationScope,
@@ -17,7 +17,7 @@ import type {
   ITheme,
 } from '@/shared/interfaces/emulator';
 import { cn } from '@/shared/styles/cn';
-import { BUTTON, FIELD } from '@/shared/styles/patterns';
+import { BUTTON, FIELD, INTERACTIVE } from '@/shared/styles/patterns';
 import { shortcutLabel } from '@/shared/utils/shortcut';
 import { uiErrorKey } from '@/shared/utils/ui-error';
 import { ZOOM_STEPS } from '@/shared/utils/zoom';
@@ -264,20 +264,28 @@ export function SettingsPanel({
           </label>
         </fieldset>
 
-        <div className="mt-auto flex flex-col gap-2 border-t border-border pt-5">
-          <button
-            type="button"
-            className={`${BUTTON} self-start`}
-            onClick={() => {
-              quitApp().catch(() => {
-                // Not running inside Tauri.
-              });
-            }}
-          >
-            {t('settings.quit.label')}
-          </button>
-          <Hint>{t('settings.quit.hint')}</Hint>
-        </div>
+        <footer className="mt-auto flex flex-col gap-1 border-t border-border pt-5 text-xs text-muted">
+          <p>
+            <span className="text-ink">Thermal Printer Emulator</span>{' '}
+            <span className="tabular-nums">{__APP_VERSION__}</span>
+          </p>
+          <p>
+            {t('settings.about.madeBy', { author: 'AstrOOnauta' })}
+            {' · '}
+            <button
+              type="button"
+              className={`text-accent underline-offset-2 hover:underline ${INTERACTIVE}`}
+              title={t('settings.about.source')}
+              onClick={() => {
+                openRepository().catch(() => {
+                  // Not running inside Tauri.
+                });
+              }}
+            >
+              GitHub
+            </button>
+          </p>
+        </footer>
       </div>
     </aside>
   );

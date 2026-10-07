@@ -58,9 +58,9 @@ const en = {
       label: 'Sound',
       printing: 'Printing sound and beep',
     },
-    quit: {
-      label: 'Quit',
-      hint: 'The port closes and no more receipts arrive. Closing the window keeps the emulator running in the tray.',
+    about: {
+      madeBy: 'Made by %{author}',
+      source: 'Source code on GitHub (opens in your browser)',
     },
     errors: {
       port: 'Use a port from 1 to 65535.',

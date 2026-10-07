@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[cfg(target_os = "macos")]
-use tauri::menu::Submenu;
+use tauri::menu::{AboutMetadataBuilder, Submenu};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager};
@@ -21,6 +21,10 @@ use crate::settings::Theme;
 
 /// The tray tooltip's name.
 pub(crate) const PRODUCT_NAME: &str = "Thermal Printer Emulator";
+/// Credited in the macOS About panel (the Settings panel credits it too, in TS).
+#[cfg(target_os = "macos")]
+const AUTHOR: &str = "AstrOOnauta";
+pub(crate) const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 
 /// The last count from `set_unseen`, to show it again in a new language.
 pub(crate) static UNSEEN: AtomicU32 = AtomicU32::new(0);
@@ -141,11 +145,28 @@ pub fn hide_main_window(app: &AppHandle) {
 pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let text = Locale::current().strings();
     let close = MenuItem::with_id(app, "close_window", text.close_window, true, Some("Cmd+Q"))?;
+    // The native About panel: name, version and credits.
+    let about = PredefinedMenuItem::about(
+        app,
+        Some(text.about),
+        Some(
+            AboutMetadataBuilder::new()
+                .name(Some(PRODUCT_NAME))
+                .version(Some(app.package_info().version.to_string()))
+                .credits(Some(format!(
+                    "{}\n{REPOSITORY}",
+                    text.made_by.replace("{author}", AUTHOR)
+                )))
+                .build(),
+        ),
+    )?;
     let app_submenu = Submenu::with_items(
         app,
         PRODUCT_NAME,
         true,
         &[
+            &about,
+            &PredefinedMenuItem::separator(app)?,
             &close,
             &PredefinedMenuItem::close_window(app, Some(text.close))?,
         ],
