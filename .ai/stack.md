@@ -35,7 +35,7 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
 **Printing**
 
 - Listens on TCP 9100 (configurable), on every network or only on this computer.
-- Accepts connections that open like ESC/POS (`ESC @`, `DLE`, `GS`); turns away port
+- Accepts connections that open with an ESC/POS command (`ESC`, `DLE`, `FS`, `GS`); turns away port
   scanners and other protocols.
 - Answers status requests (`DLE EOT`, `GS r`, `GS I`) as an online printer with paper.
 - Decodes text styles (fonts A/B, sizes 1–8, bold, underline, reverse, alignment, margins,
@@ -89,7 +89,7 @@ Changing one is a product decision: update this list.
    send `ESC t`.
 5. **Status replies**: answer `DLE EOT n`, `GS r n` and `GS I n` as an online printer with
    paper, with an honest identity (not a real printer model). The connection filter accepts
-   a first byte of `ESC @`, `DLE` or `GS`.
+   a job that opens with an ESC/POS command (`ESC` except `ESC %`, `DLE`, `FS`, `GS`).
 6. **Decoder**: written from scratch in **Rust** from Epson's public ESC/POS command
    reference. Rust interprets, the webview only draws.
 7. **Windows installer**: asks for admin, so it can add the firewall rule. Trade-off

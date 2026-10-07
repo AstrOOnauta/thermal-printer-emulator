@@ -27,9 +27,9 @@ everything works. In **Settings** you can change the port, allow only this compu
 pick 80 or 58 mm paper, the default code page, the printing sound and beep, the paper
 zoom and the language.
 
-A job must open like ESC/POS, with `ESC @` (initialize), as every ESC/POS library does.
-Other traffic on port 9100, such as port scanners or plain text, is ignored. To try it
-from a terminal:
+A job must start with an ESC/POS command (`ESC @`, which initializes the printer, is the
+usual one). Other traffic on port 9100, such as port scanners or plain text, is ignored.
+To try it from a terminal:
 
 ```bash
 printf '\x1b@Hello, printer!\n\x1dV\x00' | nc 127.0.0.1 9100

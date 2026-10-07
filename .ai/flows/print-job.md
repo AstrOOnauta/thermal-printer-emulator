@@ -40,20 +40,21 @@ listener::run(settings.addr(), Limits::PRODUCTION, shared)   (commands::restart_
 
 Decoding starts only when the connection opens like ESC/POS:
 
-| First bytes          | Verdict                                                    |
-| -------------------- | ---------------------------------------------------------- |
-| `ESC @` (initialize) | accept: every ESC/POS library sends it first               |
-| `DLE …` / `GS …`     | accept: drivers that open with a status query or a command |
-| a lone `ESC`         | wait for the next byte (TCP may split `ESC` from `@`)      |
-| anything else        | reject: close the connection, `connection_rejected`        |
+| First bytes             | Verdict                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| `ESC %`                 | reject: PJL's UEL (`ESC %-12345X`), not an ESC/POS command |
+| `ESC …`                 | accept: `ESC @` (most libraries), or a setting (`ESC a`)   |
+| `DLE …`, `FS …`, `GS …` | accept: a status query or a command                        |
+| a lone `ESC`            | wait for the next byte (TCP may split `ESC` from the next) |
+| anything else           | reject: close the connection, `connection_rejected`        |
 
 The bytes read before the verdict are kept and decoded first. Rejected on purpose: HTTP,
 TLS, PJL and its UEL (`ESC %-12345X`), Redis, null-byte banner grabs.
 
-**Trade-off**: plain text (`echo hi | nc host 9100`) and a job that opens with another
-command (e.g. `ESC t` before `ESC @`) are rejected too. Real ESC/POS software always
-initializes first, and the README says so. If a real POS trips this, revisit the
-decision; don't add a blocklist of protocols.
+**Trade-off**: plain text (`echo hi | nc host 9100`) is rejected too: a job must start
+with a command, and the README says so. Requiring `ESC @` alone was tried first and
+turned away libraries that open with a setting (`ESC a`, `ESC !`). If a real POS trips
+this, revisit the decision; don't add a blocklist of protocols.
 
 ## Connection → receipts (`receive`, `capture.rs`)
 

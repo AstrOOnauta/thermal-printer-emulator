@@ -219,9 +219,10 @@ async fn answers(addr: SocketAddr) -> bool {
 
 const ESC: u8 = 0x1b;
 const DLE: u8 = 0x10;
+const FS: u8 = 0x1c;
 const GS: u8 = 0x1d;
-/// `ESC @`: initialize printer.
-const INITIALIZE: u8 = b'@';
+/// `ESC %`: what PJL's Universal Exit Language (`ESC %-12345X`) opens with.
+const UEL: u8 = b'%';
 
 #[derive(Debug, PartialEq, Eq)]
 enum Verdict {
@@ -231,14 +232,16 @@ enum Verdict {
     Incomplete,
 }
 
-/// Decision 5: a print job opens with `ESC @` (every ESC/POS library sends it first), or
-/// with a status query or command (`DLE …`, `GS …`). Port scanners probing 9100 open with
-/// something else: HTTP `G`, TLS `0x16`, PJL `@PJL`, PJL's UEL `ESC %-12345X`, Redis `*`,
-/// a null byte. Requiring `@` after `ESC` is what turns the UEL away.
+/// Decision 5: a print job opens with an ESC/POS command: `ESC …` (most libraries send
+/// `ESC @` first, some a setting like `ESC a`), `GS …`, `FS …` or a status query `DLE …`.
+/// Port scanners probing 9100 open with something else: HTTP `G`, TLS `0x16`, PJL `@PJL`,
+/// PJL's UEL `ESC %-12345X`, Redis `*`, a null byte. `ESC %` is not an ESC/POS command:
+/// turning it away is what stops the UEL.
 fn classify(head: &[u8]) -> Verdict {
     match head {
         [] | [ESC] => Verdict::Incomplete,
-        [ESC, INITIALIZE, ..] | [DLE, ..] | [GS, ..] => Verdict::Accept,
+        [ESC, UEL, ..] => Verdict::Reject,
+        [ESC, ..] | [DLE, ..] | [FS, ..] | [GS, ..] => Verdict::Accept,
         _ => Verdict::Reject,
     }
 }
@@ -342,7 +345,17 @@ mod tests {
 
     #[test]
     fn accepts_escpos_openings() {
-        for head in [&b"\x1b@"[..], b"\x1b@Hello", b"\x10\x04\x01", b"\x1dV\x00"] {
+        for head in [
+            &b"\x1b@"[..],
+            b"\x1b@Hello",
+            b"\x10\x04\x01",
+            b"\x1dV\x00",
+            // Libraries that skip `ESC @` and open with a setting.
+            b"\x1ba\x01Total",
+            b"\x1b!\x30",
+            b"\x1bt\x02",
+            b"\x1c.",
+        ] {
             assert_eq!(classify(head), Verdict::Accept, "{head:02x?}");
         }
     }
@@ -363,7 +376,6 @@ mod tests {
             b"*1\r\n$4\r\nPING",
             b"\x00",
             b"Hello\n",
-            b"\x1bt\x02",
         ] {
             assert_eq!(classify(head), Verdict::Reject, "{head:02x?}");
         }
