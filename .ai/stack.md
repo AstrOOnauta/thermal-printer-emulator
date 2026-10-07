@@ -119,13 +119,14 @@ install. That is safe because the package is `private` and never published.
 
 ## CI and releases
 
-- `ci.yml`, on every push to `main` and every PR:
+- `ci.yml`, on every push to `main` and every PR, checks and tests only (the README's
+  "tests" badge), read-only permissions:
   - `checks`: `yarn check` on Ubuntu 22.04;
   - `platforms`: `cargo clippy -D warnings` + `cargo test` on macOS and Windows, because
-    `checks` never compiles `#[cfg(target_os = "macos")]` / `#[cfg(windows)]` code;
-  - `build` (unsigned installers for the three OSes, as workflow artifacts) runs **only**
-    from "Run workflow" (`workflow_dispatch`): a macOS bundle takes ~15 min and would hold
-    up every PR.
+    `checks` never compiles `#[cfg(target_os = "macos")]` / `#[cfg(windows)]` code.
+- `build.yml`, only from "Run workflow" (`workflow_dispatch`): unsigned installers for
+  the three OSes as workflow artifacts, to try one before tagging. A macOS bundle takes
+  ~15 min, so it never runs on push; and on its own, a push can no longer cancel it.
 - `release.yml`, on a `v*` tag: fails unless the tag equals `v` + the `package.json`
   version, then `tauri-action` builds the installers and attaches them to a **draft**
   GitHub Release, which is published by hand.
@@ -186,7 +187,7 @@ src-tauri/                   # Rust core
   tauri.conf.json            # window, CSP, bundle targets, version source
   Info.plist                 # macOS: LSUIElement, localizations, Local Network string
   icons/                     # generated; source in icons/source/icon.svg
-.github/                     # workflows (ci.yml, release.yml), dependabot.yml, issue
+.github/                     # workflows (ci.yml, build.yml, release.yml), dependabot.yml, issue
                              # templates (ISSUE_TEMPLATE/), README images (assets/)
 README.md                    # for people who use the app: install, quick start, FAQ
 CONTRIBUTING.md              # for people who build it: run, scripts, architecture

@@ -1,0 +1,49 @@
+name: Build
+
+# Unsigned installers for the three OSes, as workflow artifacts, on demand: "Run workflow"
+# in the Actions tab. To try an installer before tagging a release; published installers
+# come from release.yml. A macOS bundle takes ~15 min, so it never runs on push.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  LINUX_DEPS: libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: ''
+          - os: macos-latest
+            args: --target universal-apple-darwin
+          - os: ubuntu-22.04
+            args: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: rustup toolchain install
+      - if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+      - run: yarn install --immutable
+      - run: yarn tauri build ${{ matrix.args }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-${{ matrix.os }}
+          path: src-tauri/target/**/release/bundle/
+          if-no-files-found: error

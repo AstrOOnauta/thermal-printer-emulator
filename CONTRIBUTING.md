@@ -126,3 +126,6 @@ Use the bug report template. The log (tray → **Show logs**) and the receipt's 
 2. Commit, then tag and push the tag: `git tag -a v0.2.0 -m v0.2.0 && git push origin v0.2.0`.
 3. The `Release` workflow builds the installers and attaches them to a **draft** release.
    Review it on GitHub and publish.
+
+To try the installers before a release: **Actions → Build → Run workflow**. They come out
+as workflow artifacts, unsigned, for the three OSes.
