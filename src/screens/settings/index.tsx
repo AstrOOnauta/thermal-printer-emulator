@@ -66,7 +66,10 @@ export function SettingsPanel({
     if (!open) return;
     closeButton.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      // Esc in the clear dialog closes only the dialog.
+      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
+        onClose();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -152,6 +155,7 @@ export function SettingsPanel({
               inputMode="numeric"
               value={port}
               aria-invalid={!portValid}
+              aria-describedby={`${portId}-hint`}
               onChange={(event) =>
                 setPort(event.target.value.replace(/\D/g, ''))
               }
@@ -164,7 +168,7 @@ export function SettingsPanel({
               {t('settings.port.apply')}
             </button>
           </form>
-          <Hint>
+          <Hint id={`${portId}-hint`}>
             {portValid ? t('settings.port.hint') : t('settings.errors.port')}
           </Hint>
         </Field>
@@ -267,8 +271,12 @@ function Field({
   );
 }
 
-function Hint({ children }: { children: string }) {
-  return <p className="text-xs text-muted">{children}</p>;
+function Hint({ id, children }: { id?: string; children: string }) {
+  return (
+    <p id={id} className="text-xs text-muted">
+      {children}
+    </p>
+  );
 }
 
 interface IChoiceProps<T extends string> {

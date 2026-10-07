@@ -23,22 +23,27 @@ import {
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTestReceipt } from '@/shared/hooks/use-test-receipt';
 import { useUnseenBadge } from '@/shared/hooks/use-unseen-badge';
-import { setLocale, useTranslation } from '@/shared/hooks/use-translation';
+import {
+  getLocale,
+  setLocale,
+  useTranslation,
+} from '@/shared/hooks/use-translation';
 import type {
   IListenerStatus,
   IReceiptSummary,
   ISettings,
   ISettingsChange,
 } from '@/shared/interfaces/emulator';
-import {
-  hasCommandKey,
-  isTyping,
-  shortcutLabel,
-} from '@/shared/utils/shortcut';
+import { hasCommandKey, isTyping } from '@/shared/utils/shortcut';
 import { stepZoom } from '@/shared/utils/zoom';
 
 const STARTING: IListenerStatus = { state: 'starting' };
 const NO_RECEIPTS: IReceiptSummary[] = [];
+
+/** Whether a modal dialog is open: shortcuts and Esc belong to it then. */
+function dialogOpen(): boolean {
+  return document.querySelector('dialog[open]') !== null;
+}
 
 export function App() {
   const { t } = useTranslation();
@@ -47,7 +52,8 @@ export function App() {
   const receipts = useSynced(onReceipts, getReceipts, NO_RECEIPTS);
   const [settings, setSettings] = useState<ISettings | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [lanAddress, setLanAddress] = useState<string | null>(null);
+  // `undefined` until known, `null` offline.
+  const [lanAddress, setLanAddress] = useState<string | null | undefined>();
   // Bumped when the language changes: re-rendering the tree re-runs every `t()`.
   const [, setLocaleTag] = useState('');
   const settingsButton = useRef<HTMLButtonElement>(null);
@@ -58,6 +64,11 @@ export function App() {
   const savesInFlight = useRef<Promise<unknown>>(Promise.resolve());
   const testReceipt = useTestReceipt();
   useUnseenBadge(receipts);
+  // Receipts that finish from now on are announced to screen readers.
+  const [openedAt] = useState(() => Date.now());
+  const newest = receipts?.at(-1);
+  const announced =
+    newest?.ended_at != null && newest.ended_at >= openedAt ? newest : null;
 
   useEffect(() => {
     getSettings()
@@ -72,12 +83,18 @@ export function App() {
 
   const listening = status.state === 'listening';
 
-  // The network may change while the app runs: ask again whenever the listener (re)starts.
+  // The network may change while the app runs (Wi-Fi, DHCP, VPN): ask again whenever the
+  // listener (re)starts and whenever the window comes back to the front.
   useEffect(() => {
     if (!listening) return;
-    getLanAddress()
-      .then(setLanAddress)
-      .catch(() => setLanAddress(null));
+    const ask = () => {
+      getLanAddress()
+        .then(setLanAddress)
+        .catch(() => setLanAddress(null));
+    };
+    ask();
+    window.addEventListener('focus', ask);
+    return () => window.removeEventListener('focus', ask);
   }, [listening, status]);
 
   const updateSettings = useCallback((change: ISettingsChange) => {
@@ -123,6 +140,17 @@ export function App() {
   const hasReceipts = (receipts?.length ?? 0) > 0;
   const printTest = testReceipt.print;
 
+  // Clearing removes the trash button that had focus: keep focus in the toolbar.
+  const hadReceipts = useRef(false);
+  useEffect(() => {
+    if (hadReceipts.current && !hasReceipts) {
+      if (document.activeElement === document.body) {
+        settingsButton.current?.focus();
+      }
+    }
+    hadReceipts.current = hasReceipts;
+  }, [hasReceipts]);
+
   // ⌘, settings · ⌘T test receipt · ⌘⌫ clear · ⌘+ ⌘− ⌘0 zoom (Ctrl on Windows and Linux).
   useEffect(() => {
     const zoom = (step: (current: number) => number) => {
@@ -131,28 +159,31 @@ export function App() {
       });
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!hasCommandKey(event)) return;
-      if (settings && (event.key === '=' || event.key === '+')) {
+      if (!hasCommandKey(event) || !settings || dialogOpen()) return;
+      if (event.key === '=' || event.key === '+') {
         event.preventDefault();
         zoom((current) => stepZoom(current, 1));
         return;
       }
-      if (settings && event.key === '-') {
+      if (event.key === '-') {
         event.preventDefault();
         zoom((current) => stepZoom(current, -1));
         return;
       }
-      if (settings && event.key === '0') {
+      if (event.key === '0') {
         event.preventDefault();
         zoom(() => 100);
         return;
       }
-      if (event.key === ',' && settings) {
+      // The rest act once per press, not on key repeat.
+      if (event.repeat) return;
+      if (event.key === ',') {
         event.preventDefault();
-        setSettingsOpen((open) => !open);
+        if (settingsOpen) closeSettings();
+        else setSettingsOpen(true);
       } else if (event.key.toLowerCase() === 't' && listening) {
         event.preventDefault();
-        printTest();
+        if (!testReceipt.sending) printTest();
       } else if (
         event.key === 'Backspace' &&
         hasReceipts &&
@@ -164,11 +195,24 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [settings, updateSettings, listening, hasReceipts, printTest]);
+  }, [
+    settings,
+    settingsOpen,
+    closeSettings,
+    updateSettings,
+    listening,
+    hasReceipts,
+    printTest,
+    testReceipt.sending,
+  ]);
 
   const local = settings?.bind === 'local';
   const host = local ? '127.0.0.1' : (lanAddress ?? '127.0.0.1');
-  const address = listening ? `${host}:${status.port}` : null;
+  // Until the LAN address is known the bar keeps saying "Starting…", not "offline".
+  const address =
+    status.state === 'listening' && (local || lanAddress !== undefined)
+      ? `${host}:${status.port}`
+      : null;
   const kind = local ? 'local' : lanAddress ? 'lan' : 'offline';
 
   return (
@@ -182,7 +226,7 @@ export function App() {
             <IconButton
               ref={settingsButton}
               label={t('nav.settings')}
-              shortcut={shortcutLabel(',')}
+              shortcut=","
               aria-expanded={settingsOpen}
               aria-controls="settings-panel"
               onClick={() => setSettingsOpen((open) => !open)}
@@ -193,6 +237,14 @@ export function App() {
         </div>
       </header>
       <ListenerFailureHint status={status} />
+      <p role="status" className="sr-only">
+        {announced &&
+          t('receipts.printed', {
+            time: new Date(announced.started_at).toLocaleTimeString(
+              getLocale(),
+            ),
+          })}
+      </p>
       {/* overflow-hidden: the closed settings panel waits off-screen to the right. */}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <ReceiptsScreen

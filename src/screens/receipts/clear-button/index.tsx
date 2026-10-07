@@ -5,7 +5,6 @@ import { TrashIcon } from '@/components/ui/icons';
 import { clearReceipts } from '@/shared/api/emulator';
 import { useTranslation } from '@/shared/hooks/use-translation';
 import { BUTTON, INTERACTIVE } from '@/shared/styles/patterns';
-import { shortcutLabel } from '@/shared/utils/shortcut';
 
 /**
  * Clearing cannot be undone, so it asks first, in a native modal `<dialog>`: it traps
@@ -23,7 +22,7 @@ export function ClearButton({
     <>
       <IconButton
         label={t('receipts.clear')}
-        shortcut={shortcutLabel('⌫')}
+        shortcut="⌫"
         onClick={() => dialogRef.current?.showModal()}
       >
         <TrashIcon />
@@ -44,7 +43,8 @@ export function ClearButton({
           </button>
           <button
             type="submit"
-            className={`rounded-md bg-error px-3 py-1.5 text-sm font-medium text-white ${INTERACTIVE}`}
+            // text-surface: white on the dark theme's light red would be 2.8:1.
+            className={`rounded-md bg-error px-3 py-1.5 text-sm font-medium text-surface ${INTERACTIVE}`}
             onClick={() => void clearReceipts()}
           >
             {t('receipts.clearConfirm')}

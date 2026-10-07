@@ -7,4 +7,4 @@ export const BUTTON = `rounded-md border border-border px-3 py-1.5 text-sm text-
 
 /** Text inputs and selects. */
 export const FIELD =
-  'rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-ink outline-none focus:border-accent';
+  'rounded-md border border-field-border bg-transparent px-3 py-1.5 text-sm text-ink outline-none focus:border-accent';

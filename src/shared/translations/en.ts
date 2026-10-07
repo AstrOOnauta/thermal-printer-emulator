@@ -147,10 +147,11 @@ const en = {
     },
     hint: {
       port_in_use:
-        'Another app is using this port. Close it and the emulator starts on its own.',
+        'Another app is using this port. Close it and the emulator starts on its own, or pick another port in Settings.',
       permission_denied:
-        "The system doesn't allow this port. The emulator keeps trying.",
-      other: 'The emulator keeps trying.',
+        "The system doesn't allow this port. Pick another one in Settings; the emulator keeps trying.",
+      other:
+        'The emulator keeps trying. You can also pick another port in Settings.',
     },
   },
   receipts: {
@@ -163,6 +164,7 @@ const en = {
     beeps: 'Beep ×%{count}',
     unavailable: 'No longer in memory',
     tooTall: 'The rest of this receipt is too tall to show.',
+    printed: 'Receipt printed at %{time}',
     clear: 'Clear receipts',
     clearTitle: 'Clear all receipts?',
     clearBody:

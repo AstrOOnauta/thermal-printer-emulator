@@ -26,6 +26,9 @@ import { uiErrorKey } from '@/shared/utils/ui-error';
 
 /** Paper margin around the printable area, in CSS pixels (= dots). */
 const MARGIN = 16;
+/** Rejects "Copy text" for a receipt no longer in memory. */
+const GONE = new Error('gone');
+
 /** Space kept for a receipt still printing: its blocks are drawn once it ends. */
 const PRINTING_HEIGHT = 48;
 
@@ -86,7 +89,7 @@ export function ReceiptCard({
 
   const copyText = () =>
     getReceipt(receipt.id).then((view) => {
-      if (!view) throw new Error('gone');
+      if (!view) throw GONE;
       return navigator.clipboard.writeText(receiptText(view.blocks));
     });
 
@@ -134,7 +137,13 @@ export function ReceiptCard({
               label={t('receipts.copyText')}
               done={t('receipts.copied')}
               run={copyText}
-              onError={() => setError('receipts.errors.copy')}
+              onError={(reason) =>
+                setError(
+                  reason === GONE
+                    ? 'receipts.errors.gone'
+                    : 'receipts.errors.copy',
+                )
+              }
             >
               <CopyIcon />
             </ReceiptAction>

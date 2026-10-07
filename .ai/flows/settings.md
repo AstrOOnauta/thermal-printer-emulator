@@ -57,8 +57,8 @@ returns the saved settings
 Opened by the gear in the top bar; a panel slides in from the right over the receipts
 (`design-system.md` § Window), closed by Esc or ✕. Every choice is saved at once; the
 port waits for "Apply" (restarting the listener on every keystroke would be wrong) and is
-validated as you type. A refused change shows its translated error (`uiErrorKey`) in an
-alert.
+validated as you type; its hint and error are tied to the field (`aria-describedby`). A
+refused change shows its translated error (`uiErrorKey`) in an alert.
 
 Changes from the window (the panel, ⌘+ ⌘− ⌘0) go through `App`'s `updateSettings`: one
 after the other, each built on the latest saved settings (a ref), so a quick second change

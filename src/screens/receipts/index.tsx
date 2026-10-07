@@ -38,6 +38,11 @@ export function ReceiptsScreen({
   const attachScroller = useCallback((node: HTMLElement | null) => {
     scrollerRef.current = node;
     setScroller(node);
+    // The list replaced the empty state: the focused test button is gone, so focus would
+    // fall to the page. Keep it in the content instead.
+    if (node && document.activeElement === document.body) {
+      node.focus({ preventScroll: true });
+    }
   }, []);
   const heard = useRef<Set<number> | null>(null);
   const { unseen, jumpToEnd } = useFollowBottom(
@@ -95,7 +100,9 @@ export function ReceiptsScreen({
       <section
         ref={attachScroller}
         aria-label={t('receipts.title')}
-        className="flex-1 overflow-y-auto px-4 py-6 [overflow-anchor:none]"
+        // Focusable, so the keyboard can scroll it (WebKit does not focus scroll areas).
+        tabIndex={0}
+        className="flex-1 overflow-y-auto px-4 py-6 outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
       >
         {/* w-max + min-w-full: a zoomed receipt wider than the window scrolls sideways
             from its left edge instead of being cut off by centering. */}

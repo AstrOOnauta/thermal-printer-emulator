@@ -7,8 +7,11 @@
   --raised: #ffffff;
   --paper: #ffffff;
   --ink: #18181b;
-  --muted: #71717a;
+  /* 4.8:1 on the surface, 5.3:1 on white (WCAG AA). */
+  --muted: #6b6b74;
   --border: #d4d4d8;
+  /* Input and select outlines: 3:1 against their background (WCAG 1.4.11). */
+  --field-border: #8a8a93;
   --accent: #2563eb;
   --success: #15803d;
   --warning: #b45309;
@@ -22,6 +25,7 @@
     --ink: #f4f4f5;
     --muted: #a1a1aa;
     --border: #3f3f46;
+    --field-border: #71717a;
     --accent: #60a5fa;
     --success: #4ade80;
     --warning: #fbbf24;
@@ -44,6 +48,7 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-field-border: var(--field-border);
   --color-accent: var(--accent);
   --color-success: var(--success);
   --color-warning: var(--warning);

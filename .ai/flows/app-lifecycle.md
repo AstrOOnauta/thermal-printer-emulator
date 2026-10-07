@@ -76,7 +76,10 @@ launching the app again focuses the window, which is the way back in.
 
 In the window (`App`), ⌘ on macOS and Ctrl elsewhere (`shortcut.ts`): ⌘, settings, ⌘T test
 receipt, ⌘⌫ clear (the same confirmation dialog; ignored while typing in a field), ⌘+ ⌘−
-⌘0 paper zoom. Tooltips show them (`aria-keyshortcuts` too).
+⌘0 paper zoom. While a modal dialog is open they do nothing (and Esc closes only the
+dialog, not the settings panel behind it). ⌘, ⌘T ⌘⌫ act once per press, not on key
+repeat, and ⌘T waits for the test receipt in flight. Tooltips show them ("Ctrl+Backspace"
+off macOS); `aria-keyshortcuts` gets the spec's names (`Meta+,`, `Control+Backspace`).
 
 ## Logs
 

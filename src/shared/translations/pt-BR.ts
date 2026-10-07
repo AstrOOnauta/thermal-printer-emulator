@@ -145,10 +145,11 @@ const ptBR: TranslationKeys = {
     },
     hint: {
       port_in_use:
-        'Outro app está usando esta porta. Feche-o e o emulador inicia sozinho.',
+        'Outro app está usando esta porta. Feche-o e o emulador inicia sozinho, ou escolha outra porta em Configurações.',
       permission_denied:
-        'O sistema não permite esta porta. O emulador continua tentando.',
-      other: 'O emulador continua tentando.',
+        'O sistema não permite esta porta. Escolha outra em Configurações; o emulador continua tentando.',
+      other:
+        'O emulador continua tentando. Você também pode escolher outra porta em Configurações.',
     },
   },
   receipts: {
@@ -161,6 +162,7 @@ const ptBR: TranslationKeys = {
     beeps: 'Bipe ×%{count}',
     unavailable: 'Não está mais na memória',
     tooTall: 'O restante deste cupom é alto demais para mostrar.',
+    printed: 'Cupom impresso às %{time}',
     clear: 'Limpar cupons',
     clearTitle: 'Limpar todos os cupons?',
     clearBody: 'Eles saem da lista e da memória. Não dá para desfazer.',

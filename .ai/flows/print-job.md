@@ -168,6 +168,9 @@ rendering.
   first time its card comes near, and kept by the card: scrolling back draws it again
   without another fetch. While printing, the card shows an empty strip: there are no
   progress events.
+- A receipt that finishes while the window is open is announced to screen readers ("Receipt
+  printed at 10:08:12", a `role="status"` line in `App`). The list is focusable (`tabIndex` 0) so the keyboard can scroll it; when it replaces the empty state, focus moves to it
+  instead of falling to the page.
 - A receipt dropped from memory (`get_receipt` → `null`) shows "No longer in memory".
 
 ## History tools

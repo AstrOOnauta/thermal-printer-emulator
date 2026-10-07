@@ -9,16 +9,17 @@ Tailwind colors like `bg-blue-500`: add a token instead.
 The app chrome follows the OS theme (`prefers-color-scheme`). **The receipt paper is
 always white**, as real paper is.
 
-| Token                           | Light                             | Dark                              | Use                                     |
-| ------------------------------- | --------------------------------- | --------------------------------- | --------------------------------------- |
-| `surface`                       | `#f4f4f5`                         | `#18181b`                         | Window background                       |
-| `raised`                        | `#ffffff`                         | `#222226`                         | Panels over the surface (settings)      |
-| `paper`                         | `#ffffff`                         | `#ffffff`                         | Receipt paper (same in both themes)     |
-| `ink`                           | `#18181b`                         | `#f4f4f5`                         | Primary text on the surface             |
-| `muted`                         | `#71717a`                         | `#a1a1aa`                         | Secondary text                          |
-| `border`                        | `#d4d4d8`                         | `#3f3f46`                         | Dividers, input borders                 |
-| `accent`                        | `#2563eb`                         | `#60a5fa`                         | Primary actions, focus                  |
-| `success` / `warning` / `error` | `#15803d` / `#b45309` / `#b91c1c` | `#4ade80` / `#fbbf24` / `#f87171` | Status (listening / attention / failed) |
+| Token                           | Light                             | Dark                              | Use                                          |
+| ------------------------------- | --------------------------------- | --------------------------------- | -------------------------------------------- |
+| `surface`                       | `#f4f4f5`                         | `#18181b`                         | Window background                            |
+| `raised`                        | `#ffffff`                         | `#222226`                         | Panels over the surface (settings)           |
+| `paper`                         | `#ffffff`                         | `#ffffff`                         | Receipt paper (same in both themes)          |
+| `ink`                           | `#18181b`                         | `#f4f4f5`                         | Primary text on the surface                  |
+| `muted`                         | `#6b6b74`                         | `#a1a1aa`                         | Secondary text                               |
+| `border`                        | `#d4d4d8`                         | `#3f3f46`                         | Dividers                                     |
+| `field-border`                  | `#8a8a93`                         | `#71717a`                         | Input and select outlines (3:1, WCAG 1.4.11) |
+| `accent`                        | `#2563eb`                         | `#60a5fa`                         | Primary actions, focus                       |
+| `success` / `warning` / `error` | `#15803d` / `#b45309` / `#b91c1c` | `#4ade80` / `#fbbf24` / `#f87171` | Status (listening / attention / failed)      |
 
 Text printed on the paper is black on `paper` in both themes. It does not use `ink`, which
 flips in dark mode.

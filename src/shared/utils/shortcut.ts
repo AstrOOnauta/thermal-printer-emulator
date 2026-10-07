@@ -2,9 +2,17 @@
 export const IS_MAC =
   typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac');
 
-/** "⌘," on macOS, "Ctrl+," elsewhere. */
+/** Key names where the symbol is macOS-only or not a key value. */
+const KEY_NAMES: Record<string, string> = { '⌫': 'Backspace', '−': '-' };
+
+/** "⌘," on macOS, "Ctrl+," elsewhere ("Ctrl+Backspace": ⌫ is a Mac glyph). */
 export function shortcutLabel(key: string): string {
-  return IS_MAC ? `⌘${key}` : `Ctrl+${key}`;
+  return IS_MAC ? `⌘${key}` : `Ctrl+${key === '⌫' ? 'Backspace' : key}`;
+}
+
+/** The `aria-keyshortcuts` value: "Meta+," on macOS, "Control+," elsewhere. */
+export function shortcutAria(key: string): string {
+  return `${IS_MAC ? 'Meta' : 'Control'}+${KEY_NAMES[key] ?? key}`;
 }
 
 /** ⌘ on macOS, Ctrl elsewhere, with no Alt (that is a different shortcut). */

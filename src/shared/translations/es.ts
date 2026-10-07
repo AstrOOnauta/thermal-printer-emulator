@@ -145,10 +145,11 @@ const es: TranslationKeys = {
     },
     hint: {
       port_in_use:
-        'Otra aplicación usa este puerto. Ciérrala y el emulador se inicia solo.',
+        'Otra aplicación usa este puerto. Ciérrala y el emulador se inicia solo, o elige otro puerto en Configuración.',
       permission_denied:
-        'El sistema no permite este puerto. El emulador sigue intentándolo.',
-      other: 'El emulador sigue intentándolo.',
+        'El sistema no permite este puerto. Elige otro en Configuración; el emulador sigue intentándolo.',
+      other:
+        'El emulador sigue intentándolo. También puedes elegir otro puerto en Configuración.',
     },
   },
   receipts: {
@@ -161,6 +162,7 @@ const es: TranslationKeys = {
     beeps: 'Pitido ×%{count}',
     unavailable: 'Ya no está en memoria',
     tooTall: 'El resto de este recibo es demasiado alto para mostrarlo.',
+    printed: 'Recibo impreso a las %{time}',
     clear: 'Limpiar recibos',
     clearTitle: '¿Limpiar todos los recibos?',
     clearBody: 'Se quitan de la lista y de la memoria. No se puede deshacer.',
