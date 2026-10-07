@@ -41,7 +41,7 @@ size, paper, width, height }`, times in unix ms, `state` one of `printing`, `don
 exact size before drawing it). Never the raw bytes.
 
 `IReceiptView` (from `get_receipt`) adds `blocks: IBlock[]`, the print model of
-`conventions/escpos.md` (`IBlock`, `ISegment`, `IPlaced` mirror `printer.rs`); bitmaps
+`conventions/escpos.md` (`IBlock`, `ISegment`, `IPlaced` mirror `model.rs`); bitmaps
 are base64 1-bit rows.
 
 `IListenerStatus` mirrors `listener::ListenerStatus`, tagged by `state`:
@@ -49,7 +49,7 @@ are base64 1-bit rows.
 `error` one of `port_in_use`, `permission_denied`, `other`.
 
 The listener sends its changes on an `mpsc` channel; one forwarder task in `lib.rs`
-(`ui::forward`) emits them, so events reach the webview in the order they happened.
+(`shell::forward`) emits them, so events reach the webview in the order they happened.
 
 **Sync rule** (`use-synced.ts`, used for both): subscribe first, then read. Once an event
 has arrived, the read's answer is ignored: it may be older. Its three arguments must be
@@ -66,7 +66,7 @@ Rules for the wire:
 
 ## Adding a command (checklist)
 
-1. `#[tauri::command] pub fn x(...)` in `ui.rs`. Keep it thin and delegate to the module
+1. `#[tauri::command] pub fn x(...)` in `commands.rs`. Keep it thin and delegate to the module
    that owns the logic.
 2. Add `"x"` to `AppManifest::commands` in `src-tauri/build.rs`.
 3. Add `"allow-x"` to `src-tauri/capabilities/main.json`.

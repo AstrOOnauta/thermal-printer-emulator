@@ -54,18 +54,18 @@ without a Dock icon, so a login launch with a hidden window never shows one.
 
 ## Tray
 
-| Item               | Behaviour                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------- |
-| Status (disabled)  | Listener status line: "Listening on port 9100", "Port 9100 is in use"… (`ui::status_label`) |
-| Open               | `show_main_window` (unminimize, show, focus)                                                |
-| Print test receipt | Same as the window's button (`flows/print-job.md` § Test receipt); errors only logged       |
-| Launch at login    | Toggles autostart and reads the OS state back. Off by default                               |
-| Show logs          | Opens `app_log_dir()` in the file manager                                                   |
-| Quit               | `app.exit(0)`                                                                               |
+| Item               | Behaviour                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| Status (disabled)  | Listener status line: "Listening on port 9100", "Port 9100 is in use"… (`shell::status_label`) |
+| Open               | `show_main_window` (unminimize, show, focus)                                                   |
+| Print test receipt | Same as the window's button (`flows/print-job.md` § Test receipt); errors only logged          |
+| Launch at login    | Toggles autostart and reads the OS state back. Off by default                                  |
+| Show logs          | Opens `app_log_dir()` in the file manager                                                      |
+| Quit               | `app.exit(0)`                                                                                  |
 
 Labels come from `locale.rs` (en/es/pt-BR), in the language setting. The tray icon is the
-app icon. The status item is held in `TrayStatus` and updated by `ui::forward` on every
-`Event::Status`. When the language changes, `ui::refresh_menus` rebuilds the tray menu
+app icon. The status item is held in `TrayStatus` and updated by `shell::forward` on every
+`Event::Status`. When the language changes, `shell::refresh_menus` rebuilds the tray menu
 (`tray_menu`, with the current status line) and the macOS app menu. The autostart item
 reads the OS state on click, so it works with any rebuilt menu.
 

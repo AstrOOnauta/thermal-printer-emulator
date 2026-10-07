@@ -32,9 +32,9 @@ save ─ fails ─▶ UiError { key: settings.errors.save } (logged)
    │
 Shared.settings ← new value (log settings_changed)
    │
-language changed? ─ yes ─▶ Locale::prefer + ui::refresh_menus (tray, macOS app menu)
+language changed? ─ yes ─▶ Locale::prefer + shell::refresh_menus (tray, macOS app menu)
    │
-address changed? ─ yes ─▶ ui::restart_listener: abort the running listener task, await it
+address changed? ─ yes ─▶ commands::restart_listener: abort the running listener task, await it
    │                        (its socket is closed), spawn listener::run on the new address
    ▼
 returns the saved settings

@@ -11,7 +11,7 @@ use std::net::SocketAddr;
 use tokio::sync::mpsc;
 
 use crate::escpos::codepage::CodePage;
-use crate::escpos::printer::{Output, Paper};
+use crate::escpos::model::{Output, Paper};
 use crate::escpos::Decoder;
 use crate::listener::{lock, Event, Shared};
 use crate::receipts::{Cut, ReceiptState, TooLarge};

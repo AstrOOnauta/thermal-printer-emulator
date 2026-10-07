@@ -165,7 +165,8 @@ src/                         # Webview (React)
 src-tauri/                   # Rust core
   src/main.rs                # entry (calls lib::run)
   src/lib.rs                 # Builder: plugins, setup, window events, handlers
-  src/ui.rs                  # commands, tray, app menu, window show/hide, listener restart
+  src/commands.rs            # the webview's commands, listener restart
+  src/shell.rs               # tray, app menu, window show/hide, forwarder of changes
   src/locale.rs              # language setting + OS language → Locale, native menu labels
   src/listener.rs            # TCP: bind, accept, connection filter, one task per connection
   src/capture.rs             # one connection → receipts (split on cut)
@@ -173,7 +174,8 @@ src-tauri/                   # Rust core
   src/settings.rs            # settings.json: defaults, validation, load/save
   src/network.rs             # LAN IPv4 for "point your POS at…"
   src/test_receipt.rs        # sample receipt sent to our own port
-  src/escpos/                # our ESC/POS decoder: parser, codepage, printer, bitmap, barcode
+  src/escpos/                # our ESC/POS decoder: parser → command → printer → model;
+                             # codepage, bitmap, barcode, inspect; tests in parser/, printer/
   scripts/codepages.py       # generates escpos/codepage_tables.rs
   tests/listener.rs          # the listener against real sockets
   build.rs                   # app command manifest (permissions)
@@ -195,14 +197,14 @@ folders it creates (desktop only).
 
 ## Where things live
 
-| New thing                 | Where                                                                                                                |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Networking / OS logic     | Rust, one module per responsibility (`conventions/rust-core.md`)                                                     |
-| A command for the UI      | `ui.rs` + `build.rs` + `capabilities/main.json` + `lib.rs` handler + `src/shared/api/` (see `conventions/bridge.md`) |
-| A setting                 | `settings.rs` + `ISettings` + the settings screen (see `flows/settings.md`)                                          |
-| A screen                  | `src/screens/<name>/index.tsx`                                                                                       |
-| Widget used by one screen | `src/screens/<name>/<widget>/index.tsx`                                                                              |
-| Shared UI primitive       | `src/components/ui/<name>/index.tsx`, created on its **second** use                                                  |
-| User-facing text          | key in `src/shared/translations/en.ts`, then `es.ts` and `pt-BR.ts`                                                  |
-| Native menu label         | `Strings` tables in `src-tauri/src/locale.rs`                                                                        |
-| Pure helper               | `src/shared/utils/<name>.ts` + `<name>.test.ts`                                                                      |
+| New thing                 | Where                                                                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Networking / OS logic     | Rust, one module per responsibility (`conventions/rust-core.md`)                                                           |
+| A command for the UI      | `commands.rs` + `build.rs` + `capabilities/main.json` + `lib.rs` handler + `src/shared/api/` (see `conventions/bridge.md`) |
+| A setting                 | `settings.rs` + `ISettings` + the settings screen (see `flows/settings.md`)                                                |
+| A screen                  | `src/screens/<name>/index.tsx`                                                                                             |
+| Widget used by one screen | `src/screens/<name>/<widget>/index.tsx`                                                                                    |
+| Shared UI primitive       | `src/components/ui/<name>/index.tsx`, created on its **second** use                                                        |
+| User-facing text          | key in `src/shared/translations/en.ts`, then `es.ts` and `pt-BR.ts`                                                        |
+| Native menu label         | `Strings` tables in `src-tauri/src/locale.rs`                                                                              |
+| Pure helper               | `src/shared/utils/<name>.ts` + `<name>.test.ts`                                                                            |

@@ -7,9 +7,9 @@ Our own decoder, written from Epson's public ESC/POS command reference (rules in
 pushes each `Output` with the stream offset right after the command that produced it;
 `capture.rs` uses those offsets to split receipts at cuts (`flows/print-job.md`).
 
-## Parser (`parser.rs`)
+## Parser (`parser.rs`, `command.rs`)
 
-Bytes → `Command`. `Parser::feed(bytes, emit)` is streaming: an unfinished command stays
+Bytes → `Command` (the types live in `command.rs`; tests in `parser/tests.rs`). `Parser::feed(bytes, emit)` is streaming: an unfinished command stays
 in `pending` until the rest arrives, so any split of the stream parses the same (tested
 at every byte boundary). `emit` gets each command with the **stream offset right after
 it**, which lets the caller cut the raw bytes exactly at a command (receipt split on cut).
@@ -64,7 +64,10 @@ Other control bytes (`0x00–0x1F`, `0x7F`) are `Ignored`, one byte each.
 - `CodePage::encode(char)` goes the other way (test receipt); a character the table lacks
   becomes `?`. `CodePage::name` gives `CP437`, `WPC1252`…
 
-## Printer (`printer.rs`)
+## Printer (`printer.rs`, `model.rs`)
+
+Barcode and QR printing is in `printer/codes.rs`, the print model types in `model.rs`, the
+tests in `printer/tests.rs`.
 
 `Printer::apply(command, &mut out)` updates the state and pushes `Output`s:
 `Block(Block)`, `Cut { partial }`, `DrawerPulse`, `Beep`. `finish` prints what is left.

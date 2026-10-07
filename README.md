@@ -124,7 +124,7 @@ src/                      # Webview (React)
 ├── app/                  # Root component
 └── shared/               # api (Tauri wrappers), hooks, styles, translations
 src-tauri/                # Rust core
-├── src/                  # lib.rs (builder, plugins), ui.rs (tray, window, commands),
+├── src/                  # lib.rs (builder, plugins), commands.rs, shell.rs (tray, window),
 │                         # locale.rs (UI language)
 ├── capabilities/         # What the webview may call
 ├── icons/source/         # Icon source: `yarn tauri icon src-tauri/icons/source/icon.svg`

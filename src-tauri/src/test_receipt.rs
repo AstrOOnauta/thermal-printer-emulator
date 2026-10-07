@@ -9,7 +9,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use crate::escpos::printer::Paper;
+use crate::escpos::model::Paper;
 use crate::locale::Strings;
 use crate::settings::Settings;
 
@@ -102,7 +102,7 @@ pub async fn send(port: u16, bytes: &[u8]) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::escpos::printer::{Block, Output};
+    use crate::escpos::model::{Block, Output};
     use crate::escpos::Decoder;
     use crate::locale::Locale;
 

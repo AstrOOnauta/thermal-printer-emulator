@@ -5,13 +5,16 @@ pub mod barcode;
 pub mod bitmap;
 pub mod codepage;
 mod codepage_tables;
+pub mod command;
 pub mod inspect;
+pub mod model;
 pub mod parser;
 pub mod printer;
 
 use codepage::CodePage;
+use model::{Output, Paper};
 use parser::Parser;
-use printer::{Output, Paper, Printer};
+use printer::Printer;
 
 /// Parser and printer for one connection.
 pub struct Decoder {

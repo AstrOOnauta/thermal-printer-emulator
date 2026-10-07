@@ -4,7 +4,8 @@
 use serde::Serialize;
 
 use super::codepage::CodePage;
-use super::parser::{Alignment, Command, Parser, StatusRequest};
+use super::command::{Alignment, Command, StatusRequest};
+use super::parser::Parser;
 
 /// More rows than anyone reads; keeps a huge receipt from freezing the window.
 pub const MAX_ROWS: usize = 5000;

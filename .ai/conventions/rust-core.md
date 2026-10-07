@@ -9,7 +9,8 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `main.rs`            | Entry point, only calls `lib::run`. `windows_subsystem = "windows"` hides the console in release                              |
 | `lib.rs`             | `Builder`: plugin order, macOS app menu, `setup` (tray, first show), window events, command handlers, `Reopen`                |
-| `ui.rs`              | Commands, tray, macOS app menu, window show/hide + Dock visibility. **No emulator logic**                                     |
+| `commands.rs`        | The webview's commands, `UiError`, listener restart (`ListenerTask`). Thin: **no emulator logic**                             |
+| `shell.rs`           | Tray, macOS app menu, window show/hide + Dock visibility, the forwarder of changes to the webview and tray                    |
 | `locale.rs`          | `Language` setting + OS language → `Locale::current()`, native menu labels                                                    |
 | `listener.rs`        | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
 | `receipts.rs`        | Receipts in memory: limits, eviction, `ReceiptSummary` / `ReceiptView`, raw bytes (`flows/print-job.md`)                      |
@@ -19,10 +20,12 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `test_receipt.rs`    | The test receipt's bytes (UI language, configured code page and paper) and sending them to our own port                       |
 | `escpos/mod.rs`      | `Decoder`: parser + printer for one connection, outputs tagged with stream offsets                                            |
 | `escpos/parser.rs`   | ESC/POS bytes → `Command`, streaming (`conventions/escpos.md`)                                                                |
+| `escpos/command.rs`  | `Command` and its parameter types: what the parser makes, what the printer and inspector take                                 |
 | `escpos/codepage.rs` | `ESC t` tables → `char`; tables generated into `codepage_tables.rs` by `scripts/codepages.py`                                 |
 | `escpos/barcode.rs`  | `GS k` symbologies → bar widths + HRI text                                                                                    |
 | `escpos/bitmap.rs`   | 1-bit images: rows, scale, crop, base64 serialization                                                                         |
-| `escpos/printer.rs`  | Printer state machine: commands → print model (`Block`) + side effects (`Output`)                                             |
+| `escpos/printer.rs`  | Printer state machine: commands → print model + side effects; barcodes and QR in `printer/codes.rs`                           |
+| `escpos/model.rs`    | The print model (`Paper`, `Font`, `Segment`, `Placed`, `Block`) and `Output`, serialized for the webview                      |
 | `escpos/inspect.rs`  | Raw bytes → command rows (offset, bytes, mnemonic, i18n kind, detail) for the Commands view                                   |
 
 The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator_lib`. The
@@ -62,7 +65,8 @@ context. **Never** log receipt bytes or text: they can carry customer data.
 
 ## Tests
 
-- Unit tests next to the code (`#[cfg(test)] mod tests`), e.g. `locale::tests`.
+- Unit tests next to the code (`#[cfg(test)] mod tests`), e.g. `locale::tests`. A big
+  module keeps them in a child file (`escpos/parser/tests.rs`, `escpos/printer/tests.rs`).
 - Integration tests in `src-tauri/tests/` against real sockets on `127.0.0.1`, with an
   ephemeral port (`:0`) so they run in parallel. Modules they use are `pub` in `lib.rs`;
   the rest stay private.

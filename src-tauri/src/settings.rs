@@ -8,7 +8,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::escpos::codepage::CodePage;
-use crate::escpos::printer::Paper;
+use crate::escpos::model::Paper;
 use crate::locale::Language;
 
 pub const FILE_NAME: &str = "settings.json";
