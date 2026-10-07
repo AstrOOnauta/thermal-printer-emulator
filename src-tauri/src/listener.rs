@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio::sync::{Notify, Semaphore};
 use tokio::task::JoinSet;
 use tokio::time::{sleep, timeout};
@@ -18,6 +18,8 @@ use crate::receipts::{ReceiptState, Receipts};
 use crate::settings::Settings;
 
 const READ_BUFFER_BYTES: usize = 8 * 1024;
+/// How long `answers` waits for a connection; a local listener accepts at once.
+const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
 /// Pause after a failed `accept` (e.g. out of file descriptors), so it does not spin.
 const ACCEPT_ERROR_PAUSE: Duration = Duration::from_millis(100);
 
@@ -114,7 +116,7 @@ pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 /// task is aborted, which also aborts every open connection.
 pub async fn run(addr: SocketAddr, limits: Limits, shared: Arc<Shared>) {
     let listener = loop {
-        match TcpListener::bind(addr).await {
+        match bind(addr).await {
             Ok(listener) => break listener,
             Err(error) => {
                 let status = ListenerStatus::Failed {
@@ -165,6 +167,54 @@ pub async fn run(addr: SocketAddr, limits: Limits, shared: Arc<Shared>) {
             drop(permit);
         });
     }
+}
+
+/// Binds without stealing a port another app holds. `SO_REUSEADDR` is what lets a rebind
+/// succeed while old connections of ours sit in TIME_WAIT (30–60 s after a restart or a
+/// relaunch), but on macOS it also lets a wildcard bind share a port another app listens on
+/// at one address (or the reverse): we would say "Listening" while that app got the jobs.
+/// On Linux it never allows that, so it is always on. On macOS, it is used only when
+/// nothing answers on the port, i.e. what holds it is TIME_WAIT. Windows needs neither (its
+/// `SO_REUSEADDR` would allow stealing).
+async fn bind(addr: SocketAddr) -> std::io::Result<TcpListener> {
+    let reuse = cfg!(all(unix, not(target_os = "macos")));
+    match bind_with(addr, reuse) {
+        Err(error)
+            if cfg!(target_os = "macos")
+                && error.kind() == ErrorKind::AddrInUse
+                && !answers(addr).await =>
+        {
+            bind_with(addr, true)
+        }
+        result => result,
+    }
+}
+
+fn bind_with(addr: SocketAddr, reuse: bool) -> std::io::Result<TcpListener> {
+    let socket = match addr {
+        SocketAddr::V4(_) => TcpSocket::new_v4()?,
+        SocketAddr::V6(_) => TcpSocket::new_v6()?,
+    };
+    socket.set_reuseaddr(reuse)?;
+    socket.bind(addr)?;
+    socket.listen(1024)
+}
+
+/// Whether something accepts connections on `addr`'s port: on loopback for a wildcard
+/// address. ponytail: a listener on another specific address (a LAN IP) is not probed, so
+/// a wildcard bind on macOS can still share with it; probe each interface if that matters.
+async fn answers(addr: SocketAddr) -> bool {
+    let mut probe = addr;
+    if probe.ip().is_unspecified() {
+        probe.set_ip(match addr {
+            SocketAddr::V4(_) => std::net::Ipv4Addr::LOCALHOST.into(),
+            SocketAddr::V6(_) => std::net::Ipv6Addr::LOCALHOST.into(),
+        });
+    }
+    matches!(
+        timeout(PROBE_TIMEOUT, TcpStream::connect(probe)).await,
+        Ok(Ok(_))
+    )
 }
 
 const ESC: u8 = 0x1b;

@@ -271,6 +271,55 @@ async fn retries_until_the_port_is_free() {
     assert_eq!(port, addr.port());
 }
 
+/// macOS lets a socket with `SO_REUSEADDR` bind the wildcard address on a port another app
+/// listens on at one address: we would say "Listening" while that app got the jobs. (Linux
+/// refuses it anyway; the test proves something on macOS.)
+#[cfg(unix)]
+#[tokio::test]
+async fn does_not_share_a_port_another_app_holds() {
+    let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("binds");
+    let port = taken.local_addr().expect("has an address").port();
+    let shared = Arc::new(Shared::new(Receipts::default(), Settings::default()));
+    let wildcard: SocketAddr = ([0, 0, 0, 0], port).into();
+    tokio::spawn(listener::run(wildcard, FAST, Arc::clone(&shared)));
+
+    let failed = wait_for(&shared, |shared| match status(shared) {
+        ListenerStatus::Failed { error, .. } => Some(error),
+        ListenerStatus::Listening { .. } => panic!("bound a port another app holds"),
+        ListenerStatus::Starting => None,
+    })
+    .await;
+    assert_eq!(failed, BindError::PortInUse);
+}
+
+/// A restart or relaunch leaves our side of closed connections in TIME_WAIT (30–60 s). The
+/// port must bind again at once: "Port in use" would be false.
+#[tokio::test]
+async fn rebinds_while_old_connections_are_in_time_wait() {
+    use std::io::Read;
+    let old = std::net::TcpListener::bind("127.0.0.1:0").expect("binds");
+    let addr = old.local_addr().expect("has an address");
+    let mut client = std::net::TcpStream::connect(addr).expect("connects");
+    let (server, _) = old.accept().expect("accepts");
+    // The server closes first, so its side ends in TIME_WAIT once the client closes too.
+    drop(server);
+    let mut byte = [0u8; 1];
+    assert_eq!(client.read(&mut byte).expect("reads EOF"), 0);
+    drop(client);
+    drop(old);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let shared = Arc::new(Shared::new(Receipts::default(), Settings::default()));
+    tokio::spawn(listener::run(addr, FAST, Arc::clone(&shared)));
+    let port = wait_for(&shared, |shared| match status(shared) {
+        ListenerStatus::Listening { port } => Some(port),
+        ListenerStatus::Failed { error, .. } => panic!("bind failed: {error:?}"),
+        ListenerStatus::Starting => None,
+    })
+    .await;
+    assert_eq!(port, addr.port());
+}
+
 #[tokio::test]
 async fn stopping_the_listener_ends_its_connections() {
     let harness = Harness::start(FAST).await;

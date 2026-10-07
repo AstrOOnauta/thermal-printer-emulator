@@ -21,6 +21,14 @@ listener::run(settings.addr(), Limits::PRODUCTION, shared)   (commands::restart_
                  └─ else: one task per connection ─▶ receive()
 ```
 
+- `listener::bind` never shares a port another app holds. `SO_REUSEADDR` is what lets a
+  rebind succeed while our old connections sit in TIME_WAIT (30–60 s after a restart or a
+  relaunch, which would otherwise show a false "port in use"), but on macOS it also lets a
+  wildcard bind share a port another app listens on at one address (or the reverse), and
+  the app would say "Listening" while the other one got the jobs. So: on Linux it is
+  always on (Linux never allows that sharing); on macOS the bind first goes without it and
+  retries with it only when nothing answers on the port (loopback probe: what holds it is
+  TIME_WAIT); Windows needs neither. Both cases are tested.
 - Connection tasks live in a `JoinSet` owned by `run`: aborting the listener task (a
   restart) aborts every open connection too, so "only this computer" applies at once.
 - `BindError`: `port_in_use` (`AddrInUse`), `permission_denied` (also Windows' reserved
@@ -246,7 +254,8 @@ the receipt's bytes or text.
   receipt until EOF, cuts splitting one connection (raw bytes per receipt), printing
   announced, status-only connections, idle timeout, a silent connection closed early,
   the byte limit (and that it counts each receipt), connection cap, rejected protocols, an
-  `ESC` split from its `@`, bind retry while the port is taken, stopping the listener ends its connections, status replies read back
+  `ESC` split from its `@`, bind retry while the port is taken, no sharing of a port
+  another app holds, stopping the listener ends its connections, status replies read back
   from the socket.
 - `capture.rs` units: one receipt per cut, the same split for every chunking, status
   queries and bare cuts, a drawer pulse alone, text without `LF`, the store limit.
