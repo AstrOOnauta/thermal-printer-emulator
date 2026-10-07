@@ -14,11 +14,13 @@ import {
 import type {
   IReceiptState,
   IReceiptSummary,
+  IReceiptView,
 } from '@/shared/interfaces/emulator';
 import { cn } from '@/shared/styles/cn';
 import { INTERACTIVE } from '@/shared/styles/patterns';
 import { formatBytes, peerHost } from '@/shared/utils/format';
 import { feedDuration } from '@/shared/utils/paper-feed';
+import { MAX_DRAWN_HEIGHT } from '@/shared/utils/receipt-layout';
 import { receiptText } from '@/shared/utils/receipt-text';
 import { uiErrorKey } from '@/shared/utils/ui-error';
 
@@ -59,6 +61,22 @@ export function ReceiptCard({
   const locale = getLocale();
   const startedAt = new Date(receipt.started_at);
   const printing = receipt.state === 'printing';
+  // The print model, fetched the first time the card comes near: `undefined` until then,
+  // `null` once Rust dropped it. Kept while the card lives, so scrolling back to it does
+  // not fetch it again; its slices unmount when it is far.
+  const [view, setView] = useState<IReceiptView | null | undefined>();
+  const wanted = near && !printing;
+
+  useEffect(() => {
+    if (!wanted || view !== undefined) return;
+    let active = true;
+    getReceipt(receipt.id)
+      .then((next) => active && setView(next))
+      .catch(() => active && setView(null));
+    return () => {
+      active = false;
+    };
+  }, [wanted, view, receipt.id]);
 
   useEffect(() => {
     if (!error) return;
@@ -171,10 +189,22 @@ export function ReceiptCard({
             minHeight: printing ? PRINTING_HEIGHT : undefined,
           }}
         >
-          {near && !printing ? (
-            <ReceiptPaper receipt={receipt} scale={scale} />
+          {/* Only near: far cards keep `view` but no slices (canvases and observers). */}
+          {!printing && near ? (
+            <ReceiptPaper
+              receipt={receipt}
+              view={view}
+              scale={scale}
+              root={root}
+            />
           ) : (
-            <div style={{ height: printing ? 0 : receipt.height * scale }} />
+            <div
+              style={{
+                height: printing
+                  ? 0
+                  : Math.min(receipt.height, MAX_DRAWN_HEIGHT) * scale,
+              }}
+            />
           )}
         </div>
         {receipt.cut && (

@@ -6,8 +6,9 @@ import {
   decodeBase64,
   isBlack,
   positionBlocks,
-  SLICE_HEIGHT,
+  sliceHeight,
   slices,
+  visibleRows,
 } from '@/shared/utils/receipt-layout';
 
 const feed = (height: number): IBlock => ({ type: 'feed', height });
@@ -19,11 +20,11 @@ test('stacks blocks from the top of the paper', () => {
 });
 
 test('slices tall receipts and finds the blocks in each slice', () => {
-  expect(slices(0)).toEqual([]);
-  expect(slices(100)).toEqual([[0, 100]]);
-  expect(slices(SLICE_HEIGHT + 1)).toEqual([
-    [0, SLICE_HEIGHT],
-    [SLICE_HEIGHT, SLICE_HEIGHT + 1],
+  expect(slices(0, 4096)).toEqual([]);
+  expect(slices(100, 4096)).toEqual([[0, 100]]);
+  expect(slices(4097, 4096)).toEqual([
+    [0, 4096],
+    [4096, 4097],
   ]);
   const { positioned } = positionBlocks([feed(30), feed(30), feed(30)]);
   expect(blocksIn(positioned, 40, 60).map(({ y }) => y)).toEqual([30]);
@@ -39,4 +40,20 @@ test('reads 1-bit rows', () => {
   expect(isBlack(bits, 10, 1, 0)).toBe(false);
   expect(isBlack(bits, 10, 1, 1)).toBe(true);
   expect(isBlack(bits, 10, 5, 9)).toBe(false);
+});
+
+test('keeps each slice canvas at most 4096 device pixels tall', () => {
+  expect(sliceHeight(1)).toBe(4096);
+  expect(sliceHeight(2)).toBe(2048);
+  expect(sliceHeight(4)).toBe(1024);
+  expect(sliceHeight(100)).toBe(256);
+});
+
+test('decodes only the image rows inside a slice', () => {
+  // An image 100 rows tall at y = 50.
+  expect(visibleRows(50, 100, 0, 4096)).toEqual([0, 100]);
+  expect(visibleRows(50, 100, 100, 120)).toEqual([50, 70]);
+  expect(visibleRows(50, 100, 120, 4096)).toEqual([70, 100]);
+  const [from, to] = visibleRows(50, 100, 200, 300);
+  expect(from >= to).toBe(true);
 });

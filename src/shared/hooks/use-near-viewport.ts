@@ -15,7 +15,8 @@ export function useNearViewport<T extends Element>(root: Element | null) {
     const element = ref.current;
     if (!element || !root) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setNear(entry?.isIntersecting ?? false),
+      // One callback may carry several entries for the element: the last is current.
+      (entries) => setNear(entries.at(-1)?.isIntersecting ?? false),
       { root, rootMargin: MARGIN },
     );
     observer.observe(element);

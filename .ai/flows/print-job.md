@@ -147,13 +147,22 @@ rendering.
 - Canvases get their CSS size at render (`Slice`), not when drawn: a canvas without one is
   300×150 until its effect runs, and that brief shrink moved the scroll position.
 
-- **Only receipts near the visible area are drawn** (`useNearViewport`, an
-  `IntersectionObserver` on the scrolling section with a 1500 px margin). Far ones keep a
-  placeholder of their exact `width × height`, so scrolling never jumps and 100 tall
-  canvases never sit in memory at once.
-- A receipt's print model is fetched (`get_receipt`) once it is no longer `printing`, when
-  its card comes near; the card then draws it. While printing, the card shows an empty
-  strip: there are no progress events.
+- **Only what is near the visible area is drawn** (`useNearViewport`, an
+  `IntersectionObserver` on the scrolling section with a 1500 px margin), per slice: a
+  receipt is drawn in slices of at most 4096 device pixels (`sliceHeight`: fewer dots at a
+  higher pixel ratio or zoom), and a slice far away keeps its size with a 0×0 canvas, its
+  pixels given back; a card far away has no slices at all. Placeholders keep the
+  receipt's `width × height`, so scrolling does not jump (the "too tall" and "no longer
+  in memory" notes are the exceptions). Past 200,000 dots (25 m of paper,
+  `MAX_DRAWN_HEIGHT`) the rest is not drawn and a note says so: a hostile job can't make
+  the window create thousands of canvases. Slices are keyed by index, so a zoom redraws
+  them in place instead of remounting them (a remount paints one blank frame).
+- Images are decoded only for the rows inside the slice being drawn (`visibleRows`), so a
+  tall image costs its slices, not its whole height each time.
+- A receipt's print model is fetched (`get_receipt`) once it is no longer `printing`, the
+  first time its card comes near, and kept by the card: scrolling back draws it again
+  without another fetch. While printing, the card shows an empty strip: there are no
+  progress events.
 - A receipt dropped from memory (`get_receipt` → `null`) shows "No longer in memory".
 
 ## History tools

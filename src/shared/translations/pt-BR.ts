@@ -160,6 +160,7 @@ const ptBR: TranslationKeys = {
     drawer: 'Gaveta aberta',
     beeps: 'Bipe ×%{count}',
     unavailable: 'Não está mais na memória',
+    tooTall: 'O restante deste cupom é alto demais para mostrar.',
     clear: 'Limpar cupons',
     clearTitle: 'Limpar todos os cupons?',
     clearBody: 'Eles saem da lista e da memória. Não dá para desfazer.',

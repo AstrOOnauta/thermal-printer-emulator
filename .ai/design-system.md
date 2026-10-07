@@ -88,7 +88,9 @@ the printer's cells (see Receipt rendering below).
   reverse paints the cell black and the glyph white; underline is a 1 or 2 dot bar.
 - **Bitmaps** go through an offscreen canvas (`ImageData`, black or transparent) and are
   drawn with smoothing off.
-- **Slices**: receipts taller than 4096 dots are drawn on several canvases
-  (`receipt-layout.ts`), under the canvas size limits of WebKit and Chromium.
+- **Slices**: a receipt is drawn on canvases of at most 4096 device pixels each
+  (`sliceHeight` in `receipt-layout.ts`), under the canvas size limits of WebKit and
+  Chromium; only slices near the view hold pixels (`flows/print-job.md` § Receipts in the
+  window).
 - Ink is always `#000` on the white `paper` token; it never follows the theme.
 - Cut receipts end with `.paper-cut` (globals.css), a row of paper-colored teeth.

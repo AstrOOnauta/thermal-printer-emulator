@@ -8,6 +8,8 @@ import {
   blocksIn,
   decodeBase64,
   type IPositionedBlock,
+  isBlack,
+  visibleRows,
 } from '@/shared/utils/receipt-layout';
 
 /** Character cells in dots, as in `printer::Font::cell`. */
@@ -80,48 +82,58 @@ function drawSegment(
   });
 }
 
-/** Paints a 1-bit bitmap through an offscreen canvas, so it scales without blur. */
+/**
+ * Paints the rows of a 1-bit bitmap that fall in the slice, through an offscreen canvas so
+ * it scales without blur. Only those rows are decoded: a tall image spans many slices.
+ */
 function drawBitmap(
   context: CanvasRenderingContext2D,
   placed: IPlaced,
   top: number,
+  sliceTop: number,
+  sliceBottom: number,
 ) {
-  if (placed.width === 0 || placed.height === 0) return;
+  const [from, to] = visibleRows(top, placed.height, sliceTop, sliceBottom);
+  if (placed.width === 0 || from >= to) return;
   const bits = decodeBase64(placed.data);
-  const stride = Math.ceil(placed.width / 8);
-  const pixels = new ImageData(placed.width, placed.height);
+  const pixels = new ImageData(placed.width, to - from);
   // One 32-bit write per pixel: opaque black where the bit is set, transparent elsewhere.
   // Little-endian (every desktop CPU Tauri targets): 0xff000000 is the bytes R,G,B,A =
   // 0, 0, 0, 255.
   const words = new Uint32Array(pixels.data.buffer);
   const black = 0xff000000;
-  for (let y = 0; y < placed.height; y += 1) {
+  for (let y = from; y < to; y += 1) {
     for (let x = 0; x < placed.width; x += 1) {
-      const byte = bits[y * stride + (x >> 3)] ?? 0;
-      if (byte & (0x80 >> (x & 7))) words[y * placed.width + x] = black;
+      if (isBlack(bits, placed.width, x, y)) {
+        words[(y - from) * placed.width + x] = black;
+      }
     }
   }
   const offscreen = document.createElement('canvas');
   offscreen.width = placed.width;
-  offscreen.height = placed.height;
+  offscreen.height = to - from;
   offscreen.getContext('2d')?.putImageData(pixels, 0, 0);
   context.imageSmoothingEnabled = false;
-  context.drawImage(offscreen, placed.x, top);
+  context.drawImage(offscreen, placed.x, top + from);
 }
 
 function drawBlock(
   context: CanvasRenderingContext2D,
   block: IBlock,
   top: number,
+  sliceTop: number,
+  sliceBottom: number,
 ) {
   // Feeds are blank paper: nothing to draw.
   if (block.type === 'line') {
-    for (const image of block.images ?? []) drawBitmap(context, image, top);
+    for (const image of block.images ?? []) {
+      drawBitmap(context, image, top, sliceTop, sliceBottom);
+    }
     for (const segment of block.segments) {
       drawSegment(context, segment, top + block.ascent);
     }
   } else if (block.type === 'image') {
-    drawBitmap(context, block, top);
+    drawBitmap(context, block, top, sliceTop, sliceBottom);
   }
 }
 
@@ -145,8 +157,7 @@ export function drawSlice(
   const context = canvas.getContext('2d');
   if (!context) return;
   context.setTransform(pixels, 0, 0, pixels, 0, -sliceTop * pixels);
-  context.clearRect(0, sliceTop, width, height);
   for (const { y, block } of blocksIn(positioned, sliceTop, sliceBottom)) {
-    drawBlock(context, block, y);
+    drawBlock(context, block, y, sliceTop, sliceBottom);
   }
 }

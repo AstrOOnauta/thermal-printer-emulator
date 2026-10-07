@@ -1,7 +1,16 @@
 import type { IBlock } from '@/shared/interfaces/emulator';
 
-/** WebKit and Chromium cap canvas size; tall receipts are drawn in slices this tall. */
-export const SLICE_HEIGHT = 4096;
+/**
+ * Device pixels in one slice's canvas, at most: WebKit and Chromium cap canvas size, and a
+ * canvas costs 4 bytes a pixel.
+ */
+const SLICE_PIXELS = 4096;
+
+/**
+ * Taller than any real receipt (25 m of paper): past it the rest is not drawn, so a hostile
+ * job can't make the window create thousands of canvases.
+ */
+export const MAX_DRAWN_HEIGHT = 200_000;
 
 export interface IPositionedBlock {
   /** Dots from the top of the receipt. */
@@ -23,13 +32,31 @@ export function positionBlocks(blocks: IBlock[]): {
   return { positioned, height: y };
 }
 
-/** `[top, bottom)` ranges of at most `SLICE_HEIGHT` covering `height`. */
-export function slices(height: number): [number, number][] {
+/** Dots per slice at `pixels` device pixels per dot (pixel ratio × zoom). */
+export function sliceHeight(pixels: number): number {
+  return Math.max(256, Math.floor(SLICE_PIXELS / pixels));
+}
+
+/** `[top, bottom)` ranges of at most `size` covering `height`. */
+export function slices(height: number, size: number): [number, number][] {
   const ranges: [number, number][] = [];
-  for (let top = 0; top < height; top += SLICE_HEIGHT) {
-    ranges.push([top, Math.min(top + SLICE_HEIGHT, height)]);
+  for (let top = 0; top < height; top += size) {
+    ranges.push([top, Math.min(top + size, height)]);
   }
   return ranges;
+}
+
+/**
+ * The rows `[from, to)` of an image at `top`, `height` rows tall, that fall in the slice
+ * `[sliceTop, sliceBottom)`: only those are decoded and drawn. Empty when `from >= to`.
+ */
+export function visibleRows(
+  top: number,
+  height: number,
+  sliceTop: number,
+  sliceBottom: number,
+): [number, number] {
+  return [Math.max(0, sliceTop - top), Math.min(height, sliceBottom - top)];
 }
 
 /** Blocks that overlap `[top, bottom)`. */

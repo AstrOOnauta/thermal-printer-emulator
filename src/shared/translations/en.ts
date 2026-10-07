@@ -162,6 +162,7 @@ const en = {
     drawer: 'Drawer opened',
     beeps: 'Beep ×%{count}',
     unavailable: 'No longer in memory',
+    tooTall: 'The rest of this receipt is too tall to show.',
     clear: 'Clear receipts',
     clearTitle: 'Clear all receipts?',
     clearBody:
