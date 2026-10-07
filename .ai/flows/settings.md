@@ -63,4 +63,5 @@ refused change shows its translated error (`uiErrorKey`) in an alert.
 Changes from the window (the panel, ⌘+ ⌘− ⌘0) go through `App`'s `updateSettings`: one
 after the other, each built on the latest saved settings (a ref), so a quick second change
 never sends a stale copy that undoes the first. A change that sets nothing new (⌘+ held at
-200 %) is not sent at all. Rust writes the file on a blocking thread.
+200 %) is not sent at all. Rust writes the file on a blocking thread. The panel ends with Quit
+(`flows/app-lifecycle.md` § Tray).

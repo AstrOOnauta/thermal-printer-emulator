@@ -9,3 +9,8 @@ export function getAppLocale(): Promise<string> {
 export function setUnseen(count: number): Promise<void> {
   return invoke<void>('set_unseen', { count });
 }
+
+/** Quits the app: the listener stops and the port is free. */
+export function quitApp(): Promise<void> {
+  return invoke<void>('quit_app');
+}

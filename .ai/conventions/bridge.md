@@ -18,9 +18,10 @@ Nothing else: no plugin APIs, no direct OS access.
 | `export_receipt`       | `{ id }`       | file name or `UiError`    | Raw bytes to `Downloads/receipt-<started_at>-<id>.bin`, revealed. `receipts.errors.gone` / `.export`            |
 | `get_receipt_commands` | `{ id }`       | `IInspection \| null`     | The receipt's commands re-parsed from its raw bytes (`conventions/escpos.md` § Inspect)                         |
 | `set_unseen`           | `{ count }`    | `()`                      | Dock badge, tray count and tooltip; 0 clears them                                                               |
+| `quit_app`             | none           | `()`                      | Quits (the Settings panel's Quit: the way out where no tray icon shows)                                         |
 | `set_settings`         | `{ settings }` | `ISettings` or `UiError`  | Validates, saves, applies (`flows/settings.md`)                                                                 |
 
-Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/settings.ts`
+Wrappers: `src/shared/api/app.ts` (`getAppLocale`, `quitApp`), `src/shared/api/settings.ts`
 (`getSettings`, `setSettings`), `src/shared/api/emulator.ts`
 (`getReceipts`, `onReceipts`, `getReceipt`, `getListenerStatus`, `onListenerStatus`,
 `getLanAddress`). Components never call

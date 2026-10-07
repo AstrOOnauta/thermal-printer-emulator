@@ -50,6 +50,10 @@ const ptBR: TranslationKeys = {
       label: 'Som',
       printing: 'Som de impressão e bipe',
     },
+    quit: {
+      label: 'Sair',
+      hint: 'A porta fecha e não chegam mais cupons. Fechar a janela mantém o emulador rodando na bandeja.',
+    },
     errors: {
       port: 'Use uma porta de 1 a 65535.',
       codePage: 'Esta página de código não é suportada.',

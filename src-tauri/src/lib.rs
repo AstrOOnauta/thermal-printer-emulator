@@ -110,6 +110,7 @@ pub fn run() {
             commands::clear_receipts,
             commands::export_receipt,
             commands::set_unseen,
+            commands::quit_app,
             commands::get_receipt_commands,
             commands::set_settings
         ])

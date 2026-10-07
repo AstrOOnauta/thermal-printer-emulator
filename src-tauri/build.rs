@@ -13,6 +13,7 @@ fn main() {
             "clear_receipts",
             "export_receipt",
             "set_unseen",
+            "quit_app",
             "get_receipt_commands",
             "set_settings",
         ]),

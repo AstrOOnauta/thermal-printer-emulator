@@ -69,6 +69,10 @@ whenever the status changes. When the language changes, `shell::refresh_menus` r
 (`tray_menu`, with the current status line), the macOS app menu and the tray tooltip.
 The autostart item reads the OS state on click, so it works with any rebuilt menu.
 
+**Quit from the window**: the Settings panel ends with Quit (`quit_app`). On GNOME without
+the AppIndicator extension no tray icon shows and closing the window only hides it, so
+this is the way out there, and a plain one everywhere.
+
 Linux: the tray needs an AppIndicator host (GNOME requires an extension). Without one,
 launching the app again focuses the window, which is the way back in.
 

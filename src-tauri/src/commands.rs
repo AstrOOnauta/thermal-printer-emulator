@@ -184,6 +184,14 @@ pub fn set_unseen(app: AppHandle, count: u32) {
     show_unseen_in_tray(&app);
 }
 
+/// Quits from the window: where no tray icon shows (GNOME without the AppIndicator
+/// extension), closing the window only hides it, and this is the way out.
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    log::info!("quit from=window");
+    app.exit(0);
+}
+
 /// This computer's LAN IPv4 address (`network.rs`), `None` offline.
 #[tauri::command]
 pub fn get_lan_address() -> Option<String> {

@@ -50,6 +50,10 @@ const es: TranslationKeys = {
       label: 'Sonido',
       printing: 'Sonido de impresión y pitido',
     },
+    quit: {
+      label: 'Salir',
+      hint: 'El puerto se cierra y no llegan más recibos. Cerrar la ventana deja el emulador funcionando en la bandeja.',
+    },
     errors: {
       port: 'Usa un puerto del 1 al 65535.',
       codePage: 'Esta página de códigos no es compatible.',
