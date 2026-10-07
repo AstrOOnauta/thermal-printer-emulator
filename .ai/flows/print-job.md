@@ -4,7 +4,7 @@ From the POS's TCP connection to receipts in the list. Decisions 1–3 and 5 in 
 are the product rules behind this flow; the decoder itself is in `conventions/escpos.md`.
 
 ```
-POS ─TCP─▶ listener.rs ─ classify ─▶ capture.rs ─ Decoder ─▶ receipts.rs ─ Event ─▶ webview
+POS ─TCP─▶ listener.rs ─ classify ─▶ capture.rs ─ Decoder ─▶ receipts.rs ─ changed ─▶ webview
            (bind, accept,  (first     (bytes →      (parser +    (memory,
             limits)         bytes)     receipts)     printer)     limits)
 ```
@@ -12,7 +12,7 @@ POS ─TCP─▶ listener.rs ─ classify ─▶ capture.rs ─ Decoder ─▶ r
 ## Listener (`listener.rs`)
 
 ```
-listener::run(DEFAULT_ADDR = 0.0.0.0:9100, Limits::PRODUCTION, shared, events)
+listener::run(settings.addr(), Limits::PRODUCTION, shared)   (commands::restart_listener)
   bind ── fails ──▶ status Failed { port, error } ─▶ retry every 3 s (logged once per change)
    │
    └─ ok ──▶ status Listening { port } ─▶ accept loop
@@ -214,9 +214,12 @@ so it proves the listener is up. It then shows up in the list like any receipt.
 - `listener::Shared` holds `Mutex<Receipts>` and `Mutex<ListenerStatus>` (std mutexes:
   short sections, never held across `.await`). `listener::lock` recovers a poisoned lock
   instead of spreading a panic: no invariant spans a lock.
-- Every change is sent on an `mpsc` channel (`Event::Receipts` with the whole list when a
-  receipt starts or ends, `Event::Status`) **while the lock is held**, so events arrive in
-  the same order as the changes.
+- After a change (a receipt starts or ends, the list is cleared, the status changes) the
+  code calls `Shared::changed`, a `Notify`. The forwarder (`shell::forward_changes`) wakes,
+  reads the current list and status, emits only what differs from what it last sent, then
+  pauses 50 ms. Changes made meanwhile become one update: a client printing receipts as
+  fast as it can never queues memory (an unbounded channel of whole lists did, measured
+  in GB) and the webview renders at most 20 times a second.
 
 ## Logs
 

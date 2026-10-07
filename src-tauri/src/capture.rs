@@ -8,19 +8,16 @@
 
 use std::net::SocketAddr;
 
-use tokio::sync::mpsc;
-
 use crate::escpos::codepage::CodePage;
 use crate::escpos::model::{Output, Paper};
 use crate::escpos::Decoder;
-use crate::listener::{lock, Event, Shared};
+use crate::listener::{lock, Shared};
 use crate::receipts::{Cut, ReceiptState, TooLarge};
 
 pub struct Capture<'a> {
     peer: SocketAddr,
     paper: Paper,
     shared: &'a Shared,
-    events: &'a mpsc::UnboundedSender<Event>,
     decoder: Decoder,
     /// The receipt being printed.
     receipt: Option<u64>,
@@ -36,18 +33,11 @@ pub struct Capture<'a> {
 }
 
 impl<'a> Capture<'a> {
-    pub fn new(
-        peer: SocketAddr,
-        paper: Paper,
-        code_page: CodePage,
-        shared: &'a Shared,
-        events: &'a mpsc::UnboundedSender<Event>,
-    ) -> Self {
+    pub fn new(peer: SocketAddr, paper: Paper, code_page: CodePage, shared: &'a Shared) -> Self {
         Self {
             peer,
             paper,
             shared,
-            events,
             decoder: Decoder::new(paper, code_page),
             receipt: None,
             pending: Vec::new(),
@@ -163,12 +153,8 @@ impl<'a> Capture<'a> {
             return Ok(id);
         }
         let raw = std::mem::take(&mut self.pending);
-        let id = {
-            let mut receipts = lock(&self.shared.receipts);
-            let id = receipts.start(self.peer, self.paper, raw)?;
-            let _ = self.events.send(Event::Receipts(receipts.summaries()));
-            id
-        };
+        let id = lock(&self.shared.receipts).start(self.peer, self.paper, raw)?;
+        self.shared.changed();
         log::info!("receipt_started id={id} peer={}", self.peer);
         self.receipt = Some(id);
         self.receipts += 1;
@@ -179,11 +165,9 @@ impl<'a> Capture<'a> {
         let summary = {
             let mut receipts = lock(&self.shared.receipts);
             receipts.finish(id, state, cut);
-            let summaries = receipts.summaries();
-            let summary = summaries.iter().find(|receipt| receipt.id == id).cloned();
-            let _ = self.events.send(Event::Receipts(summaries));
-            summary
+            receipts.summary(id)
         };
+        self.shared.changed();
         if let Some(summary) = summary {
             log::info!(
                 "receipt_ended id={id} state={state:?} cut={cut:?} bytes={} drawer={} beeps={}",
@@ -209,8 +193,7 @@ mod tests {
     /// receipt.
     fn capture(chunks: &[&[u8]]) -> Vec<(ReceiptState, Option<Cut>, Vec<u8>, usize)> {
         let shared = Shared::new(Receipts::default(), Settings::default());
-        let (events, _received) = mpsc::unbounded_channel();
-        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared, &events);
+        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared);
         for chunk in chunks {
             capture.feed(chunk).expect("fits");
         }
@@ -284,8 +267,7 @@ mod tests {
     #[test]
     fn the_store_limit_stops_the_capture() {
         let shared = Shared::new(Receipts::new(10, 200), Settings::default());
-        let (events, _received) = mpsc::unbounded_channel();
-        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared, &events);
+        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared);
         capture.feed(b"\x1b@A\n").expect("fits");
         assert_eq!(capture.feed(&[b'x'; 300]), Err(TooLarge));
     }
@@ -293,8 +275,7 @@ mod tests {
     #[test]
     fn collects_status_replies_without_starting_a_receipt() {
         let shared = Shared::new(Receipts::default(), Settings::default());
-        let (events, _received) = mpsc::unbounded_channel();
-        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared, &events);
+        let mut capture = Capture::new(peer(), Paper::Mm80, CodePage::DEFAULT, &shared);
         capture.feed(b"\x10\x04\x01\x1dr\x01").expect("fits");
         assert_eq!(capture.take_replies(), vec![0x12, 0x00]);
         assert!(capture.take_replies().is_empty());

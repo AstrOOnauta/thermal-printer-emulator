@@ -212,6 +212,13 @@ impl Receipts {
             .collect()
     }
 
+    pub fn summary(&self, id: u64) -> Option<ReceiptSummary> {
+        self.receipts
+            .iter()
+            .find(|receipt| receipt.summary.id == id)
+            .map(|receipt| receipt.summary.clone())
+    }
+
     pub fn view(&self, id: u64) -> Option<ReceiptView> {
         let receipt = self
             .receipts

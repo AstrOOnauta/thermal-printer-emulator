@@ -2,6 +2,7 @@
 //! that sends changes to the webview and the tray.
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 #[cfg(target_os = "macos")]
 use tauri::menu::Submenu;
@@ -12,8 +13,9 @@ use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_opener::OpenerExt as _;
 
 use crate::commands::send_test_receipt;
-use crate::listener::{lock, BindError, Event, ListenerStatus, Shared};
+use crate::listener::{lock, BindError, ListenerStatus, Shared};
 use crate::locale::{Locale, Strings};
+use crate::receipts::ReceiptSummary;
 
 /// The tray tooltip's name.
 pub(crate) const PRODUCT_NAME: &str = "Thermal Printer Emulator";
@@ -23,24 +25,45 @@ pub(crate) const PRODUCT_NAME: &str = "Thermal Printer Emulator";
 #[derive(Default)]
 pub struct TrayStatus(Mutex<Option<MenuItem<tauri::Wry>>>);
 
-/// Hands a listener event to the webview (and the tray, for the status).
-pub fn forward(app: &AppHandle, event: Event) {
-    let emitted = match event {
-        Event::Receipts(receipts) => app.emit("receipts", receipts),
-        Event::Status(status) => {
-            if let Some(tray_status) = app.try_state::<TrayStatus>() {
-                if let Some(item) = lock(&tray_status.0).as_ref() {
-                    let label = status_label(Locale::current().strings(), &status);
-                    if let Err(error) = item.set_text(label) {
-                        log::error!("tray status failed: {error}");
-                    }
+/// Least time between two updates to the webview: a flood of receipts is at most this many
+/// renders a second.
+const FORWARD_PAUSE: Duration = Duration::from_millis(50);
+
+/// Sends the webview (and the tray, for the status) what changed, forever. It wakes on
+/// `Shared::changed` and sends the current state, only the parts that differ from what it
+/// last sent: changes made while it sends or pauses become one update, so nothing queues.
+pub async fn forward_changes(app: AppHandle) {
+    let shared = Arc::clone(&app.state::<Arc<Shared>>());
+    let mut sent_status: Option<ListenerStatus> = None;
+    let mut sent_receipts: Option<Vec<ReceiptSummary>> = None;
+    loop {
+        shared.changes.notified().await;
+        let status = lock(&shared.status).clone();
+        if sent_status.as_ref() != Some(&status) {
+            // The item is cloned out of the lock first: off the main thread, `set_text` waits
+            // for the main thread, which may be waiting for this lock (a menu rebuild).
+            let item = app
+                .try_state::<TrayStatus>()
+                .and_then(|tray_status| lock(&tray_status.0).clone());
+            if let Some(item) = item {
+                let label = status_label(Locale::current().strings(), &status);
+                if let Err(error) = item.set_text(label) {
+                    log::error!("tray_status_failed error={error}");
                 }
             }
-            app.emit("listener_status", status)
+            if let Err(error) = app.emit("listener_status", &status) {
+                log::error!("emit_failed event=listener_status error={error}");
+            }
+            sent_status = Some(status);
         }
-    };
-    if let Err(error) = emitted {
-        log::error!("emit failed: {error}");
+        let receipts = lock(&shared.receipts).summaries();
+        if sent_receipts.as_ref() != Some(&receipts) {
+            if let Err(error) = app.emit("receipts", &receipts) {
+                log::error!("emit_failed event=receipts error={error}");
+            }
+            sent_receipts = Some(receipts);
+        }
+        tokio::time::sleep(FORWARD_PAUSE).await;
     }
 }
 

@@ -9,11 +9,11 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::{Notify, Semaphore};
 use tokio::time::{sleep, timeout};
 
 use crate::capture::Capture;
-use crate::receipts::{ReceiptState, ReceiptSummary, Receipts};
+use crate::receipts::{ReceiptState, Receipts};
 use crate::settings::Settings;
 
 const READ_BUFFER_BYTES: usize = 8 * 1024;
@@ -67,20 +67,16 @@ pub enum ListenerStatus {
     Failed { port: u16, error: BindError },
 }
 
-/// What changed, for the UI. `Receipts` carries the whole list, oldest first: at most 100
-/// small summaries, sent when a receipt starts or ends.
-#[derive(Clone, Debug)]
-pub enum Event {
-    Receipts(Vec<ReceiptSummary>),
-    Status(ListenerStatus),
-}
-
 /// State the listener writes and the UI commands read.
 pub struct Shared {
     pub receipts: Mutex<Receipts>,
     pub status: Mutex<ListenerStatus>,
     /// Paper and code page are read by each new connection.
     pub settings: Mutex<Settings>,
+    /// Wakes the UI forwarder after receipts or the status changed. It reads the current
+    /// state when it wakes, so a burst of changes is one wake-up: a client printing receipts
+    /// as fast as it can never queues memory.
+    pub changes: Notify,
 }
 
 impl Shared {
@@ -89,7 +85,14 @@ impl Shared {
             receipts: Mutex::new(receipts),
             status: Mutex::new(ListenerStatus::Starting),
             settings: Mutex::new(settings),
+            changes: Notify::new(),
         }
+    }
+
+    /// Call after changing `receipts` or `status`.
+    pub fn changed(&self) {
+        // One stored permit at most: changes made while nobody waits are one wake-up.
+        self.changes.notify_one();
     }
 }
 
@@ -102,12 +105,7 @@ pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 /// Binds `addr` (retrying while it is unavailable), then accepts connections forever.
-pub async fn run(
-    addr: SocketAddr,
-    limits: Limits,
-    shared: Arc<Shared>,
-    events: mpsc::UnboundedSender<Event>,
-) {
+pub async fn run(addr: SocketAddr, limits: Limits, shared: Arc<Shared>) {
     let listener = loop {
         match TcpListener::bind(addr).await {
             Ok(listener) => break listener,
@@ -116,7 +114,7 @@ pub async fn run(
                     port: addr.port(),
                     error: BindError::from(&error),
                 };
-                if set_status(&shared, &events, status) {
+                if set_status(&shared, status) {
                     log::warn!("bind_failed addr={addr} error={error}");
                 }
                 sleep(limits.bind_retry).await;
@@ -127,7 +125,7 @@ pub async fn run(
         .local_addr()
         .map(|local| local.port())
         .unwrap_or(addr.port());
-    set_status(&shared, &events, ListenerStatus::Listening { port });
+    set_status(&shared, ListenerStatus::Listening { port });
     log::info!("listening addr={addr} port={port}");
 
     let connections = Arc::new(Semaphore::new(limits.max_connections));
@@ -145,9 +143,8 @@ pub async fn run(
             continue; // Dropping the stream closes it.
         };
         let shared = Arc::clone(&shared);
-        let events = events.clone();
         tokio::spawn(async move {
-            receive(stream, peer, limits, &shared, &events).await;
+            receive(stream, peer, limits, &shared).await;
             drop(permit);
         });
     }
@@ -182,13 +179,7 @@ fn classify(head: &[u8]) -> Verdict {
 /// Reads one connection to its end and turns it into receipts (`capture.rs`). Decoding
 /// starts once the first bytes pass `classify`: a connection that closes without sending
 /// anything, or is rejected, leaves nothing behind.
-async fn receive(
-    mut stream: TcpStream,
-    peer: SocketAddr,
-    limits: Limits,
-    shared: &Shared,
-    events: &mpsc::UnboundedSender<Event>,
-) {
+async fn receive(mut stream: TcpStream, peer: SocketAddr, limits: Limits, shared: &Shared) {
     let started = Instant::now();
     let mut buffer = vec![0u8; READ_BUFFER_BYTES];
     let mut capture: Option<Capture> = None;
@@ -229,7 +220,7 @@ async fn receive(
                     (settings.paper, settings.code_page())
                 };
                 capture
-                    .insert(Capture::new(peer, paper, code_page, shared, events))
+                    .insert(Capture::new(peer, paper, code_page, shared))
                     .feed(&std::mem::take(&mut head))
             }
         };
@@ -264,17 +255,15 @@ async fn receive(
 }
 
 /// Stores and announces a new status. False when it did not change.
-fn set_status(
-    shared: &Shared,
-    events: &mpsc::UnboundedSender<Event>,
-    status: ListenerStatus,
-) -> bool {
-    let mut current = lock(&shared.status);
-    if *current == status {
-        return false;
+fn set_status(shared: &Shared, status: ListenerStatus) -> bool {
+    {
+        let mut current = lock(&shared.status);
+        if *current == status {
+            return false;
+        }
+        *current = status;
     }
-    *current = status.clone();
-    let _ = events.send(Event::Status(status));
+    shared.changed();
     true
 }
 

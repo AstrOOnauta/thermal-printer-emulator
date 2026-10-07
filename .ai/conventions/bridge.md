@@ -14,7 +14,7 @@ Nothing else: no plugin APIs, no direct OS access.
 | `get_settings`         | none           | `ISettings`               |                                                                                                                 |
 | `get_lan_address`      | none           | `string \| null`          | This computer's LAN IPv4, `null` offline. Asked again whenever the listener (re)starts                          |
 | `print_test_receipt`   | none           | `()` or `UiError`         | Sends the test receipt to 127.0.0.1:port. `testReceipt.errors.notListening` / `.send`                           |
-| `clear_receipts`       | none           | `()`                      | Drops finished receipts; the new list goes out on the listener's channel (ordered)                              |
+| `clear_receipts`       | none           | `()`                      | Drops finished receipts; the new list goes out as a `receipts` event                                            |
 | `export_receipt`       | `{ id }`       | file name or `UiError`    | Raw bytes to `Downloads/receipt-<started_at>-<id>.bin`, revealed. `receipts.errors.gone` / `.export`            |
 | `get_receipt_commands` | `{ id }`       | `IInspection \| null`     | The receipt's commands re-parsed from its raw bytes (`conventions/escpos.md` § Inspect)                         |
 | `set_unseen`           | `{ count }`    | `()`                      | Dock badge, macOS menu bar count, tray tooltip; 0 clears them                                                   |
@@ -48,8 +48,10 @@ are base64 1-bit rows.
 `{ state: 'starting' } | { state: 'listening', port } | { state: 'failed', port, error }`,
 `error` one of `port_in_use`, `permission_denied`, `other`.
 
-The listener sends its changes on an `mpsc` channel; one forwarder task in `lib.rs`
-(`shell::forward`) emits them, so events reach the webview in the order they happened.
+One forwarder task (`shell::forward_changes`, spawned in `lib.rs`) emits both events: it
+wakes on `Shared::changed`, sends the current state when it differs from what it last
+sent, and pauses 50 ms. A burst of changes is one event with the latest state, never a
+queue (`flows/print-job.md` § Concurrency).
 
 **Sync rule** (`use-synced.ts`, used for both): subscribe first, then read. Once an event
 has arrived, the read's answer is ignored: it may be older. Its three arguments must be

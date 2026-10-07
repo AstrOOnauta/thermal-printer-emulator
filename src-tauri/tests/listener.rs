@@ -4,14 +4,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use thermal_printer_emulator_lib::listener::{
-    self, BindError, Event, Limits, ListenerStatus, Shared,
-};
+use thermal_printer_emulator_lib::listener::{self, BindError, Limits, ListenerStatus, Shared};
 use thermal_printer_emulator_lib::receipts::{Cut, ReceiptState, ReceiptSummary, Receipts};
 use thermal_printer_emulator_lib::settings::Settings;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
 use tokio::time::timeout;
 
 const WAIT: Duration = Duration::from_secs(5);
@@ -25,52 +22,52 @@ const FAST: Limits = Limits {
 
 struct Harness {
     shared: Arc<Shared>,
-    events: mpsc::UnboundedReceiver<Event>,
     addr: SocketAddr,
+}
+
+/// Waits until `check` finds what it looks for in the shared state. The listener calls
+/// `Shared::changed` after each change; a change between the check and the wait leaves a
+/// stored wake-up, so none is missed.
+async fn wait_for<T>(shared: &Shared, mut check: impl FnMut(&Shared) -> Option<T>) -> T {
+    timeout(WAIT, async {
+        loop {
+            if let Some(found) = check(shared) {
+                return found;
+            }
+            shared.changes.notified().await;
+        }
+    })
+    .await
+    .expect("in time")
+}
+
+fn status(shared: &Shared) -> ListenerStatus {
+    listener::lock(&shared.status).clone()
 }
 
 impl Harness {
     async fn start(limits: Limits) -> Self {
         let addr: SocketAddr = "127.0.0.1:0".parse().expect("valid address");
         let shared = Arc::new(Shared::new(Receipts::default(), Settings::default()));
-        let (sender, events) = mpsc::unbounded_channel();
-        tokio::spawn(listener::run(addr, limits, Arc::clone(&shared), sender));
-        let mut harness = Self {
-            shared,
-            events,
-            addr,
-        };
-        let port = harness.listening().await;
+        tokio::spawn(listener::run(addr, limits, Arc::clone(&shared)));
+        let port = wait_for(&shared, |shared| match status(shared) {
+            ListenerStatus::Listening { port } => Some(port),
+            _ => None,
+        })
+        .await;
+        let mut harness = Self { shared, addr };
         harness.addr.set_port(port);
         harness
     }
 
-    async fn listening(&mut self) -> u16 {
-        loop {
-            if let Event::Status(ListenerStatus::Listening { port }) = self.next().await {
-                return port;
-            }
-        }
-    }
-
-    async fn next(&mut self) -> Event {
-        timeout(WAIT, self.events.recv())
-            .await
-            .expect("an event in time")
-            .expect("listener still running")
-    }
-
     /// The receipt list once it has `count` receipts and the newest is in `state`.
-    async fn receipts_when(&mut self, count: usize, state: ReceiptState) -> Vec<ReceiptSummary> {
-        loop {
-            if let Event::Receipts(receipts) = self.next().await {
-                if receipts.len() == count
-                    && receipts.last().map(|receipt| receipt.state) == Some(state)
-                {
-                    return receipts;
-                }
-            }
-        }
+    async fn receipts_when(&self, count: usize, state: ReceiptState) -> Vec<ReceiptSummary> {
+        wait_for(&self.shared, |shared| {
+            let receipts = listener::lock(&shared.receipts).summaries();
+            (receipts.len() == count && receipts.last().map(|receipt| receipt.state) == Some(state))
+                .then_some(receipts)
+        })
+        .await
     }
 
     async fn connect(&self) -> TcpStream {
@@ -103,7 +100,7 @@ async fn closed_by_server(stream: &mut TcpStream) -> bool {
 
 #[tokio::test]
 async fn prints_a_receipt_until_the_client_closes() {
-    let mut harness = Harness::start(FAST).await;
+    let harness = Harness::start(FAST).await;
     harness.send(b"\x1b@Hello\n").await;
 
     let receipts = harness.receipts_when(1, ReceiptState::Done).await;
@@ -118,7 +115,7 @@ async fn prints_a_receipt_until_the_client_closes() {
 
 #[tokio::test]
 async fn cuts_split_one_connection_into_receipts() {
-    let mut harness = Harness::start(FAST).await;
+    let harness = Harness::start(FAST).await;
     harness
         .send(b"\x1b@One\n\x1dV\x00\x1b@Two\n\x1dV\x01")
         .await;
@@ -132,7 +129,7 @@ async fn cuts_split_one_connection_into_receipts() {
 
 #[tokio::test]
 async fn announces_a_receipt_while_it_prints() {
-    let mut harness = Harness::start(FAST).await;
+    let harness = Harness::start(FAST).await;
     let mut stream = harness.connect().await;
     stream.write_all(b"\x1b@Line\n").await.expect("writes");
 
@@ -143,7 +140,7 @@ async fn announces_a_receipt_while_it_prints() {
 
 #[tokio::test]
 async fn status_only_connections_leave_no_receipt() {
-    let mut harness = Harness::start(FAST).await;
+    let harness = Harness::start(FAST).await;
     harness.send(b"\x10\x04\x01").await;
     drop(harness.connect().await);
     harness.send(b"\x1b@A\n").await;
@@ -158,7 +155,7 @@ async fn closes_an_idle_connection() {
         idle_timeout: Duration::from_millis(100),
         ..FAST
     };
-    let mut harness = Harness::start(limits).await;
+    let harness = Harness::start(limits).await;
     let mut stream = harness.connect().await;
     stream.write_all(b"\x1b@waiting").await.expect("writes");
 
@@ -173,7 +170,7 @@ async fn stops_a_connection_over_its_byte_limit() {
         max_connection_bytes: 16,
         ..FAST
     };
-    let mut harness = Harness::start(limits).await;
+    let harness = Harness::start(limits).await;
     let mut stream = harness.connect().await;
     stream
         .write_all(b"\x1b@First line\n")
@@ -192,7 +189,7 @@ async fn refuses_connections_over_the_limit() {
         max_connections: 1,
         ..FAST
     };
-    let mut harness = Harness::start(limits).await;
+    let harness = Harness::start(limits).await;
     let mut first = harness.connect().await;
     first.write_all(b"\x1b@A\n").await.expect("writes");
     harness.receipts_when(1, ReceiptState::Printing).await;
@@ -213,7 +210,7 @@ async fn refuses_connections_over_the_limit() {
 
 #[tokio::test]
 async fn rejects_connections_that_are_not_escpos() {
-    let mut harness = Harness::start(FAST).await;
+    let harness = Harness::start(FAST).await;
     for opening in [
         &b"GET / HTTP/1.1\r\nHost: printer\r\n\r\n"[..],
         b"\x16\x03\x01\x02\x00",
@@ -232,7 +229,7 @@ async fn rejects_connections_that_are_not_escpos() {
 
 #[tokio::test]
 async fn keeps_an_esc_split_from_its_at() {
-    let mut harness = Harness::start(FAST).await;
+    let harness = Harness::start(FAST).await;
     let mut stream = harness.connect().await;
     stream.set_nodelay(true).expect("sets nodelay");
     stream.write_all(b"\x1b").await.expect("writes");
@@ -253,31 +250,22 @@ async fn retries_until_the_port_is_free() {
     let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("binds");
     let addr = taken.local_addr().expect("has an address");
     let shared = Arc::new(Shared::new(Receipts::default(), Settings::default()));
-    let (sender, mut events) = mpsc::unbounded_channel();
-    tokio::spawn(listener::run(addr, FAST, Arc::clone(&shared), sender));
+    tokio::spawn(listener::run(addr, FAST, Arc::clone(&shared)));
 
-    let failed = timeout(WAIT, events.recv()).await.expect("in time");
-    assert!(
-        matches!(
-            failed,
-            Some(Event::Status(ListenerStatus::Failed {
-                error: BindError::PortInUse,
-                ..
-            }))
-        ),
-        "got {failed:?}"
-    );
+    let failed = wait_for(&shared, |shared| match status(shared) {
+        ListenerStatus::Failed { error, .. } => Some(error),
+        _ => None,
+    })
+    .await;
+    assert_eq!(failed, BindError::PortInUse);
 
     drop(taken);
-    let listening = timeout(WAIT, events.recv()).await.expect("in time");
-    assert!(
-        matches!(listening, Some(Event::Status(ListenerStatus::Listening { port })) if port == addr.port()),
-        "got {listening:?}"
-    );
-    assert_eq!(
-        *listener::lock(&shared.status),
-        ListenerStatus::Listening { port: addr.port() }
-    );
+    let port = wait_for(&shared, |shared| match status(shared) {
+        ListenerStatus::Listening { port } => Some(port),
+        _ => None,
+    })
+    .await;
+    assert_eq!(port, addr.port());
 }
 
 #[tokio::test]

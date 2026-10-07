@@ -14,7 +14,6 @@ use std::sync::Arc;
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
-use tokio::sync::mpsc;
 
 /// Passed by the OS login item; such a launch starts hidden in the tray.
 const AUTOSTART_ARG: &str = "--autostart";
@@ -71,15 +70,7 @@ pub fn run() {
             // The macOS app menu was built by `Builder::menu`, before the settings loaded.
             #[cfg(target_os = "macos")]
             app.set_menu(shell::app_menu(handle)?)?;
-            let (events, mut received) = mpsc::unbounded_channel();
-            let forwarder = handle.clone();
-            // One consumer, so the webview sees events in the order the listener made them.
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = received.recv().await {
-                    shell::forward(&forwarder, event);
-                }
-            });
-            app.manage(commands::Events(events));
+            tauri::async_runtime::spawn(shell::forward_changes(handle.clone()));
             app.manage(commands::ListenerTask::default());
             let starter = handle.clone();
             tauri::async_runtime::spawn(async move { commands::restart_listener(&starter).await });

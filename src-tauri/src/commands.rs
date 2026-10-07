@@ -8,9 +8,8 @@ use serde::Serialize;
 use tauri::async_runtime::JoinHandle;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt as _;
-use tokio::sync::mpsc;
 
-use crate::listener::{self, lock, Event, Limits, ListenerStatus, Shared};
+use crate::listener::{self, lock, Limits, ListenerStatus, Shared};
 use crate::locale::Locale;
 use crate::receipts::{ReceiptSummary, ReceiptView};
 use crate::settings::{self, Settings};
@@ -27,9 +26,6 @@ impl UiError {
         Self { key }
     }
 }
-
-/// Where the listener sends its events (the forwarder in `lib.rs` emits them).
-pub struct Events(pub mpsc::UnboundedSender<Event>);
 
 /// The running listener task, replaced when the port or network changes.
 #[derive(Default)]
@@ -48,8 +44,7 @@ pub async fn restart_listener(app: &AppHandle) {
     }
     let shared = Arc::clone(&app.state::<Arc<Shared>>());
     let addr = lock(&shared.settings).addr();
-    let events = app.state::<Events>().0.clone();
-    let task = tauri::async_runtime::spawn(listener::run(addr, Limits::PRODUCTION, shared, events));
+    let task = tauri::async_runtime::spawn(listener::run(addr, Limits::PRODUCTION, shared));
     *lock(&app.state::<ListenerTask>().0) = Some(task);
 }
 
@@ -81,13 +76,8 @@ pub(crate) async fn send_test_receipt(app: &AppHandle) -> Result<(), UiError> {
 #[tauri::command]
 pub fn clear_receipts(app: AppHandle) {
     let shared = app.state::<Arc<Shared>>();
-    let mut receipts = lock(&shared.receipts);
-    receipts.clear();
-    // Through the listener's channel, so it stays in order with the listener's events.
-    let _ = app
-        .state::<Events>()
-        .0
-        .send(Event::Receipts(receipts.summaries()));
+    lock(&shared.receipts).clear();
+    shared.changed();
     log::info!("receipts_cleared");
 }
 
