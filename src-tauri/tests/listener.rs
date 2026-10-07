@@ -9,6 +9,7 @@ use thermal_printer_emulator_lib::receipts::{Cut, ReceiptState, ReceiptSummary, 
 use thermal_printer_emulator_lib::settings::Settings;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
 const WAIT: Duration = Duration::from_secs(5);
@@ -16,12 +17,14 @@ const WAIT: Duration = Duration::from_secs(5);
 const FAST: Limits = Limits {
     max_connections: 4,
     idle_timeout: Duration::from_secs(5),
+    first_bytes_timeout: Duration::from_secs(5),
     bind_retry: Duration::from_millis(50),
-    max_connection_bytes: 1024 * 1024,
+    max_receipt_bytes: 1024 * 1024,
 };
 
 struct Harness {
     shared: Arc<Shared>,
+    task: JoinHandle<()>,
     addr: SocketAddr,
 }
 
@@ -49,13 +52,13 @@ impl Harness {
     async fn start(limits: Limits) -> Self {
         let addr: SocketAddr = "127.0.0.1:0".parse().expect("valid address");
         let shared = Arc::new(Shared::new(Receipts::default(), Settings::default()));
-        tokio::spawn(listener::run(addr, limits, Arc::clone(&shared)));
+        let task = tokio::spawn(listener::run(addr, limits, Arc::clone(&shared)));
         let port = wait_for(&shared, |shared| match status(shared) {
             ListenerStatus::Listening { port } => Some(port),
             _ => None,
         })
         .await;
-        let mut harness = Self { shared, addr };
+        let mut harness = Self { shared, task, addr };
         harness.addr.set_port(port);
         harness
     }
@@ -167,7 +170,7 @@ async fn closes_an_idle_connection() {
 #[tokio::test]
 async fn stops_a_connection_over_its_byte_limit() {
     let limits = Limits {
-        max_connection_bytes: 16,
+        max_receipt_bytes: 16,
         ..FAST
     };
     let harness = Harness::start(limits).await;
@@ -266,6 +269,52 @@ async fn retries_until_the_port_is_free() {
     })
     .await;
     assert_eq!(port, addr.port());
+}
+
+#[tokio::test]
+async fn stopping_the_listener_ends_its_connections() {
+    let harness = Harness::start(FAST).await;
+    let mut stream = harness.connect().await;
+    stream.write_all(b"\x1b@Line\n").await.expect("writes");
+    harness.receipts_when(1, ReceiptState::Printing).await;
+
+    // What a restart does (a new port or network).
+    harness.task.abort();
+    let receipts = harness
+        .receipts_when(1, ReceiptState::ConnectionError)
+        .await;
+    assert_eq!(receipts[0].size, 7, "not left printing");
+    assert!(closed_by_server(&mut stream).await);
+}
+
+#[tokio::test]
+async fn closes_a_connection_that_sends_nothing() {
+    let limits = Limits {
+        first_bytes_timeout: Duration::from_millis(100),
+        ..FAST
+    };
+    let harness = Harness::start(limits).await;
+    let mut stream = harness.connect().await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(
+        closed_by_server(&mut stream).await,
+        "its slot is free again"
+    );
+}
+
+#[tokio::test]
+async fn the_byte_limit_counts_each_receipt() {
+    let limits = Limits {
+        max_receipt_bytes: 32,
+        ..FAST
+    };
+    let harness = Harness::start(limits).await;
+    // Ten 11-byte receipts on one connection: 110 bytes in all, each under the limit.
+    harness.send(&b"\x1b@Line\n\x1dV\x00".repeat(10)).await;
+    let receipts = harness.receipts_when(10, ReceiptState::Done).await;
+    assert!(receipts
+        .iter()
+        .all(|receipt| receipt.state == ReceiptState::Done));
 }
 
 #[tokio::test]

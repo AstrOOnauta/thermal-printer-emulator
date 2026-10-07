@@ -19,7 +19,7 @@ Guarantees:
 - **No panic, no stall** on any input (2,000 random streams fed in random chunks).
 - **No allocation beyond the input**: length fields only say how many bytes to wait for,
   and an image header is checked against the data that came with it (`GS ( L` with less
-  data than `ceil(x / 8) × y` is ignored). The connection's 16 MB limit bounds `pending`.
+  data than `ceil(x / 8) × y` is ignored). The per-receipt 16 MB limit bounds `pending`.
 - **No quadratic scans**: commands that end at a NUL look at a bounded window (`ESC D` 33
   bytes, `GS k` function A 256: past it, `GS k m` is skipped and the rest is data).
 - **Alignment**: every command in the reference has a known length, including the ones

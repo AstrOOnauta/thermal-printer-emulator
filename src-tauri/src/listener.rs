@@ -10,6 +10,7 @@ use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Notify, Semaphore};
+use tokio::task::JoinSet;
 use tokio::time::{sleep, timeout};
 
 use crate::capture::Capture;
@@ -25,18 +26,23 @@ pub struct Limits {
     pub max_connections: usize,
     /// A connection that sends nothing for this long is closed.
     pub idle_timeout: Duration,
+    /// Until its first bytes, a connection gets only this long: a silent one holds one of
+    /// the `max_connections` slots.
+    pub first_bytes_timeout: Duration,
     /// Wait between bind attempts while the port is unavailable.
     pub bind_retry: Duration,
-    /// Bytes one connection may send; past it, the receipt ends `too_large`.
-    pub max_connection_bytes: usize,
+    /// Bytes one receipt may take, counted from the end of the previous one (a POS may keep
+    /// one connection open for many receipts); past it, the receipt ends `too_large`.
+    pub max_receipt_bytes: usize,
 }
 
 impl Limits {
     pub const PRODUCTION: Self = Self {
         max_connections: 16,
         idle_timeout: Duration::from_secs(5 * 60),
+        first_bytes_timeout: Duration::from_secs(10),
         bind_retry: Duration::from_secs(3),
-        max_connection_bytes: 16 * 1024 * 1024,
+        max_receipt_bytes: 16 * 1024 * 1024,
     };
 }
 
@@ -104,7 +110,8 @@ pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// Binds `addr` (retrying while it is unavailable), then accepts connections forever.
+/// Binds `addr` (retrying while it is unavailable), then accepts connections until the
+/// task is aborted, which also aborts every open connection.
 pub async fn run(addr: SocketAddr, limits: Limits, shared: Arc<Shared>) {
     let listener = loop {
         match TcpListener::bind(addr).await {
@@ -129,7 +136,17 @@ pub async fn run(addr: SocketAddr, limits: Limits, shared: Arc<Shared>) {
     log::info!("listening addr={addr} port={port}");
 
     let connections = Arc::new(Semaphore::new(limits.max_connections));
+    // Owned here, so dropping this future (a restart aborts the task) aborts them all.
+    let mut tasks = JoinSet::new();
     loop {
+        while let Some(ended) = tasks.try_join_next() {
+            // The default panic hook writes to stderr only: get it into the log file too.
+            if let Err(error) = ended {
+                if error.is_panic() {
+                    log::error!("connection_panicked error={error}");
+                }
+            }
+        }
         let (stream, peer) = match listener.accept().await {
             Ok(accepted) => accepted,
             Err(error) => {
@@ -143,7 +160,7 @@ pub async fn run(addr: SocketAddr, limits: Limits, shared: Arc<Shared>) {
             continue; // Dropping the stream closes it.
         };
         let shared = Arc::clone(&shared);
-        tokio::spawn(async move {
+        tasks.spawn(async move {
             receive(stream, peer, limits, &shared).await;
             drop(permit);
         });
@@ -185,10 +202,14 @@ async fn receive(mut stream: TcpStream, peer: SocketAddr, limits: Limits, shared
     let mut capture: Option<Capture> = None;
     // Bytes read before the verdict: a lone `ESC` at most, plus the read that decides.
     let mut head: Vec<u8> = Vec::new();
-    let mut received = 0usize;
+    let mut received = 0u64;
 
     let state = loop {
-        let read = match timeout(limits.idle_timeout, stream.read(&mut buffer)).await {
+        let wait = match capture {
+            Some(_) => limits.idle_timeout,
+            None => limits.first_bytes_timeout,
+        };
+        let read = match timeout(wait, stream.read(&mut buffer)).await {
             Err(_) => break ReceiptState::IdleTimeout,
             Ok(Ok(0)) => break ReceiptState::Done,
             Ok(Ok(read)) => read,
@@ -197,10 +218,7 @@ async fn receive(mut stream: TcpStream, peer: SocketAddr, limits: Limits, shared
                 break ReceiptState::ConnectionError;
             }
         };
-        received += read;
-        if received > limits.max_connection_bytes {
-            break ReceiptState::TooLarge;
-        }
+        received += read as u64;
         let fed = match capture.as_mut() {
             Some(capture) => capture.feed(&buffer[..read]),
             None => {
@@ -224,7 +242,8 @@ async fn receive(mut stream: TcpStream, peer: SocketAddr, limits: Limits, shared
                     .feed(&std::mem::take(&mut head))
             }
         };
-        if fed.is_err() {
+        let open = capture.as_ref().map_or(0, Capture::open_bytes);
+        if fed.is_err() || open > limits.max_receipt_bytes as u64 {
             break ReceiptState::TooLarge;
         }
         let replies = capture

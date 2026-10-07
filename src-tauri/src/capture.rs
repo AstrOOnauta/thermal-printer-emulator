@@ -25,6 +25,8 @@ pub struct Capture<'a> {
     pending: Vec<u8>,
     /// Stream offset of the next byte `feed` will get.
     offset: u64,
+    /// Stream offset where the last receipt (or a cut with nothing before it) ended.
+    settled: u64,
     outputs: Vec<(Output, u64)>,
     /// Status replies waiting to be written to the socket.
     replies: Vec<u8>,
@@ -42,6 +44,7 @@ impl<'a> Capture<'a> {
             receipt: None,
             pending: Vec::new(),
             offset: 0,
+            settled: 0,
             outputs: Vec::new(),
             replies: Vec::new(),
             receipts: 0,
@@ -69,10 +72,19 @@ impl<'a> Capture<'a> {
                 result = Err(error);
                 break;
             }
+            if self.receipt.is_none() && self.pending.is_empty() {
+                self.settled = cursor;
+            }
         }
         self.outputs = outputs;
         result?;
         self.add_raw(&chunk[(cursor - start) as usize..])
+    }
+
+    /// Bytes received since the last receipt ended: the open receipt's, or those waiting to
+    /// become one. What the per-receipt limit counts.
+    pub fn open_bytes(&self) -> u64 {
+        self.offset - self.settled
     }
 
     /// Status replies produced since the last call, to write to the socket.
@@ -175,6 +187,16 @@ impl<'a> Capture<'a> {
                 summary.drawer,
                 summary.beeps
             );
+        }
+    }
+}
+
+/// A connection task that panicked or was aborted (a listener restart) never reaches
+/// `finish`: its receipt still ends, or it would stay "printing", and in memory, for good.
+impl Drop for Capture<'_> {
+    fn drop(&mut self) {
+        if let Some(id) = self.receipt.take() {
+            self.end(id, ReceiptState::ConnectionError, None);
         }
     }
 }

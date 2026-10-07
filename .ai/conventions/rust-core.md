@@ -48,8 +48,8 @@ The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator
   a shell string.
 - **Listening socket**: the app accepts connections from the LAN by design (POS
   terminals on other machines). Rules for that code:
-  - parse bytes as untrusted: bounded buffers, a size limit per job, an idle timeout per
-    connection, and a cap on concurrent connections;
+  - parse bytes as untrusted: bounded buffers, a size limit per receipt, an idle timeout
+    per connection (short until its first bytes), and a cap on concurrent connections;
   - turn away connections that do not open like ESC/POS (`listener::classify`, see
     `flows/print-job.md` § Connection filter): port scanners probe 9100 with other
     protocols;

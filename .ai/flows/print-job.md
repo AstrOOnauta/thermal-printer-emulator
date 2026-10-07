@@ -21,6 +21,8 @@ listener::run(settings.addr(), Limits::PRODUCTION, shared)   (commands::restart_
                  └─ else: one task per connection ─▶ receive()
 ```
 
+- Connection tasks live in a `JoinSet` owned by `run`: aborting the listener task (a
+  restart) aborts every open connection too, so "only this computer" applies at once.
 - `BindError`: `port_in_use` (`AddrInUse`), `permission_denied` (also Windows' reserved
   port ranges from Hyper-V / WinNAT), `other`.
 - A failed `accept` (e.g. out of file descriptors) is logged and retried after 100 ms.
@@ -69,19 +71,28 @@ chunks and fed to it.
 | ---------------------------------------- | ------------------ |
 | Cut, or the client closes the connection | `done`             |
 | No byte for 5 min (`idle_timeout`)       | `idle_timeout`     |
+| The task stops (restart, panic)          | `connection_error` |
 | Over a size limit (see below)            | `too_large`        |
 | Reset or another read error              | `connection_error` |
 
-The server closes the connection in every case except a client close.
+The server closes the connection in every case except a client close. A connection that
+sends nothing gets 10 s (`first_bytes_timeout`) instead of 5 min, so silent connections
+cannot hold the 16 slots. A task that stops before `finish` (aborted by a restart, or a
+panic) still ends its receipt: `Capture`'s `Drop` closes it as `connection_error`, so it
+never stays "printing" and in memory.
 
 ## Receipts in memory (`receipts.rs`)
 
 - Newest **100** receipts within **32 MB**, counting raw bytes **and** the print model
   (text, bitmaps, a fixed overhead per block). The oldest **finished** receipt is dropped
   first; one still printing never is.
-- Per connection: **16 MB** read (`Limits::max_connection_bytes`). Past it, or when
-  printing receipts alone fill the 32 MB, the receipt ends `too_large` and the rest is not
-  read. Memory stays bounded whatever the clients send.
+- Per receipt: **16 MB** (`Limits::max_receipt_bytes`), counted from the end of the
+  previous receipt (`Capture::open_bytes`), so a POS that keeps one connection open for
+  many receipts is never cut off. Past it, or when printing receipts alone fill the 32 MB,
+  the receipt ends `too_large` and the rest is not read.
+- Memory is bounded: 32 MB of receipts, plus up to 16 MB per open connection waiting to
+  become a receipt (bytes before the first output, an unfinished command), times 16
+  connections.
 - Consecutive feeds merge into one block.
 - `ReceiptSummary` (`id`, `peer`, `started_at` / `ended_at` in unix ms, `state`, `cut`,
   `drawer`, `beeps`, `size`, `paper`, `width`, `height`) is what the list gets.
@@ -233,9 +244,10 @@ the receipt's bytes or text.
 
 - `src-tauri/tests/listener.rs`, real sockets on `127.0.0.1:0` with fast `Limits`: a
   receipt until EOF, cuts splitting one connection (raw bytes per receipt), printing
-  announced, status-only connections, idle timeout, byte limit, connection cap, rejected
-  protocols, an `ESC` split from its `@`, bind retry while the port is taken, status
-  replies read back from the socket.
+  announced, status-only connections, idle timeout, a silent connection closed early,
+  the byte limit (and that it counts each receipt), connection cap, rejected protocols, an
+  `ESC` split from its `@`, bind retry while the port is taken, stopping the listener ends its connections, status replies read back
+  from the socket.
 - `capture.rs` units: one receipt per cut, the same split for every chunking, status
   queries and bare cuts, a drawer pulse alone, text without `LF`, the store limit.
 - `receipts.rs` units: eviction, limits, finished receipts frozen, height equal to the
