@@ -89,16 +89,17 @@ pub fn clear_receipts(app: AppHandle) {
 }
 
 /// Saves a receipt's raw bytes in the Downloads folder and shows the file. Returns its name.
+/// Async with the write on a blocking thread: a sync command would run on the main thread,
+/// and a receipt can be 16 MB.
 #[tauri::command]
-pub fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> {
+pub async fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> {
+    let gone = || UiError::new("receipts.errors.gone");
     let (started_at, bytes) = {
         let shared = app.state::<Arc<Shared>>();
         let receipts = lock(&shared.receipts);
-        let view = receipts
-            .view(id)
-            .ok_or_else(|| UiError::new("receipts.errors.gone"))?;
-        let bytes = receipts.raw(id).unwrap_or_default().to_vec();
-        (view.summary.started_at, bytes)
+        let started_at = receipts.summary(id).ok_or_else(gone)?.started_at;
+        let raw = receipts.raw(id).ok_or_else(gone)?;
+        (started_at, raw.to_vec())
     };
     let name = format!("receipt-{started_at}-{id}.bin");
     let path = app
@@ -109,14 +110,22 @@ pub fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> {
             log::error!("export_failed id={id} error={error}");
             UiError::new("receipts.errors.export")
         })?;
-    std::fs::write(&path, &bytes).map_err(|error| {
+    let written = {
+        let (path, length) = (path.clone(), bytes.len());
+        tauri::async_runtime::spawn_blocking(move || std::fs::write(&path, &bytes))
+            .await
+            .map_err(std::io::Error::other)
+            .and_then(|result| result)
+            .map(|()| length)
+    };
+    let length = written.map_err(|error| {
         log::error!(
             "export_failed id={id} path={} error={error}",
             path.display()
         );
         UiError::new("receipts.errors.export")
     })?;
-    log::info!("receipt_exported id={id} bytes={}", bytes.len());
+    log::info!("receipt_exported id={id} bytes={length}");
     if let Err(error) = app.opener().reveal_item_in_dir(&path) {
         log::warn!("reveal_failed path={} error={error}", path.display());
     }
@@ -124,15 +133,22 @@ pub fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> {
 }
 
 /// A receipt's commands, re-parsed from its raw bytes (`escpos::inspect`). `None` once
-/// dropped from memory. The bytes are copied out so parsing never holds the lock.
+/// dropped from memory. The bytes are copied out so parsing never holds the lock, and
+/// parsed on a blocking thread (up to 16 MB).
 #[tauri::command]
-pub fn get_receipt_commands(
-    shared: State<'_, Arc<Shared>>,
+pub async fn get_receipt_commands(
+    app: AppHandle,
     id: u64,
 ) -> Option<crate::escpos::inspect::Inspection> {
-    let raw = lock(&shared.receipts).raw(id)?.to_vec();
-    let code_page = lock(&shared.settings).code_page();
-    Some(crate::escpos::inspect::inspect(&raw, code_page))
+    let raw = {
+        let shared = app.state::<Arc<Shared>>();
+        let receipts = lock(&shared.receipts);
+        receipts.raw(id)?.to_vec()
+    };
+    let code_page = lock(&app.state::<Arc<Shared>>().settings).code_page();
+    tauri::async_runtime::spawn_blocking(move || crate::escpos::inspect::inspect(&raw, code_page))
+        .await
+        .ok()
 }
 
 /// Receipts that finished while the window was not in front: a badge on the Dock icon
@@ -246,8 +262,12 @@ pub fn get_receipts(shared: State<'_, Arc<Shared>>) -> Vec<ReceiptSummary> {
 
 /// One receipt with its print model, to draw. `None` once it was dropped from memory.
 #[tauri::command]
-pub fn get_receipt(id: u64, shared: State<'_, Arc<Shared>>) -> Option<ReceiptView> {
-    listener::lock(&shared.receipts).view(id)
+pub async fn get_receipt(app: AppHandle, id: u64) -> Option<ReceiptView> {
+    // Async: the print model (bitmaps included) is cloned and serialized off the main
+    // thread.
+    let shared = app.state::<Arc<Shared>>();
+    let view = listener::lock(&shared.receipts).view(id);
+    view
 }
 
 /// Whether the emulator is listening, and on which port.

@@ -26,6 +26,10 @@ Wrappers: `src/shared/api/app.ts` (`getAppLocale`), `src/shared/api/settings.ts`
 `getLanAddress`). Components never call
 `invoke` or `listen`.
 
+Commands that may take long (`get_receipt`, `get_receipt_commands`, `export_receipt`) are
+`async`: Tauri runs a sync command on the main thread, and a receipt can be 16 MB. Their
+heavy part (parse, file write) runs on `spawn_blocking`.
+
 ## Events
 
 | Event             | Payload             | Fires when                                                                                                                                     |

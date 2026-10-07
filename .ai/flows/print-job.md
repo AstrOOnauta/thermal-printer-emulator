@@ -182,8 +182,9 @@ rendering.
   ESC/POS command of the receipt: offset, mnemonic, what it does (translated) and bytes
   (`commands-panel/`, `conventions/escpos.md` § Inspect).
 - **Save .bin** (download icon in each finished receipt's header): writes its raw bytes to
-  `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
-  Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.
+  `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side,
+  written on a blocking thread). Useful for bug reports, or to replay a receipt:
+  `nc 127.0.0.1 9100 < receipt.bin`.
 
 ## Unseen receipts
 
