@@ -60,3 +60,12 @@ export function CheckIcon() {
     </svg>
   );
 }
+
+/** Points down; rotate it for "open". */
+export function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden {...STROKE}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}

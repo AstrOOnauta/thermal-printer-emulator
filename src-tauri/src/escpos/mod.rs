@@ -5,6 +5,7 @@ pub mod barcode;
 pub mod bitmap;
 pub mod codepage;
 mod codepage_tables;
+pub mod inspect;
 pub mod parser;
 pub mod printer;
 

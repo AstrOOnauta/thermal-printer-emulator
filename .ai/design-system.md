@@ -62,6 +62,13 @@ the printer's cells (see Receipt rendering below).
   `prefers-reduced-motion` path (none, or a short fade).
 - **The paper feed** is the one signature motion: a new receipt is revealed top to bottom
   while the list scrolls with it at printer speed (`flows/print-job.md` § Webview).
+- **Receipt header**: as wide as the paper. Facts on the left in muted text, separated
+  by `·` (only the time in ink); actions on the right: muted icon buttons (copy text, save
+  .bin) and one accent text toggle (Show commands, with a chevron). An action confirms in
+  place (`ReceiptAction`: the icon becomes a green check for 1.5 s, announced to screen
+  readers), so nothing moves; only an error shows as text, below the header. Toolbar
+  actions are bordered buttons or icon buttons; shortcuts appear in tooltips
+  (`IconButton`'s `shortcut`).
 - **Icons**: `src/components/ui/icons/` (drawn for this app: 24×24, `currentColor`, 1.75
   stroke; gear, trash, close) inside `IconButton` (`src/components/ui/icon-button/`: square,
   `label` is both the tooltip and the accessible name, highlighted while `aria-expanded`).

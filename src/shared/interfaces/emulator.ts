@@ -104,3 +104,23 @@ export interface ISettings {
 export interface IUiError {
   key: string;
 }
+
+/** Mirrors `inspect::CommandRow`: one command of a receipt's raw bytes. */
+export interface ICommandRow {
+  offset: number;
+  length: number;
+  /** Hex of the first bytes, `…` when cut. */
+  bytes: string;
+  /** `ESC a`, `GS V`, `LF`; empty for text. */
+  mnemonic: string;
+  /** An i18n key under `inspect.kinds`. */
+  kind: string;
+  /** Parameters in the ESC/POS reference's notation, or the text. */
+  detail: string;
+}
+
+/** Mirrors `inspect::Inspection`. */
+export interface IInspection {
+  rows: ICommandRow[];
+  truncated: boolean;
+}

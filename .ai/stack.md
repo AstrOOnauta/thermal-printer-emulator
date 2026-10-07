@@ -47,7 +47,10 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
 - Drawn on paper at the printer's scale (576 dots for 80 mm, 384 for 58 mm), sharp on
   Retina screens; only the ones near the visible area are drawn.
 - One receipt per cut; status-only connections leave nothing in the list.
-- History in memory: clear it, or save a receipt's raw bytes as `.bin`.
+- History in memory: clear it, copy a receipt as text, save its raw bytes as `.bin`, or
+  list the ESC/POS commands that printed it.
+- Paper zoom (75–200 %), keyboard shortcuts, a count of unseen receipts on the Dock icon
+  and the menu bar.
 - Badges for the cash drawer and the beep; a printing sound for every receipt and the
   beep when asked (`ESC B`).
 
@@ -153,8 +156,10 @@ src/                         # Webview (React)
   shared/
     api/                     # the ONLY @tauri-apps/api imports: app.ts, emulator.ts, settings.ts
     interfaces/emulator.ts   # bridge types (mirror of the Rust structs)
-    hooks/                   # use-translation, use-synced (event + read), use-near-viewport
-    utils/                   # format, receipt-layout, ui-error, sounds, paper-feed (+ tests), draw-receipt
+    hooks/                   # use-translation, use-synced, use-near-viewport, use-test-receipt,
+                             # use-unseen-badge
+    utils/                   # format, receipt-layout, receipt-text, ui-error, sounds, paper-feed,
+                             # shortcut, zoom (+ tests), draw-receipt (canvas)
     styles/                  # globals.css (tokens), cn.ts, patterns.ts (BUTTON, FIELD)
     translations/            # en.ts (source of truth), es.ts, pt-BR.ts
 src-tauri/                   # Rust core

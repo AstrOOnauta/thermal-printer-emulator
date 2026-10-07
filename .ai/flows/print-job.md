@@ -149,6 +149,10 @@ rendering.
   right-aligned prices stay right-aligned; feeds become blank lines, images
   `[image W×H]`; barcodes keep their human-readable text. For bug reports and test
   assertions.
+- **Show commands** (each finished receipt's header): a table under the paper, scrolled
+  into view when it opens, with every
+  ESC/POS command of the receipt: offset, mnemonic, what it does (translated) and bytes
+  (`commands-panel/`, `conventions/escpos.md` § Inspect).
 - **Save .bin** (download icon in each finished receipt's header): writes its raw bytes to
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
   Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.

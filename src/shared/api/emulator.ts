@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 import type {
+  IInspection,
   IListenerStatus,
   IReceiptSummary,
   IReceiptView,
@@ -58,4 +59,9 @@ export function clearReceipts(): Promise<void> {
 /** Saves a receipt's raw bytes in Downloads and reveals the file; resolves to its name. */
 export function exportReceipt(id: number): Promise<string> {
   return invoke<string>('export_receipt', { id });
+}
+
+/** A receipt's commands, re-parsed from its raw bytes; `null` once dropped from memory. */
+export function getReceiptCommands(id: number): Promise<IInspection | null> {
+  return invoke<IInspection | null>('get_receipt_commands', { id });
 }

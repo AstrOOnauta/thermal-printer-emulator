@@ -113,6 +113,7 @@ pub fn run() {
             ui::clear_receipts,
             ui::export_receipt,
             ui::set_unseen,
+            ui::get_receipt_commands,
             ui::set_settings
         ])
         .build(tauri::generate_context!())

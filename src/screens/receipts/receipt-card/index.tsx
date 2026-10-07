@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 
-import { CopyIcon, DownloadIcon } from '@/components/ui/icons';
+import { ChevronIcon, CopyIcon, DownloadIcon } from '@/components/ui/icons';
+import { CommandsPanel } from '@/screens/receipts/commands-panel';
 import { ReceiptAction } from '@/screens/receipts/receipt-action';
 import { ReceiptPaper } from '@/screens/receipts/receipt-paper';
 import { exportReceipt, getReceipt } from '@/shared/api/emulator';
@@ -15,6 +16,7 @@ import type {
   IReceiptSummary,
 } from '@/shared/interfaces/emulator';
 import { cn } from '@/shared/styles/cn';
+import { INTERACTIVE } from '@/shared/styles/patterns';
 import { formatBytes, peerHost } from '@/shared/utils/format';
 import { feedDuration } from '@/shared/utils/paper-feed';
 import { receiptText } from '@/shared/utils/receipt-text';
@@ -48,6 +50,7 @@ export function ReceiptCard({
   fresh,
   scale,
 }: IReceiptCardProps) {
+  const [showCommands, setShowCommands] = useState(false);
   const [error, setError] = useState<TranslationScope | null>(null);
   const margin = MARGIN * scale;
   const paperWidth = receipt.width * scale + 2 * margin;
@@ -125,6 +128,20 @@ export function ReceiptCard({
             >
               <DownloadIcon />
             </ReceiptAction>
+            <button
+              type="button"
+              aria-expanded={showCommands}
+              className={`ml-1.5 flex items-center gap-1 text-xs text-accent ${INTERACTIVE}`}
+              onClick={() => setShowCommands((shown) => !shown)}
+            >
+              {showCommands ? t('inspect.hide') : t('inspect.show')}
+              <ChevronIcon
+                className={cn(
+                  'size-3.5 transition-transform motion-reduce:transition-none',
+                  showCommands && 'rotate-180',
+                )}
+              />
+            </button>
           </div>
         )}
       </header>
@@ -168,6 +185,9 @@ export function ReceiptCard({
           />
         )}
       </div>
+      {showCommands && !printing && (
+        <CommandsPanel id={receipt.id} width={paperWidth} />
+      )}
     </li>
   );
 }

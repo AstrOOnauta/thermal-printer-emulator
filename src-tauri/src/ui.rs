@@ -131,6 +131,18 @@ pub fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> {
     Ok(name)
 }
 
+/// A receipt's commands, re-parsed from its raw bytes (`escpos::inspect`). `None` once
+/// dropped from memory. The bytes are copied out so parsing never holds the lock.
+#[tauri::command]
+pub fn get_receipt_commands(
+    shared: State<'_, Arc<Shared>>,
+    id: u64,
+) -> Option<crate::escpos::inspect::Inspection> {
+    let raw = lock(&shared.receipts).raw(id)?.to_vec();
+    let code_page = lock(&shared.settings).code_page();
+    Some(crate::escpos::inspect::inspect(&raw, code_page))
+}
+
 /// Receipts that finished while the window was not in front: a badge on the Dock icon
 /// (macOS, some Linux docks), the count next to the menu bar icon (macOS: the Dock icon is
 /// hidden while the window is closed), and the tray tooltip everywhere. 0 clears them.

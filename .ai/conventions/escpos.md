@@ -171,3 +171,20 @@ cannot hold the task.
 
 The identity is honest, not a real printer model. Other requests get no reply. Not
 emulated: Automatic Status Back (`GS a`), `DLE ENQ`.
+
+## Inspect (`inspect.rs`)
+
+The Commands view of a receipt: `inspect(raw, default_code_page)` re-parses the receipt's
+raw bytes with the same parser and returns one `CommandRow` per command:
+
+- `offset` and `length` in the receipt, `bytes` (hex of the first 16, `…` when cut);
+- `mnemonic` as the reference writes it (`ESC a`, `GS ( k`, `DLE EOT`, `LF`; empty for
+  text);
+- `kind`, an i18n key under `inspect.kinds` (`align_center`, `cut_partial`, `raster`…),
+  translated by the webview;
+- `detail` in the reference's notation, language-neutral (`n=16`, `96×32 m=0`, `CP850`,
+  `m=73 {BAb12`), or the text decoded in the code page in force (it follows `ESC t` and
+  `ESC @` like the printer).
+
+At most 5,000 rows (`truncated` says when there were more). `get_receipt_commands` copies
+the raw bytes out of the store before parsing, so a large receipt never holds the lock.

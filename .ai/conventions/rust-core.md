@@ -23,6 +23,7 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `escpos/barcode.rs`  | `GS k` symbologies → bar widths + HRI text                                                                                    |
 | `escpos/bitmap.rs`   | 1-bit images: rows, scale, crop, base64 serialization                                                                         |
 | `escpos/printer.rs`  | Printer state machine: commands → print model (`Block`) + side effects (`Output`)                                             |
+| `escpos/inspect.rs`  | Raw bytes → command rows (offset, bytes, mnemonic, i18n kind, detail) for the Commands view                                   |
 
 The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator_lib`. The
 `_lib` suffix keeps the lib name distinct from the bin name (cargo#8519 on Windows).
