@@ -71,7 +71,8 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
   Firewall rule for private and domain networks only, removed on uninstall.
 - **Automatic updates** (`tauri-plugin-updater`, signed with Tauri's own key, no paid
   certificate): Windows, macOS and AppImage; `.deb`/`.rpm` only get a "new version" link.
-- Screenshots for the README, a release checklist, the final icon.
+- A release checklist, the final icon; per-OS direct download links in the README (needs
+  asset names without the version).
 
 ## Product decisions
 
@@ -185,7 +186,11 @@ src-tauri/                   # Rust core
   tauri.conf.json            # window, CSP, bundle targets, version source
   Info.plist                 # macOS: LSUIElement, localizations, Local Network string
   icons/                     # generated; source in icons/source/icon.svg
-.github/                     # workflows (ci.yml, release.yml), dependabot.yml
+.github/                     # workflows (ci.yml, release.yml), dependabot.yml, issue
+                             # templates (ISSUE_TEMPLATE/), README images (assets/)
+README.md                    # for people who use the app: install, quick start, FAQ
+CONTRIBUTING.md              # for people who build it: run, scripts, architecture
+SECURITY.md                  # private reports, what the open port exposes
 rust-toolchain.toml          # pinned Rust; bump it on purpose, in its own commit
 ```
 

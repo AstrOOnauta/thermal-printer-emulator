@@ -1,0 +1,56 @@
+name: Bug report
+description: Something prints wrong, or the app misbehaves.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security issues go through [SECURITY.md](https://github.com/AstrOOnauta/thermal-printer-emulator/blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: At the bottom of the Settings panel.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: Windows 11 23H2, macOS 15.1, Ubuntu 24.04…
+  - type: input
+    id: sender
+    attributes:
+      label: What sends the print job
+      description: Your POS software, or the library and its version.
+      placeholder: python-escpos 3.1, a POS app, nc…
+  - type: textarea
+    id: receipt
+    attributes:
+      label: The receipt's raw bytes
+      description: |
+        If a receipt prints wrong, click **Save .bin** on it and attach the file here (drag it in). It lets us print exactly what you got. Check that it holds no real customer data first.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Tray → **Show logs**, then paste the last lines around the problem. Logs never contain what was printed.
+      render: text

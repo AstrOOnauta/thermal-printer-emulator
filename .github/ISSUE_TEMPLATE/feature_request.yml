@@ -1,0 +1,16 @@
+name: Feature request
+description: An ESC/POS command it should understand, or something the app should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you need
+      description: The problem you want solved, in your words. For a missing ESC/POS command, name it (for example `GS ( k` function 65) and the printer model that uses it.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it could work
+      description: Optional. A sketch, an example receipt (`.bin`), or how another tool does it.
