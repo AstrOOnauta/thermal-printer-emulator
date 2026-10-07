@@ -1,9 +1,15 @@
-import { ExportButton } from '@/screens/receipts/export-button';
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 
+import { CopyIcon, DownloadIcon } from '@/components/ui/icons';
+import { ReceiptAction } from '@/screens/receipts/receipt-action';
 import { ReceiptPaper } from '@/screens/receipts/receipt-paper';
+import { exportReceipt, getReceipt } from '@/shared/api/emulator';
 import { useNearViewport } from '@/shared/hooks/use-near-viewport';
-import { getLocale, useTranslation } from '@/shared/hooks/use-translation';
+import {
+  getLocale,
+  type TranslationScope,
+  useTranslation,
+} from '@/shared/hooks/use-translation';
 import type {
   IReceiptState,
   IReceiptSummary,
@@ -11,6 +17,8 @@ import type {
 import { cn } from '@/shared/styles/cn';
 import { formatBytes, peerHost } from '@/shared/utils/format';
 import { feedDuration } from '@/shared/utils/paper-feed';
+import { receiptText } from '@/shared/utils/receipt-text';
+import { uiErrorKey } from '@/shared/utils/ui-error';
 
 /** Paper margin around the printable area, in CSS pixels (= dots). */
 const MARGIN = 16;
@@ -40,6 +48,7 @@ export function ReceiptCard({
   fresh,
   scale,
 }: IReceiptCardProps) {
+  const [error, setError] = useState<TranslationScope | null>(null);
   const margin = MARGIN * scale;
   const paperWidth = receipt.width * scale + 2 * margin;
   const { t } = useTranslation();
@@ -48,36 +57,82 @@ export function ReceiptCard({
   const startedAt = new Date(receipt.started_at);
   const printing = receipt.state === 'printing';
 
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  const copyText = () =>
+    getReceipt(receipt.id).then((view) => {
+      if (!view) throw new Error('gone');
+      return navigator.clipboard.writeText(receiptText(view.blocks));
+    });
+
   return (
     <li className="flex flex-col gap-2">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-        <time
-          dateTime={startedAt.toISOString()}
-          className="text-ink tabular-nums"
-        >
-          {startedAt.toLocaleTimeString(locale)}
-        </time>
-        <span>{t('receipts.from', { host: peerHost(receipt.peer) })}</span>
+      {/* As wide as the paper: the actions end at its right edge. */}
+      <header
+        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
+        style={{ width: paperWidth }}
+      >
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+          <time
+            dateTime={startedAt.toISOString()}
+            className="text-ink tabular-nums"
+          >
+            {startedAt.toLocaleTimeString(locale)}
+          </time>
+          <Dot />
+          <span>{peerHost(receipt.peer)}</span>
+          {!printing && (
+            <>
+              <Dot />
+              <span className="tabular-nums">
+                {formatBytes(receipt.size, locale)}
+              </span>
+            </>
+          )}
+          {receipt.state !== 'done' && (
+            <span className="ml-1 flex items-center gap-1.5 text-ink">
+              <span
+                aria-hidden
+                className={cn('size-2 rounded-full', STATE_DOT[receipt.state])}
+              />
+              {t(`receipts.state.${receipt.state}`)}
+            </span>
+          )}
+          {receipt.drawer && <Badge>{t('receipts.drawer')}</Badge>}
+          {receipt.beeps > 0 && (
+            <Badge>{t('receipts.beeps', { count: receipt.beeps })}</Badge>
+          )}
+        </div>
         {!printing && (
-          <span className="tabular-nums">
-            {formatBytes(receipt.size, locale)}
-          </span>
+          <div className="ml-auto flex items-center gap-0.5">
+            <ReceiptAction
+              label={t('receipts.copyText')}
+              done={t('receipts.copied')}
+              run={copyText}
+              onError={() => setError('receipts.errors.copy')}
+            >
+              <CopyIcon />
+            </ReceiptAction>
+            <ReceiptAction
+              label={t('receipts.export')}
+              done={t('receipts.exported')}
+              run={() => exportReceipt(receipt.id)}
+              onError={(reason) => setError(uiErrorKey(reason))}
+            >
+              <DownloadIcon />
+            </ReceiptAction>
+          </div>
         )}
-        {receipt.state !== 'done' && (
-          <span className="flex items-center gap-1.5 text-ink">
-            <span
-              aria-hidden
-              className={cn('size-2 rounded-full', STATE_DOT[receipt.state])}
-            />
-            {t(`receipts.state.${receipt.state}`)}
-          </span>
-        )}
-        {receipt.drawer && <Badge>{t('receipts.drawer')}</Badge>}
-        {receipt.beeps > 0 && (
-          <Badge>{t('receipts.beeps', { count: receipt.beeps })}</Badge>
-        )}
-        {!printing && <ExportButton id={receipt.id} />}
       </header>
+      {error && (
+        <p role="alert" className="text-xs text-error">
+          {t(error)}
+        </p>
+      )}
       {/* Paper and torn edge touch: no gap between them. A fresh receipt is revealed top
           to bottom while the list feeds it out (same duration as the scroll). */}
       <div
@@ -123,4 +178,8 @@ function Badge({ children }: { children: string }) {
       {children}
     </span>
   );
+}
+
+function Dot() {
+  return <span aria-hidden>·</span>;
 }

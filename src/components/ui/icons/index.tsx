@@ -34,3 +34,29 @@ export function CloseIcon() {
     </svg>
   );
 }
+
+export function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden {...STROKE}>
+      <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" />
+      <path d="M15.5 8.5V5.5A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5h3" />
+    </svg>
+  );
+}
+
+/** Save to disk: an arrow into a tray. */
+export function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden {...STROKE}>
+      <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14" />
+    </svg>
+  );
+}
+
+export function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden {...STROKE}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </svg>
+  );
+}

@@ -144,7 +144,12 @@ rendering.
   every finished receipt (`Receipts::clear`, the total is recomputed); one still printing
   stays. A modal fits here: it confirms a destructive action, and an inline "Clear all?"
   label widened the bar until it wrapped.
-- **Save .bin** (each finished receipt's header): writes its raw bytes to
+- **Copy text** (copy icon in each finished receipt's header): the receipt as plain text
+  (`receipt-text.ts`, tested): each segment at its column in font A columns, so
+  right-aligned prices stay right-aligned; feeds become blank lines, images
+  `[image W×H]`; barcodes keep their human-readable text. For bug reports and test
+  assertions.
+- **Save .bin** (download icon in each finished receipt's header): writes its raw bytes to
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
   Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.
 

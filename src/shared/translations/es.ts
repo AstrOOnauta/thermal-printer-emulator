@@ -95,7 +95,6 @@ const es: TranslationKeys = {
     newMany: '%{count} recibos nuevos',
     empty: 'Esperando recibos',
     emptyHint: 'Envía trabajos ESC/POS a %{address}.',
-    from: 'desde %{host}',
     drawer: 'Cajón abierto',
     beeps: 'Pitido ×%{count}',
     unavailable: 'Ya no está en memoria',
@@ -104,11 +103,14 @@ const es: TranslationKeys = {
     clearBody: 'Se quitan de la lista y de la memoria. No se puede deshacer.',
     clearConfirm: 'Limpiar',
     cancel: 'Cancelar',
-    export: 'Guardar .bin',
+    copyText: 'Copiar texto',
+    copied: 'Copiado',
+    export: 'Guardar bytes (.bin)',
     exported: 'Guardado en Descargas',
     errors: {
       gone: 'Este recibo ya no está en memoria.',
       export: 'No se pudo guardar el archivo.',
+      copy: 'No se pudo copiar el texto.',
     },
     state: {
       printing: 'Imprimiendo…',

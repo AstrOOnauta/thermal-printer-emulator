@@ -95,7 +95,6 @@ const ptBR: TranslationKeys = {
     newMany: '%{count} cupons novos',
     empty: 'Aguardando cupons',
     emptyHint: 'Envie impressões ESC/POS para %{address}.',
-    from: 'de %{host}',
     drawer: 'Gaveta aberta',
     beeps: 'Bipe ×%{count}',
     unavailable: 'Não está mais na memória',
@@ -104,11 +103,14 @@ const ptBR: TranslationKeys = {
     clearBody: 'Eles saem da lista e da memória. Não dá para desfazer.',
     clearConfirm: 'Limpar',
     cancel: 'Cancelar',
-    export: 'Salvar .bin',
+    copyText: 'Copiar texto',
+    copied: 'Copiado',
+    export: 'Salvar bytes (.bin)',
     exported: 'Salvo em Downloads',
     errors: {
       gone: 'Este cupom não está mais na memória.',
       export: 'Não foi possível salvar o arquivo.',
+      copy: 'Não foi possível copiar o texto.',
     },
     state: {
       printing: 'Imprimindo…',

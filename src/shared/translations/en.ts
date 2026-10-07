@@ -97,7 +97,6 @@ const en = {
     newMany: '%{count} new receipts',
     empty: 'Waiting for receipts',
     emptyHint: 'Send ESC/POS jobs to %{address}.',
-    from: 'from %{host}',
     drawer: 'Drawer opened',
     beeps: 'Beep ×%{count}',
     unavailable: 'No longer in memory',
@@ -107,11 +106,14 @@ const en = {
       "They are removed from the list and from memory. This can't be undone.",
     clearConfirm: 'Clear',
     cancel: 'Cancel',
-    export: 'Save .bin',
+    copyText: 'Copy text',
+    copied: 'Copied',
+    export: 'Save raw bytes (.bin)',
     exported: 'Saved to Downloads',
     errors: {
       gone: 'This receipt is no longer in memory.',
       export: "Couldn't save the file.",
+      copy: "Couldn't copy the text.",
     },
     state: {
       printing: 'Printing…',
