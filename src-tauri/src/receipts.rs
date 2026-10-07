@@ -10,7 +10,24 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
+use crate::escpos::codepage::CodePage;
 use crate::escpos::model::{Block, Paper};
+
+/// What reading a receipt's raw bytes again needs (Commands view, saved `.bin`): the code
+/// page in force where they start (an earlier receipt of the connection may have changed
+/// it) and the configured one `ESC @` goes back to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CodePages {
+    pub start: CodePage,
+    pub default: CodePage,
+}
+
+impl CodePages {
+    pub const DEFAULT: Self = Self {
+        start: CodePage::DEFAULT,
+        default: CodePage::DEFAULT,
+    };
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -67,6 +84,7 @@ pub struct ReceiptView {
 struct Receipt {
     summary: ReceiptSummary,
     raw: Vec<u8>,
+    code_pages: CodePages,
     blocks: Vec<Block>,
     /// Bytes this receipt counts against the store's limit.
     weight: usize,
@@ -124,7 +142,13 @@ impl Receipts {
     }
 
     /// A new receipt, printing, with the raw bytes received before its first output.
-    pub fn start(&mut self, peer: SocketAddr, paper: Paper, raw: Vec<u8>) -> Result<u64, TooLarge> {
+    pub fn start(
+        &mut self,
+        peer: SocketAddr,
+        paper: Paper,
+        code_pages: CodePages,
+        raw: Vec<u8>,
+    ) -> Result<u64, TooLarge> {
         if !self.make_room(raw.len(), 1) {
             return Err(TooLarge);
         }
@@ -148,6 +172,7 @@ impl Receipts {
             },
             weight: raw.len(),
             raw,
+            code_pages,
             blocks: Vec::new(),
         });
         Ok(id)
@@ -244,6 +269,13 @@ impl Receipts {
         Some(&receipt.raw)
     }
 
+    pub fn code_pages(&self, id: u64) -> Option<CodePages> {
+        self.receipts
+            .iter()
+            .find(|receipt| receipt.summary.id == id)
+            .map(|receipt| receipt.code_pages)
+    }
+
     fn printing_mut(&mut self, id: u64) -> Option<&mut Receipt> {
         self.receipts.iter_mut().find(|receipt| {
             receipt.summary.id == id && receipt.summary.state == ReceiptState::Printing
@@ -314,7 +346,7 @@ mod tests {
 
     fn finished(receipts: &mut Receipts, raw: &[u8]) -> u64 {
         let id = receipts
-            .start(peer(), Paper::Mm80, raw.to_vec())
+            .start(peer(), Paper::Mm80, CodePages::DEFAULT, raw.to_vec())
             .expect("fits");
         receipts.finish(id, ReceiptState::Done, Some(Cut::Full));
         id
@@ -332,7 +364,7 @@ mod tests {
     fn keeps_raw_bytes_blocks_and_flags() {
         let mut receipts = Receipts::default();
         let id = receipts
-            .start(peer(), Paper::Mm58, b"\x1b@".to_vec())
+            .start(peer(), Paper::Mm58, CodePages::DEFAULT, b"\x1b@".to_vec())
             .expect("fits");
         receipts.add_raw(id, b"Hi\n").expect("fits");
         receipts.add_block(id, feed(30)).expect("fits");
@@ -372,10 +404,10 @@ mod tests {
     fn never_drops_a_printing_receipt() {
         let mut receipts = Receipts::new(1, 1000);
         let printing = receipts
-            .start(peer(), Paper::Mm80, Vec::new())
+            .start(peer(), Paper::Mm80, CodePages::DEFAULT, Vec::new())
             .expect("fits");
         let other = receipts
-            .start(peer(), Paper::Mm80, Vec::new())
+            .start(peer(), Paper::Mm80, CodePages::DEFAULT, Vec::new())
             .expect("fits");
         assert_eq!(ids(&receipts), vec![printing, other]);
         receipts.finish(printing, ReceiptState::Done, None);
@@ -387,7 +419,7 @@ mod tests {
     fn refuses_when_printing_receipts_fill_the_store() {
         let mut receipts = Receipts::new(10, 100);
         let id = receipts
-            .start(peer(), Paper::Mm80, vec![0; 60])
+            .start(peer(), Paper::Mm80, CodePages::DEFAULT, vec![0; 60])
             .expect("fits");
         assert_eq!(
             receipts.add_block(id, feed(1)),
@@ -395,7 +427,7 @@ mod tests {
             "48 + 60 > 100"
         );
         assert_eq!(
-            receipts.start(peer(), Paper::Mm80, vec![0; 50]),
+            receipts.start(peer(), Paper::Mm80, CodePages::DEFAULT, vec![0; 50]),
             Err(TooLarge)
         );
         receipts
@@ -407,7 +439,7 @@ mod tests {
     fn height_is_the_sum_of_the_blocks() {
         let mut receipts = Receipts::default();
         let id = receipts
-            .start(peer(), Paper::Mm80, Vec::new())
+            .start(peer(), Paper::Mm80, CodePages::DEFAULT, Vec::new())
             .expect("fits");
         // Merged feeds saturate at u16 per block (`ESC 3 255` + `ESC d 255` twice).
         for _ in 0..3 {
@@ -443,7 +475,7 @@ mod tests {
         let mut receipts = Receipts::new(10, 1000);
         finished(&mut receipts, b"done");
         let printing = receipts
-            .start(peer(), Paper::Mm80, b"open".to_vec())
+            .start(peer(), Paper::Mm80, CodePages::DEFAULT, b"open".to_vec())
             .expect("fits");
         receipts.clear();
         assert_eq!(ids(&receipts), vec![printing]);

@@ -55,6 +55,21 @@ impl CodePage {
             .map_or(b'?', |index| 0x80 + index as u8)
     }
 
+    /// The `n` of the `ESC t n` that selects this table.
+    pub fn table(self) -> u8 {
+        match self {
+            Self::Cp437 => 0,
+            Self::Cp850 => 2,
+            Self::Cp860 => 3,
+            Self::Cp863 => 4,
+            Self::Cp865 => 5,
+            Self::Wpc1252 => 16,
+            Self::Cp866 => 17,
+            Self::Cp852 => 18,
+            Self::Cp858 => 19,
+        }
+    }
+
     /// Short name for people: `CP437`, `WPC1252`…
     pub fn name(self) -> &'static str {
         match self {
@@ -126,6 +141,15 @@ mod tests {
         assert_eq!(CodePage::Cp437.decode(0xc4), '─');
         assert_eq!(CodePage::Cp866.decode(0x80), 'А');
         assert_eq!(CodePage::Cp852.decode(0xa5), 'ą');
+    }
+
+    #[test]
+    fn table_numbers_round_trip() {
+        for n in 0..=255 {
+            if let Some(page) = CodePage::from_table(n) {
+                assert_eq!(page.table(), n, "{page:?}");
+            }
+        }
     }
 
     #[test]

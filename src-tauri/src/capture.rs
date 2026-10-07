@@ -12,7 +12,7 @@ use crate::escpos::codepage::CodePage;
 use crate::escpos::model::{Output, Paper};
 use crate::escpos::Decoder;
 use crate::listener::{lock, Shared};
-use crate::receipts::{Cut, ReceiptState, TooLarge};
+use crate::receipts::{CodePages, Cut, ReceiptState, TooLarge};
 
 pub struct Capture<'a> {
     peer: SocketAddr,
@@ -27,6 +27,12 @@ pub struct Capture<'a> {
     offset: u64,
     /// Stream offset where the last receipt (or a cut with nothing before it) ended.
     settled: u64,
+    /// Code pages the next receipt's raw bytes start with.
+    ///
+    /// ponytail: the start page is read once the whole chunk is decoded, so a chunk with a
+    /// cut, then text, then `ESC t` gives the next receipt the later page (most receipts
+    /// open with `ESC @`, which makes it moot); exact would need the page per output.
+    code_pages: CodePages,
     outputs: Vec<(Output, u64)>,
     /// Status replies waiting to be written to the socket.
     replies: Vec<u8>,
@@ -45,6 +51,10 @@ impl<'a> Capture<'a> {
             pending: Vec::new(),
             offset: 0,
             settled: 0,
+            code_pages: CodePages {
+                start: code_page,
+                default: code_page,
+            },
             outputs: Vec::new(),
             replies: Vec::new(),
             receipts: 0,
@@ -74,6 +84,7 @@ impl<'a> Capture<'a> {
             }
             if self.receipt.is_none() && self.pending.is_empty() {
                 self.settled = cursor;
+                self.code_pages.start = self.decoder.code_page();
             }
         }
         self.outputs = outputs;
@@ -165,7 +176,7 @@ impl<'a> Capture<'a> {
             return Ok(id);
         }
         let raw = std::mem::take(&mut self.pending);
-        let id = lock(&self.shared.receipts).start(self.peer, self.paper, raw)?;
+        let id = lock(&self.shared.receipts).start(self.peer, self.paper, self.code_pages, raw)?;
         self.shared.changed();
         log::info!("receipt_started id={id} peer={}", self.peer);
         self.receipt = Some(id);

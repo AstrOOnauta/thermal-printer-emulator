@@ -11,7 +11,7 @@ use tauri_plugin_opener::OpenerExt as _;
 
 use crate::listener::{self, lock, Limits, ListenerStatus, Shared};
 use crate::locale::Locale;
-use crate::receipts::{ReceiptSummary, ReceiptView};
+use crate::receipts::{CodePages, ReceiptSummary, ReceiptView};
 use crate::settings::{self, Settings};
 use crate::shell::{refresh_menus, PRODUCT_NAME};
 
@@ -99,7 +99,8 @@ pub async fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> 
         let receipts = lock(&shared.receipts);
         let started_at = receipts.summary(id).ok_or_else(gone)?.started_at;
         let raw = receipts.raw(id).ok_or_else(gone)?;
-        (started_at, raw.to_vec())
+        let code_pages = receipts.code_pages(id).ok_or_else(gone)?;
+        (started_at, replayable(raw, code_pages))
     };
     let name = format!("receipt-{started_at}-{id}.bin");
     let path = app
@@ -132,6 +133,22 @@ pub async fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> 
     Ok(name)
 }
 
+/// A receipt's bytes that print it again on their own: a receipt after the first of its
+/// connection usually starts mid-stream (`ESC a`, text), which the connection filter turns
+/// away, and may rely on an earlier `ESC t`. Those get `ESC @` and `ESC t n` in front.
+///
+/// ponytail: only the code page is restored; other state an earlier receipt set (alignment,
+/// sizes, barcode settings) is not, as on any fresh connection. Replaying the earlier
+/// receipts' bytes first would restore it, if that ever matters.
+fn replayable(raw: &[u8], code_pages: CodePages) -> Vec<u8> {
+    if raw.starts_with(b"\x1b@") {
+        return raw.to_vec();
+    }
+    let mut bytes = vec![0x1b, b'@', 0x1b, b't', code_pages.start.table()];
+    bytes.extend_from_slice(raw);
+    bytes
+}
+
 /// A receipt's commands, re-parsed from its raw bytes (`escpos::inspect`). `None` once
 /// dropped from memory. The bytes are copied out so parsing never holds the lock, and
 /// parsed on a blocking thread (up to 16 MB).
@@ -140,15 +157,16 @@ pub async fn get_receipt_commands(
     app: AppHandle,
     id: u64,
 ) -> Option<crate::escpos::inspect::Inspection> {
-    let raw = {
+    let (raw, code_pages) = {
         let shared = app.state::<Arc<Shared>>();
         let receipts = lock(&shared.receipts);
-        receipts.raw(id)?.to_vec()
+        (receipts.raw(id)?.to_vec(), receipts.code_pages(id)?)
     };
-    let code_page = lock(&app.state::<Arc<Shared>>().settings).code_page();
-    tauri::async_runtime::spawn_blocking(move || crate::escpos::inspect::inspect(&raw, code_page))
-        .await
-        .ok()
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::escpos::inspect::inspect(&raw, code_pages.start, code_pages.default)
+    })
+    .await
+    .ok()
 }
 
 /// Receipts that finished while the window was not in front: a badge on the Dock icon
@@ -274,4 +292,29 @@ pub async fn get_receipt(app: AppHandle, id: u64) -> Option<ReceiptView> {
 #[tauri::command]
 pub fn get_listener_status(shared: State<'_, Arc<Shared>>) -> ListenerStatus {
     listener::lock(&shared.status).clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::replayable;
+    use crate::escpos::codepage::CodePage;
+    use crate::receipts::CodePages;
+
+    #[test]
+    fn a_saved_receipt_replays_on_its_own() {
+        let pages = CodePages {
+            start: CodePage::Cp850,
+            default: CodePage::DEFAULT,
+        };
+        assert_eq!(
+            replayable(b"\x1ba\x01Two\n", pages),
+            b"\x1b@\x1bt\x02\x1ba\x01Two\n",
+            "mid-stream: reset and the code page it printed with"
+        );
+        assert_eq!(
+            replayable(b"\x1b@One\n", pages),
+            b"\x1b@One\n",
+            "already opens with ESC @: as received"
+        );
+    }
 }

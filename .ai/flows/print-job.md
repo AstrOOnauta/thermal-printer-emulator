@@ -188,11 +188,16 @@ rendering.
 - **Show commands** (each finished receipt's header): a table under the paper, scrolled
   into view when it opens, with every
   ESC/POS command of the receipt: offset, mnemonic, what it does (translated) and bytes
-  (`commands-panel/`, `conventions/escpos.md` § Inspect).
+  (`commands-panel/`, `conventions/escpos.md` § Inspect). Text is decoded in the code page
+  the receipt started with (each receipt keeps it, `CodePages`), not today's setting.
 - **Save .bin** (download icon in each finished receipt's header): writes its raw bytes to
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side,
-  written on a blocking thread). Useful for bug reports, or to replay a receipt:
-  `nc 127.0.0.1 9100 < receipt.bin`.
+  written on a blocking thread). A receipt that does not open with `ESC @` (any but the
+  first of a connection) gets `ESC @ ESC t n` in front (`commands::replayable`): without it the
+  connection filter would turn the replay away, and an earlier `ESC t` would be lost. So
+  every saved file replays on its own (`nc 127.0.0.1 9100 < receipt.bin`), with the code
+  page it printed with; other state an earlier receipt set (alignment, sizes) starts from
+  the defaults, as on any fresh connection.
 
 ## Unseen receipts
 

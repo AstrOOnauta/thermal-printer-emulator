@@ -23,13 +23,14 @@ export function receiptText(blocks: IBlock[]): string {
       }
     } else if (block.type === 'image') {
       lines.push(`[image ${block.width}×${block.height}]`);
-    } else if (block.segments.length === 0) {
+    } else {
+      // `ESC *` stripes hang from the line's top: before its text.
       lines.push(
         ...(block.images ?? []).map(
           (image) => `[image ${image.width}×${image.height}]`,
         ),
       );
-    } else {
+      if (block.segments.length === 0) continue;
       let text = '';
       for (const segment of [...block.segments].sort((a, b) => a.x - b.x)) {
         const column = Math.round(segment.x / COLUMN_DOTS);

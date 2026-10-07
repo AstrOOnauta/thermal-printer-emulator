@@ -147,6 +147,11 @@ impl Printer {
         Self::with_code_page(paper, CodePage::DEFAULT)
     }
 
+    /// The code page in force (`ESC t`).
+    pub fn code_page(&self) -> CodePage {
+        self.code_page
+    }
+
     pub fn with_code_page(paper: Paper, code_page: CodePage) -> Self {
         Self {
             paper,

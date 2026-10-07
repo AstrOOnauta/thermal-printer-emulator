@@ -35,16 +35,17 @@ pub struct Inspection {
     pub truncated: bool,
 }
 
-pub fn inspect(raw: &[u8], default_code_page: CodePage) -> Inspection {
+/// `start_page` is in force where `raw` starts; `ESC @` goes back to `default_page`.
+pub fn inspect(raw: &[u8], start_page: CodePage, default_page: CodePage) -> Inspection {
     let mut parser = Parser::default();
-    let mut page = default_code_page;
+    let mut page = start_page;
     let mut rows = Vec::new();
     let mut start = 0u64;
     let mut truncated = false;
     parser.feed(raw, |command, end| {
         let bytes = &raw[start as usize..end as usize];
         if rows.len() < MAX_ROWS {
-            let (kind, detail) = describe(&command, &mut page, default_code_page);
+            let (kind, detail) = describe(&command, &mut page, default_page);
             rows.push(CommandRow {
                 offset: start,
                 length: bytes.len(),
@@ -132,7 +133,11 @@ fn describe(command: &Command, page: &mut CodePage, default: CodePage) -> (&'sta
     let n = |value: &dyn std::fmt::Display| format!("n={value}");
     match command {
         Command::Text(bytes) => {
-            let text: String = bytes.iter().map(|&byte| page.decode(byte)).collect();
+            let text: String = bytes
+                .iter()
+                .take(MAX_TEXT_SHOWN + 1)
+                .map(|&byte| page.decode(byte))
+                .collect();
             ("text", shorten(text, MAX_TEXT_SHOWN))
         }
         Command::LineFeed => ("line_feed", String::new()),
@@ -234,7 +239,7 @@ mod tests {
     use super::*;
 
     fn rows(raw: &[u8]) -> Vec<CommandRow> {
-        inspect(raw, CodePage::DEFAULT).rows
+        inspect(raw, CodePage::DEFAULT, CodePage::DEFAULT).rows
     }
 
     #[test]
@@ -293,7 +298,7 @@ mod tests {
     #[test]
     fn caps_the_number_of_rows() {
         let raw = b"\n".repeat(MAX_ROWS + 10);
-        let inspection = inspect(&raw, CodePage::DEFAULT);
+        let inspection = inspect(&raw, CodePage::DEFAULT, CodePage::DEFAULT);
         assert_eq!(inspection.rows.len(), MAX_ROWS);
         assert!(inspection.truncated);
     }

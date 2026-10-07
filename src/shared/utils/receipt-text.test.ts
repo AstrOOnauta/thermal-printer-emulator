@@ -53,3 +53,14 @@ test('a line with only column-image stripes shows them as images', () => {
   ]);
   expect(text).toBe('[image 120×24]');
 });
+
+test('keeps the images of a line that also has text', () => {
+  const block: IBlock = {
+    type: 'line',
+    height: 30,
+    ascent: 24,
+    segments: [segment(0, 'Logo')],
+    images: [{ x: 0, width: 8, height: 24, data: '' }],
+  };
+  expect(receiptText([block])).toBe('[image 8×24]\nLogo');
+});

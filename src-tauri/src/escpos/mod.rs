@@ -48,6 +48,11 @@ impl Decoder {
         self.printer.finish(out);
     }
 
+    /// The code page in force after the bytes fed so far.
+    pub fn code_page(&self) -> CodePage {
+        self.printer.code_page()
+    }
+
     /// Commands the parser did not know.
     pub fn unknown_commands(&self) -> usize {
         self.printer.unknown_commands
