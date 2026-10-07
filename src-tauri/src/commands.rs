@@ -2,7 +2,7 @@
 //! with setup. Thin: the emulator's logic lives in `listener`, `receipts` and `settings`.
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::async_runtime::JoinHandle;
@@ -27,25 +27,32 @@ impl UiError {
     }
 }
 
-/// The running listener task, replaced when the port or network changes.
+/// The running listener task, replaced when the port or network changes. An async mutex,
+/// held for a whole restart: two restarts at once would otherwise both spawn a listener and
+/// lose the handle of one, which then holds the port for good.
 #[derive(Default)]
-pub struct ListenerTask(Mutex<Option<JoinHandle<()>>>);
+pub struct ListenerTask(tokio::sync::Mutex<Option<JoinHandle<()>>>);
 
-/// The settings file.
-pub struct SettingsPath(pub PathBuf);
+/// The settings file. Held while a change is saved and applied, so two changes never
+/// interleave (file and memory would disagree).
+pub struct SettingsPath(pub tokio::sync::Mutex<PathBuf>);
 
 /// Starts the listener on the address in the settings, after stopping the previous one:
 /// awaiting the aborted task means its socket is closed before the new bind.
 pub async fn restart_listener(app: &AppHandle) {
-    let previous = lock(&app.state::<ListenerTask>().0).take();
-    if let Some(previous) = previous {
+    let task = app.state::<ListenerTask>();
+    let mut task = task.0.lock().await;
+    if let Some(previous) = task.take() {
         previous.abort();
         let _ = previous.await;
     }
     let shared = Arc::clone(&app.state::<Arc<Shared>>());
     let addr = lock(&shared.settings).addr();
-    let task = tauri::async_runtime::spawn(listener::run(addr, Limits::PRODUCTION, shared));
-    *lock(&app.state::<ListenerTask>().0) = Some(task);
+    *task = Some(tauri::async_runtime::spawn(listener::run(
+        addr,
+        Limits::PRODUCTION,
+        shared,
+    )));
 }
 
 /// Builds the test receipt and sends it to our own listener, like a POS would.
@@ -175,8 +182,17 @@ pub async fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings
     settings
         .validate()
         .map_err(|invalid| UiError::new(invalid.key()))?;
-    let path = app.state::<SettingsPath>().0.clone();
-    if let Err(error) = settings.save(&path) {
+    let path = app.state::<SettingsPath>();
+    let path = path.0.lock().await;
+    // A file write and a disk sync: on a blocking thread, not the async worker.
+    let saved = {
+        let (settings, path) = (settings.clone(), path.clone());
+        tauri::async_runtime::spawn_blocking(move || settings.save(&path))
+            .await
+            .map_err(std::io::Error::other)
+            .and_then(|result| result)
+    };
+    if let Err(error) = saved {
         log::error!("settings_save_failed path={} error={error}", path.display());
         return Err(UiError::new("settings.errors.save"));
     }

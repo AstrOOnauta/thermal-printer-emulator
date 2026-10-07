@@ -15,7 +15,7 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `listener.rs`        | TCP accept loop, bind retry, connection cap, one task per connection, `ListenerStatus`, `Shared` state (`flows/print-job.md`) |
 | `receipts.rs`        | Receipts in memory: limits, eviction, `ReceiptSummary` / `ReceiptView`, raw bytes (`flows/print-job.md`)                      |
 | `capture.rs`         | One connection's bytes → receipts: start on visible output, split on cut (`flows/print-job.md`)                               |
-| `settings.rs`        | `Settings`: defaults, validation, load (defaults on any problem), atomic save (`flows/settings.md`)                           |
+| `settings.rs`        | `Settings`: defaults, validation, load (field by field), atomic save (`flows/settings.md`)                                    |
 | `network.rs`         | This computer's LAN IPv4 (UDP "connect" to TEST-NET-1, nothing sent)                                                          |
 | `test_receipt.rs`    | The test receipt's bytes (UI language, configured code page and paper) and sending them to our own port                       |
 | `escpos/mod.rs`      | `Decoder`: parser + printer for one connection, outputs tagged with stream offsets                                            |

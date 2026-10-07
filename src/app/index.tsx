@@ -28,6 +28,7 @@ import type {
   IListenerStatus,
   IReceiptSummary,
   ISettings,
+  ISettingsChange,
 } from '@/shared/interfaces/emulator';
 import {
   hasCommandKey,
@@ -51,12 +52,19 @@ export function App() {
   const [, setLocaleTag] = useState('');
   const settingsButton = useRef<HTMLButtonElement>(null);
   const clearDialog = useRef<HTMLDialogElement>(null);
+  // The latest saved settings and the save in flight: changes run one after the other,
+  // each on top of the previous one, so a quick second change never undoes the first.
+  const latestSettings = useRef<ISettings | null>(null);
+  const savesInFlight = useRef<Promise<unknown>>(Promise.resolve());
   const testReceipt = useTestReceipt();
   useUnseenBadge(receipts);
 
   useEffect(() => {
     getSettings()
-      .then(setSettings)
+      .then((loaded) => {
+        latestSettings.current = loaded;
+        setSettings(loaded);
+      })
       .catch(() => {
         // Not running inside Tauri (`yarn dev` in a browser): no settings.
       });
@@ -72,20 +80,40 @@ export function App() {
       .catch(() => setLanAddress(null));
   }, [listening, status]);
 
-  const onSettingsSaved = (next: ISettings) => {
-    const languageChanged = next.language !== settings?.language;
-    setSettings(next);
-    if (!languageChanged) return;
-    // Rust resolved `system` to the OS language; ask it, so window and tray agree.
-    getAppLocale()
-      .then((tag) => {
-        document.documentElement.lang = setLocale(tag);
-        setLocaleTag(tag);
+  const updateSettings = useCallback((change: ISettingsChange) => {
+    const save = savesInFlight.current
+      .then(() => {
+        const current = latestSettings.current;
+        if (!current) throw new Error('settings not loaded');
+        const fields = typeof change === 'function' ? change(current) : change;
+        const keys = Object.keys(fields) as (keyof ISettings)[];
+        // Nothing new (⌘+ held at 200 %): no write, no restart.
+        if (keys.every((key) => fields[key] === current[key])) return current;
+        return saveSettings({ ...current, ...fields });
       })
-      .catch(() => {
-        // Not running inside Tauri.
+      .then((next) => {
+        // In the chain, so the next queued change builds on this one.
+        const previous = latestSettings.current;
+        latestSettings.current = next;
+        setSettings(next);
+        if (next.language !== previous?.language) {
+          // Rust resolved `system` to the OS language; ask it, so window and tray agree.
+          getAppLocale()
+            .then((tag) => {
+              document.documentElement.lang = setLocale(tag);
+              setLocaleTag(tag);
+            })
+            .catch(() => {
+              // Not running inside Tauri.
+            });
+        }
+        return next;
       });
-  };
+    savesInFlight.current = save.catch(() => {
+      // The caller shows the error; the next change still runs.
+    });
+    return save;
+  }, []);
 
   const closeSettings = useCallback(() => {
     setSettingsOpen(false);
@@ -97,29 +125,26 @@ export function App() {
 
   // ⌘, settings · ⌘T test receipt · ⌘⌫ clear · ⌘+ ⌘− ⌘0 zoom (Ctrl on Windows and Linux).
   useEffect(() => {
-    const zoomTo = (zoom: number) => {
-      if (!settings || zoom === settings.zoom) return;
-      saveSettings({ ...settings, zoom })
-        .then(setSettings)
-        .catch(() => {
-          // Refused or not in Tauri: the zoom stays.
-        });
+    const zoom = (step: (current: number) => number) => {
+      updateSettings((current) => ({ zoom: step(current.zoom) })).catch(() => {
+        // Refused or not in Tauri: the zoom stays.
+      });
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (!hasCommandKey(event)) return;
       if (settings && (event.key === '=' || event.key === '+')) {
         event.preventDefault();
-        zoomTo(stepZoom(settings.zoom, 1));
+        zoom((current) => stepZoom(current, 1));
         return;
       }
       if (settings && event.key === '-') {
         event.preventDefault();
-        zoomTo(stepZoom(settings.zoom, -1));
+        zoom((current) => stepZoom(current, -1));
         return;
       }
       if (settings && event.key === '0') {
         event.preventDefault();
-        zoomTo(100);
+        zoom(() => 100);
         return;
       }
       if (event.key === ',' && settings) {
@@ -139,7 +164,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [settings, listening, hasReceipts, printTest]);
+  }, [settings, updateSettings, listening, hasReceipts, printTest]);
 
   const local = settings?.bind === 'local';
   const host = local ? '127.0.0.1' : (lanAddress ?? '127.0.0.1');
@@ -181,7 +206,7 @@ export function App() {
           <SettingsPanel
             open={settingsOpen}
             settings={settings}
-            onSaved={onSettingsSaved}
+            update={updateSettings}
             onClose={closeSettings}
           />
         )}

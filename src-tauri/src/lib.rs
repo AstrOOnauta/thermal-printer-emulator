@@ -60,7 +60,9 @@ pub fn run() {
             let settings = settings::Settings::load(&settings_path);
             // Before any native menu is built, so they all start in the chosen language.
             locale::Locale::prefer(settings.language);
-            app.manage(commands::SettingsPath(settings_path));
+            app.manage(commands::SettingsPath(tokio::sync::Mutex::new(
+                settings_path,
+            )));
             app.manage(Arc::new(listener::Shared::new(
                 receipts::Receipts::default(),
                 settings,

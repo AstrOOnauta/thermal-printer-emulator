@@ -3,7 +3,6 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CloseIcon } from '@/components/ui/icons';
 import { IconButton } from '@/components/ui/icon-button';
 
-import { setSettings } from '@/shared/api/settings';
 import {
   type TranslationScope,
   useTranslation,
@@ -13,6 +12,7 @@ import type {
   ILanguage,
   IPaper,
   ISettings,
+  ISettingsChange,
 } from '@/shared/interfaces/emulator';
 import { cn } from '@/shared/styles/cn';
 import { BUTTON, FIELD } from '@/shared/styles/patterns';
@@ -43,7 +43,8 @@ const LANGUAGES: { value: Exclude<ILanguage, 'system'>; name: string }[] = [
 interface ISettingsPanelProps {
   open: boolean;
   settings: ISettings;
-  onSaved: (settings: ISettings) => void;
+  /** Saves and applies a change (queued after any change still saving). */
+  update: (change: ISettingsChange) => Promise<ISettings>;
   onClose: () => void;
 }
 
@@ -55,7 +56,7 @@ interface ISettingsPanelProps {
 export function SettingsPanel({
   open,
   settings,
-  onSaved,
+  update,
   onClose,
 }: ISettingsPanelProps) {
   const { t } = useTranslation();
@@ -77,11 +78,9 @@ export function SettingsPanel({
   const languageId = useId();
   const zoomId = useId();
 
-  const save = (next: ISettings) => {
+  const save = (change: ISettingsChange) => {
     setError(null);
-    setSettings(next)
-      .then(onSaved)
-      .catch((reason: unknown) => setError(uiErrorKey(reason)));
+    update(change).catch((reason: unknown) => setError(uiErrorKey(reason)));
   };
 
   const portNumber = Number(port);
@@ -127,7 +126,7 @@ export function SettingsPanel({
             className={`${FIELD} w-full`}
             value={settings.language}
             onChange={(event) =>
-              save({ ...settings, language: event.target.value as ILanguage })
+              save({ language: event.target.value as ILanguage })
             }
           >
             <option value="system">{t('settings.language.system')}</option>
@@ -144,7 +143,7 @@ export function SettingsPanel({
             className="flex gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              if (portValid) save({ ...settings, port: portNumber });
+              if (portValid) save({ port: portNumber });
             }}
           >
             <input
@@ -177,7 +176,7 @@ export function SettingsPanel({
             { value: 'lan', label: t('settings.bind.lan') },
             { value: 'local', label: t('settings.bind.local') },
           ]}
-          onChange={(bind) => save({ ...settings, bind })}
+          onChange={(bind) => save({ bind })}
         />
 
         <Choice<IPaper>
@@ -188,7 +187,7 @@ export function SettingsPanel({
             { value: 'mm80', label: t('settings.paper.mm80') },
             { value: 'mm58', label: t('settings.paper.mm58') },
           ]}
-          onChange={(paper) => save({ ...settings, paper })}
+          onChange={(paper) => save({ paper })}
         />
 
         <Field label={t('settings.zoom.label')} htmlFor={zoomId}>
@@ -196,9 +195,7 @@ export function SettingsPanel({
             id={zoomId}
             className={`${FIELD} w-full`}
             value={settings.zoom}
-            onChange={(event) =>
-              save({ ...settings, zoom: Number(event.target.value) })
-            }
+            onChange={(event) => save({ zoom: Number(event.target.value) })}
           >
             {ZOOM_STEPS.map((zoom) => (
               <option key={zoom} value={zoom}>
@@ -221,7 +218,7 @@ export function SettingsPanel({
             className={`${FIELD} w-full`}
             value={settings.code_page}
             onChange={(event) =>
-              save({ ...settings, code_page: Number(event.target.value) })
+              save({ code_page: Number(event.target.value) })
             }
           >
             {CODE_PAGES.map(({ table, label }) => (
@@ -241,9 +238,7 @@ export function SettingsPanel({
             <input
               type="checkbox"
               checked={settings.sound}
-              onChange={(event) =>
-                save({ ...settings, sound: event.target.checked })
-              }
+              onChange={(event) => save({ sound: event.target.checked })}
             />
             {t('settings.sound.printing')}
           </label>

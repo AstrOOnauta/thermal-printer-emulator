@@ -16,12 +16,19 @@ only through `get_settings` / `set_settings`, and Rust validates every value.
 
 ## Load and save
 
-- **Load** at startup: a missing file gives the defaults; an unreadable, broken or invalid
-  file is logged (`settings_invalid`) and gives the defaults too. Never fatal.
-- Missing fields take their default (`#[serde(default)]`), so a file from an older version
-  still loads.
-- **Save** writes `settings.json.tmp`, then renames it over the old file: a crash mid-write
-  never leaves half a file.
+- **Load** at startup, field by field: a missing or invalid field takes its default and
+  is logged (`settings_field_invalid key`); the others are kept. One bad value (a hand
+  edit, an option from a newer version) never resets the rest, so `bind: local` never
+  silently becomes `lan`. Unknown fields are ignored. A file that is not a JSON object is
+  copied to `settings.json.bad`, logged (`settings_broken`) and gives the defaults. Never
+  fatal.
+- `set_settings` gets no defaults: its argument must carry every field (no
+  `#[serde(default)]` on `Settings`), or the call fails.
+- **Save** writes `settings.json.tmp`, syncs it to disk, then renames it over the old
+  file: a crash or power loss never leaves half a file.
+- Changes are serialized: `set_settings` holds `SettingsPath`'s async mutex while it
+  saves and applies (restart included), and `restart_listener` holds `ListenerTask`'s for
+  the whole stop-then-start, so two quick changes can't leave two listeners.
 
 ## `set_settings(settings)`
 
@@ -52,3 +59,8 @@ Opened by the gear in the top bar; a panel slides in from the right over the rec
 port waits for "Apply" (restarting the listener on every keystroke would be wrong) and is
 validated as you type. A refused change shows its translated error (`uiErrorKey`) in an
 alert.
+
+Changes from the window (the panel, ⌘+ ⌘− ⌘0) go through `App`'s `updateSettings`: one
+after the other, each built on the latest saved settings (a ref), so a quick second change
+never sends a stale copy that undoes the first. A change that sets nothing new (⌘+ held at
+200 %) is not sent at all. Rust writes the file on a blocking thread.

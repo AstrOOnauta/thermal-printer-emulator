@@ -100,6 +100,10 @@ export interface ISettings {
   zoom: number;
 }
 
+/** A settings change: the fields to set, or a function of the latest settings. */
+export type ISettingsChange =
+  Partial<ISettings> | ((current: ISettings) => Partial<ISettings>);
+
 /** A refused command (`ui::UiError`): an i18n key. */
 export interface IUiError {
   key: string;

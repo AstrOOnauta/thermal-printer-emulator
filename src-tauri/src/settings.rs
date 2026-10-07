@@ -1,7 +1,7 @@
 //! User settings, a JSON file in the app's config folder. Rust owns it: the webview reads
 //! and changes it only through commands, and every value is validated here.
 
-use std::io;
+use std::io::{self, Write};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::path::Path;
 
@@ -25,15 +25,16 @@ pub enum Bind {
     Local,
 }
 
+/// No `#[serde(default)]`: a change from the webview must carry every field (a missing one
+/// would silently fall back, `bind` to `lan` included). The file fills gaps in `load`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
 pub struct Settings {
     pub port: u16,
     pub bind: Bind,
     pub paper: Paper,
     /// `ESC t` table used until the POS selects one (decision 4).
     pub code_page: u8,
-    /// Play the printer's beep (`ESC B`).
+    /// Play the printing sound for each receipt and the printer's beep (`ESC B`).
     pub sound: bool,
     pub language: Language,
     /// Paper zoom in percent, one of `ZOOM_STEPS`.
@@ -98,24 +99,44 @@ impl Settings {
         CodePage::from_table(self.code_page).unwrap_or(CodePage::DEFAULT)
     }
 
-    /// The saved settings, or the defaults when the file is missing or unreadable (a
-    /// broken file is logged and replaced on the next save, never fatal).
+    /// The saved settings. Field by field: a missing or invalid field takes its default and
+    /// the others are kept, so one bad value (a hand edit, a newer version's option) never
+    /// resets the rest, `bind: local` included. Never fatal.
     pub fn load(path: &Path) -> Self {
         let text = match std::fs::read_to_string(path) {
-            Ok(text) => text,
+            Ok(text) => Some(text),
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Self::default(),
+            // Not UTF-8: broken, like bad JSON below.
+            Err(error) if error.kind() == io::ErrorKind::InvalidData => None,
             Err(error) => {
                 log::warn!("settings_unreadable path={} error={error}", path.display());
                 return Self::default();
             }
         };
-        match serde_json::from_str::<Self>(&text) {
-            Ok(settings) if settings.validate().is_ok() => settings,
-            Ok(_) | Err(_) => {
-                log::warn!("settings_invalid path={}, using defaults", path.display());
-                Self::default()
+        let parsed = text.and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok());
+        let saved = match parsed {
+            Some(serde_json::Value::Object(saved)) => saved,
+            _ => {
+                // Kept for a look: the next save replaces the file.
+                let _ = std::fs::copy(path, path.with_extension("json.bad"));
+                log::warn!("settings_broken path={}, using defaults", path.display());
+                return Self::default();
+            }
+        };
+        let mut merged = serde_json::to_value(Self::default()).expect("settings serialize");
+        for (key, value) in saved {
+            let Some(slot) = merged.get_mut(&key) else {
+                continue; // Unknown: an option from a newer version.
+            };
+            let previous = std::mem::replace(slot, value);
+            let valid = serde_json::from_value::<Self>(merged.clone())
+                .is_ok_and(|settings| settings.validate().is_ok());
+            if !valid {
+                log::warn!("settings_field_invalid key={key}, using its default");
+                merged[&key] = previous;
             }
         }
+        serde_json::from_value(merged).unwrap_or_default()
     }
 
     /// Writes a temporary file, then renames it over the old one, so a crash mid-write
@@ -126,7 +147,11 @@ impl Settings {
         }
         let temporary = path.with_extension("json.tmp");
         let json = serde_json::to_string_pretty(self).map_err(io::Error::other)?;
-        std::fs::write(&temporary, json)?;
+        let mut file = std::fs::File::create(&temporary)?;
+        file.write_all(json.as_bytes())?;
+        // On disk before the rename, or a power loss could leave an empty file behind it.
+        file.sync_all()?;
+        drop(file);
         std::fs::rename(&temporary, path)
     }
 }
@@ -176,8 +201,38 @@ mod tests {
         std::fs::create_dir_all(path.parent().expect("has a parent")).expect("creates dir");
         std::fs::write(&path, "{ not json").expect("writes");
         assert_eq!(Settings::load(&path), Settings::default());
+        assert!(path.with_extension("json.bad").exists(), "kept for a look");
         std::fs::write(&path, r#"{ "port": 0 }"#).expect("writes");
         assert_eq!(Settings::load(&path), Settings::default());
+    }
+
+    #[test]
+    fn a_bad_field_keeps_the_others() {
+        let path = scratch("bad-field");
+        std::fs::create_dir_all(path.parent().expect("has a parent")).expect("creates dir");
+        std::fs::write(
+            &path,
+            r#"{ "port": 0, "bind": "local", "paper": "mm58", "zoom": 110,
+                 "language": "fr", "future_option": true }"#,
+        )
+        .expect("writes");
+        let settings = Settings::load(&path);
+        assert_eq!(
+            (settings.bind, settings.paper),
+            (Bind::Local, Paper::Mm58),
+            "valid fields kept: never back to the LAN by accident"
+        );
+        assert_eq!(
+            (settings.port, settings.zoom, settings.language),
+            (9100, 100, Language::System),
+            "invalid ones take their default"
+        );
+    }
+
+    #[test]
+    fn a_change_must_carry_every_field() {
+        let partial = serde_json::from_str::<Settings>(r#"{ "port": 9100, "bind": "local" }"#);
+        assert!(partial.is_err());
     }
 
     #[test]
