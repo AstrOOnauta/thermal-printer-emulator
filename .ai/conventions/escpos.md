@@ -25,6 +25,9 @@ Guarantees:
 - **Alignment**: every command in the reference has a known length, including the ones
   the emulator ignores. An unknown `ESC x` / `GS x` / `FS x` skips two bytes
   (`Command::Unknown`); a lone `DLE` skips one, as the printer does.
+- **Out of range is ignored**, as the reference says: the command keeps the previous
+  setting instead of being clamped (`ESC a 3`, `ESC - 3`, `GS !` with bit 3 or 7, `GS h 0`,
+  `GS w 0`, a QR size outside 1–16 or a level outside 48–51).
 
 | Bytes                                                                         | Command                                                                              |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -101,11 +104,14 @@ edge); its glyph fills `cell × (width, height)` and is bottom-aligned at the li
   the line spacing.
 - `ESC d n` after text: the printed line counts as the first of the n lines.
 - `ESC SP` spacing is multiplied by the width multiplier, like the character.
-- A character that does not fit wraps to the next line.
+- A character that does not fit wraps to the next line, also when only the position moved
+  (`ESC $`, `HT`, an `ESC *` stripe). At the start of the area it is placed anyway:
+  wrapping could not make it fit.
 - `ESC @` resets every setting (code page included) and drops the unprinted line.
 - `CR` does nothing (automatic line feed off, the default).
-- `HT` jumps to the next tab stop in the current character width; past the last stop it
-  does nothing. `ESC D` ends at a NUL, at the first value that does not ascend (that byte
+- `HT` jumps to the next tab stop in the current character width; a stop past the print
+  area moves to its end (the next character wraps), as the reference says; past the last
+  stop it does nothing. `ESC D` ends at a NUL, at the first value that does not ascend (that byte
   is normal data), or after 32 values, as the reference says.
 - `GS V n` feeds `n` dots, then cuts.
 
@@ -159,8 +165,9 @@ PNG, no `data:` URL, so the CSP stays closed.
 
 QR (`GS ( k`, `cn` 49): module size 1–16 dots (default 3), error correction L/M/Q/H
 (default L), store, print. Encoded with the `qrcode` crate (no default features), drawn
-without a quiet zone as a `Block::Image` aligned by `ESC a`. Nothing stored, or data too
-long for a QR: nothing printed. Model selection (fn 65) is ignored.
+without a quiet zone as a `Block::Image` aligned by `ESC a`. Nothing stored, data too long
+for a QR, or a symbol wider than the print area (cropped it could not be read; barcodes
+do the same): nothing printed. Model selection (fn 65) is ignored.
 
 ## Status replies (decision 5)
 

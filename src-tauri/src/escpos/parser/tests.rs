@@ -147,6 +147,23 @@ fn skips_data_carrying_commands_by_their_length() {
 }
 
 #[test]
+fn out_of_range_parameters_ignore_the_command() {
+    // The printer keeps the setting it had.
+    assert_eq!(one(b"\x1ba\x03"), Command::Ignored, "ESC a 3");
+    assert_eq!(one(b"\x1b-\x03"), Command::Ignored, "ESC - 3");
+    assert_eq!(one(b"\x1d!\x08"), Command::Ignored, "GS ! bit 3");
+    assert_eq!(one(b"\x1d!\x80"), Command::Ignored, "GS ! bit 7");
+    assert_eq!(
+        one(b"\x1d!\x77"),
+        Command::CharSize {
+            width: 8,
+            height: 8
+        },
+        "GS ! 0x77"
+    );
+}
+
+#[test]
 fn image_commands_carry_their_data() {
     assert_eq!(
         one(b"\x1dv0\x01\x02\x00\x02\x00\xaa\xbb\xcc\xdd"),

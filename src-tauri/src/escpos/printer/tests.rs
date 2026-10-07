@@ -229,7 +229,19 @@ fn random_bytes_never_panic() {
         for paper in [Paper::Mm80, Paper::Mm58] {
             for output in print(paper, &bytes) {
                 if let Output::Block(Block::Line { segments, .. }) = output {
-                    assert!(segments.iter().all(|segment| segment.x < paper.dots() * 2));
+                    for segment in &segments {
+                        // Text stays on the paper. A lone character at the start of
+                        // the area may not (a margin that leaves no room for it):
+                        // wrapping could not make it fit.
+                        let count = segment.text.chars().count() as u32;
+                        let glyph = u32::from(segment.font.cell().0) * u32::from(segment.width);
+                        let right =
+                            u32::from(segment.x) + u32::from(segment.advance) * (count - 1) + glyph;
+                        assert!(
+                            right <= u32::from(paper.dots()) || count == 1,
+                            "{segment:?} ends at {right} on {paper:?}"
+                        );
+                    }
                 }
             }
         }
@@ -373,6 +385,42 @@ fn barcodes_wider_than_the_paper_or_invalid_are_skipped() {
 }
 
 #[test]
+fn a_qr_code_wider_than_the_paper_is_not_printed() {
+    let mut bytes = b"\x1d(k\x03\x001C\x10".to_vec();
+    let data = [b'A'; 300];
+    let length = (data.len() + 3) as u16;
+    bytes.extend(b"\x1d(k");
+    bytes.extend(length.to_le_bytes());
+    bytes.extend(b"1P0");
+    bytes.extend(data);
+    bytes.extend(b"\x1d(k\x03\x001Q0");
+    assert!(images(&bytes).is_empty(), "53 modules × 16 dots > 576");
+}
+
+#[test]
+fn a_character_past_the_area_wraps_even_on_an_empty_line() {
+    // `ESC $` to dot 570: "A" (12 dots) would end past 576.
+    let all = lines(b"\x1b$\x3a\x02ABC\n");
+    assert_eq!(texts(all.last().expect("a line")), vec![(0, "ABC")]);
+}
+
+#[test]
+fn a_tab_stop_past_the_area_goes_to_its_end() {
+    // 58 mm: 32 columns of font A. Stop at column 40; after it, "X" wraps.
+    let mut bytes = b"\x1bD\x28\x00".to_vec();
+    bytes.extend([b'a'; 30]);
+    bytes.extend(b"\tX\n");
+    let segments: Vec<Vec<Segment>> = print(Paper::Mm58, &bytes)
+        .into_iter()
+        .filter_map(|output| match output {
+            Output::Block(Block::Line { segments, .. }) => Some(segments),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(texts(&segments[1]), vec![(0, "X")]);
+}
+
+#[test]
 fn qr_codes_use_the_stored_data_and_module_size() {
     let qr = b"\x1ba\x01\x1d(k\x03\x00\x31\x43\x04\x1d(k\x05\x00\x31\x50\x30hi\x1d(k\x03\x00\x31\x51\x30";
     let printed = images(qr);
@@ -434,4 +482,28 @@ fn initialize_restores_the_configured_code_page() {
         panic!("{out:?}");
     };
     assert_eq!(segments[0].text, "ã");
+}
+
+#[test]
+fn out_of_range_settings_keep_the_previous_value() {
+    let mut printer = Printer::new(Paper::Mm80);
+    let mut out = Vec::new();
+    for command in [
+        Command::QrErrorCorrection(51),
+        Command::QrErrorCorrection(7),
+        Command::QrModuleSize(6),
+        Command::QrModuleSize(17),
+        Command::BarcodeWidth(3),
+        Command::BarcodeWidth(9),
+        Command::BarcodeHeight(80),
+        Command::BarcodeHeight(0),
+    ] {
+        printer.apply(command, &mut out);
+    }
+    assert_eq!((printer.qr.level, printer.qr.module), (51, 6), "GS ( k");
+    assert_eq!(
+        (printer.barcode.module, printer.barcode.height),
+        (3, 80),
+        "GS w, GS h"
+    );
 }

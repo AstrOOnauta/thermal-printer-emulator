@@ -286,8 +286,11 @@ impl Printer {
                     self.print_image(bitmap, 1, 1, out);
                 }
             }
-            Command::BarcodeHeight(dots) => self.barcode.height = u16::from(dots.max(1)),
-            Command::BarcodeWidth(dots) => self.barcode.module = u16::from(dots.clamp(1, 6)),
+            // Out of range, these keep the setting they had, as the printer does.
+            Command::BarcodeHeight(dots) if dots > 0 => self.barcode.height = u16::from(dots),
+            Command::BarcodeWidth(dots) if (1..=6).contains(&dots) => {
+                self.barcode.module = u16::from(dots);
+            }
             Command::HriPosition(position) => self.barcode.hri = position,
             Command::HriFont(font) => {
                 self.barcode.hri_font = if font == 0 { Font::A } else { Font::B };
@@ -295,8 +298,16 @@ impl Printer {
             Command::Barcode { symbology, data } => {
                 self.print_barcode(Symbology::from_code(symbology), &data, out);
             }
-            Command::QrModuleSize(dots) => self.qr.module = u16::from(dots.clamp(1, 16)),
-            Command::QrErrorCorrection(level) => self.qr.level = level,
+            Command::QrModuleSize(dots) if (1..=16).contains(&dots) => {
+                self.qr.module = u16::from(dots);
+            }
+            Command::QrErrorCorrection(level) if (48..=51).contains(&level) => {
+                self.qr.level = level;
+            }
+            Command::BarcodeHeight(_)
+            | Command::BarcodeWidth(_)
+            | Command::QrModuleSize(_)
+            | Command::QrErrorCorrection(_) => {}
             Command::QrStore(data) => self.qr.data = data,
             Command::QrPrint => self.print_qr(out),
             Command::Status(request) => {
@@ -339,8 +350,10 @@ impl Printer {
         let advance = (cell_width + self.char_spacing) * u16::from(style.width);
 
         let line = self.line_mut();
-        // Wrap like the printer: a character that does not fit starts the next line.
-        if line.x + glyph_width > line.width && !line.segments.is_empty() {
+        // Wrap like the printer: a character that does not fit starts the next line, also
+        // when only the position moved (`ESC $`, `HT`, an `ESC *` stripe). At the line's
+        // start it is placed anyway: wrapping could not make it fit.
+        if line.x > 0 && line.x + glyph_width > line.width {
             self.end_line(None, out);
         }
         let line = self.line_mut();
@@ -379,12 +392,13 @@ impl Printer {
         let column = (cell_width + self.char_spacing) * u16::from(self.style.width);
         let stops = self.tab_stops.clone();
         let line = self.line_mut();
+        // Past the print area, the reference moves to its end: the next character wraps.
         if let Some(x) = stops
             .iter()
             .map(|&stop| stop.saturating_mul(column))
-            .find(|&x| x > line.x && x < line.width)
+            .find(|&x| x > line.x)
         {
-            line.x = x;
+            line.x = x.min(line.width);
         }
     }
 

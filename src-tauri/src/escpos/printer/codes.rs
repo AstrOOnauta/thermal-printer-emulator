@@ -73,7 +73,8 @@ impl Printer {
     }
 
     /// `GS ( k` print: the stored data at the selected size and error correction, no quiet
-    /// zone, aligned like any image. Data that does not fit a QR prints nothing.
+    /// zone, aligned like any image. Data that does not fit a QR prints nothing, and so does
+    /// a symbol wider than the print area, like a barcode: cropped, it could not be read.
     pub(super) fn print_qr(&mut self, out: &mut Vec<Output>) {
         if self.qr.data.is_empty() {
             return;
@@ -88,6 +89,10 @@ impl Printer {
             return;
         };
         let modules = code.width() as u16;
+        let area = self.area_width.min(self.paper.dots() - self.left_margin);
+        if modules.saturating_mul(self.qr.module) > area {
+            return;
+        }
         let mut bitmap = Bitmap::blank(modules, modules);
         for (index, color) in code.to_colors().into_iter().enumerate() {
             if color == qrcode::Color::Dark {

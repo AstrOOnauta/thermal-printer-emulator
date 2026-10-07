@@ -112,13 +112,17 @@ fn parse_esc(input: &[u8]) -> Step {
         b'@' => Step::Done(Command::Initialize, 2),
         b'!' => fixed(input, 3, |b| Command::PrintMode(b[2])),
         b'E' | b'G' => fixed(input, 3, |b| Command::Emphasis(b[2] & 1 == 1)),
-        b'-' => fixed(input, 3, |b| Command::Underline(b[2] & 0x0f)),
-        b'a' => fixed(input, 3, |b| {
-            Command::Align(match b[2] {
-                1 | b'1' => Alignment::Center,
-                2 | b'2' => Alignment::Right,
-                _ => Alignment::Left,
-            })
+        b'-' => fixed(input, 3, |b| match b[2] {
+            0..=2 => Command::Underline(b[2]),
+            b'0'..=b'2' => Command::Underline(b[2] - b'0'),
+            _ => Command::Ignored,
+        }),
+        // Out of range, the printer ignores the command and keeps the setting it had.
+        b'a' => fixed(input, 3, |b| match b[2] {
+            0 | b'0' => Command::Align(Alignment::Left),
+            1 | b'1' => Command::Align(Alignment::Center),
+            2 | b'2' => Command::Align(Alignment::Right),
+            _ => Command::Ignored,
         }),
         b'M' => fixed(input, 3, |b| Command::Font(b[2] & 0x0f)),
         b't' => fixed(input, 3, |b| Command::CodeTable(b[2])),
@@ -207,9 +211,13 @@ fn parse_gs(input: &[u8]) -> Step {
         return Step::Incomplete;
     };
     match code {
-        b'!' => fixed(input, 3, |b| Command::CharSize {
-            width: (b[2] >> 4 & 0x07) + 1,
-            height: (b[2] & 0x07) + 1,
+        // Bits 3 and 7 are undefined: such an `n` is out of range, the command ignored.
+        b'!' => fixed(input, 3, |b| match b[2] & 0x88 {
+            0 => Command::CharSize {
+                width: (b[2] >> 4) + 1,
+                height: (b[2] & 0x07) + 1,
+            },
+            _ => Command::Ignored,
         }),
         b'B' => fixed(input, 3, |b| Command::Reverse(b[2] & 1 == 1)),
         b'L' => fixed(input, 4, |b| Command::LeftMargin(le16(b[2], b[3]))),
@@ -260,6 +268,8 @@ fn parse_gs(input: &[u8]) -> Step {
         b'^' => skip(input, 5),
         // GS g 0/2 m nL nH: maintenance counters.
         b'g' => skip(input, 6),
+        // GS z 0 t1 t2: online recovery wait time.
+        b'z' => skip(input, 5),
         // Macro definition start/end, print counter.
         b':' | b'c' => Step::Done(Command::Ignored, 2),
         _ => Step::Done(Command::Unknown([GS, code]), 2),
@@ -400,8 +410,8 @@ fn parse_fs(input: &[u8]) -> Step {
         b'&' | b'.' => Step::Done(Command::Ignored, 2),
         // One parameter: Kanji print mode, underline, code system, quadruple size.
         b'!' | b'-' | b'C' | b'W' => skip(input, 3),
-        // Two parameters: Kanji spacing, print NV bit image.
-        b'S' | b'p' => skip(input, 4),
+        // Two parameters: Kanji spacing, print NV bit image, cancel a user Kanji character.
+        b'S' | b'p' | b'?' => skip(input, 4),
         // FS 2 c1 c2 d1…d72: define a user Kanji character.
         b'2' => skip(input, 76),
         // FS ( fn pL pH data.
