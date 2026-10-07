@@ -131,10 +131,7 @@ fn parse_esc(input: &[u8]) -> Step {
         b'\\' => fixed(input, 4, |b| {
             Command::RelativePosition(le16(b[2], b[3]) as i16)
         }),
-        b'D' => match input[2..].iter().position(|&byte| byte == 0) {
-            Some(end) => Step::Done(Command::TabStops(input[2..2 + end].to_vec()), end + 3),
-            None => Step::Incomplete,
-        },
+        b'D' => tab_stops(input),
         b'i' => Step::Done(
             Command::Cut {
                 partial: false,
@@ -303,23 +300,54 @@ fn gs_raster(input: &[u8]) -> Step {
     })
 }
 
+/// At most this many stops in `ESC D`.
+const MAX_TAB_STOPS: usize = 32;
+
+/// `ESC D n1…nk NUL`. Per the reference, the list also ends at a value that does not ascend
+/// (that byte and what follows are normal data) and after 32 values: a NUL-only rule would
+/// swallow the rest of the receipt, cut included.
+fn tab_stops(input: &[u8]) -> Step {
+    let mut stops: Vec<u8> = Vec::new();
+    for (index, &byte) in input[2..].iter().enumerate() {
+        if byte == 0 {
+            return Step::Done(Command::TabStops(stops), index + 3);
+        }
+        if stops.len() == MAX_TAB_STOPS || stops.last().is_some_and(|&last| byte <= last) {
+            return Step::Done(Command::TabStops(stops), index + 2);
+        }
+        stops.push(byte);
+    }
+    Step::Incomplete
+}
+
 /// The payload of `GS ( L` / `GS 8 L` after its length: `m fn [parameters]`.
 fn graphics(payload: &[u8]) -> Command {
     match payload {
         [48, 2 | 50, ..] => Command::PrintGraphics,
         // m fn a bx by c xL xH yL yH d…, raster format.
         [48, 112, 48, scale_x, scale_y, _color, x_low, x_high, y_low, y_high, data @ ..] => {
-            Command::StoreGraphics {
-                width: le16(*x_low, *x_high),
-                height: le16(*y_low, *y_high),
-                scale_x: (*scale_x).clamp(1, 2),
-                scale_y: (*scale_y).clamp(1, 2),
-                data: data.to_vec(),
+            let (width, height) = (le16(*x_low, *x_high), le16(*y_low, *y_high));
+            // The reference sizes the data exactly: ceil(x / 8) × y bytes. Trusting the
+            // header alone, 16 bytes could ask for a 512 MB image.
+            let size = usize::from(width.div_ceil(8)) * usize::from(height);
+            match data.get(..size) {
+                Some(data) if size > 0 => Command::StoreGraphics {
+                    width,
+                    height,
+                    scale_x: (*scale_x).clamp(1, 2),
+                    scale_y: (*scale_y).clamp(1, 2),
+                    data: data.to_vec(),
+                },
+                _ => Command::Ignored,
             }
         }
         _ => Command::Ignored,
     }
 }
+
+/// Longest data looked through for the NUL of `GS k` function A. Real barcodes are far
+/// shorter; without a bound, every read would rescan everything pending (quadratic).
+const MAX_BARCODE_A_DATA: usize = 255;
 
 /// `GS k m d1…dk NUL` (m = 0–6) or `GS k m n d1…dn` (m = 65–79).
 fn gs_barcode(input: &[u8]) -> Step {
@@ -327,7 +355,8 @@ fn gs_barcode(input: &[u8]) -> Step {
         return Step::Incomplete;
     };
     if kind <= 6 {
-        match input[3..].iter().position(|&byte| byte == 0) {
+        let window = &input[3..input.len().min(3 + MAX_BARCODE_A_DATA + 1)];
+        match window.iter().position(|&byte| byte == 0) {
             Some(end) => Step::Done(
                 Command::Barcode {
                     symbology: kind,
@@ -335,6 +364,8 @@ fn gs_barcode(input: &[u8]) -> Step {
                 },
                 end + 4,
             ),
+            // No NUL where one must be: skip `GS k m`, the rest is read as normal data.
+            None if window.len() > MAX_BARCODE_A_DATA => Step::Done(Command::Ignored, 3),
             None => Step::Incomplete,
         }
     } else {

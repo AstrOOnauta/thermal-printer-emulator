@@ -17,8 +17,11 @@ it**, which lets the caller cut the raw bytes exactly at a command (receipt spli
 Guarantees:
 
 - **No panic, no stall** on any input (2,000 random streams fed in random chunks).
-- **No allocation beyond the input**: length fields only say how many bytes to wait for.
-  The connection's 16 MB limit bounds `pending`.
+- **No allocation beyond the input**: length fields only say how many bytes to wait for,
+  and an image header is checked against the data that came with it (`GS ( L` with less
+  data than `ceil(x / 8) × y` is ignored). The connection's 16 MB limit bounds `pending`.
+- **No quadratic scans**: commands that end at a NUL look at a bounded window (`ESC D` 33
+  bytes, `GS k` function A 256: past it, `GS k m` is skipped and the rest is data).
 - **Alignment**: every command in the reference has a known length, including the ones
   the emulator ignores. An unknown `ESC x` / `GS x` / `FS x` skips two bytes
   (`Command::Unknown`); a lone `DLE` skips one, as the printer does.
@@ -102,7 +105,8 @@ edge); its glyph fills `cell × (width, height)` and is bottom-aligned at the li
 - `ESC @` resets every setting (code page included) and drops the unprinted line.
 - `CR` does nothing (automatic line feed off, the default).
 - `HT` jumps to the next tab stop in the current character width; past the last stop it
-  does nothing. `ESC D` stops must ascend.
+  does nothing. `ESC D` ends at a NUL, at the first value that does not ascend (that byte
+  is normal data), or after 32 values, as the reference says.
 - `GS V n` feeds `n` dots, then cuts.
 
 **On purpose, not like the printer:** text without a final `LF` is printed when the job

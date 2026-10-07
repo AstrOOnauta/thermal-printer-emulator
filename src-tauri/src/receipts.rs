@@ -164,8 +164,14 @@ impl Receipts {
     pub fn add_block(&mut self, id: u64, block: Block) -> Result<(), TooLarge> {
         if let (Block::Feed { height: more }, Some(receipt)) = (&block, self.printing_mut(id)) {
             if let Some(Block::Feed { height }) = receipt.blocks.last_mut() {
+                // The block saturates at u16: the summary grows by what the block grew, so
+                // it always equals the sum of the blocks.
+                let before = *height;
                 *height = height.saturating_add(*more);
-                receipt.summary.height += u32::from(*more);
+                receipt.summary.height = receipt
+                    .summary
+                    .height
+                    .saturating_add(u32::from(*height - before));
                 return Ok(());
             }
         }
@@ -173,7 +179,7 @@ impl Receipts {
         let block_height = u32::from(block.height());
         self.grow(id, size, |receipt| {
             receipt.blocks.push(block);
-            receipt.summary.height += block_height;
+            receipt.summary.height = receipt.summary.height.saturating_add(block_height);
         })
     }
 
@@ -395,6 +401,26 @@ mod tests {
         receipts
             .add_raw(id, &[0; 40])
             .expect("exactly the limit fits");
+    }
+
+    #[test]
+    fn height_is_the_sum_of_the_blocks() {
+        let mut receipts = Receipts::default();
+        let id = receipts
+            .start(peer(), Paper::Mm80, Vec::new())
+            .expect("fits");
+        // Merged feeds saturate at u16 per block (`ESC 3 255` + `ESC d 255` twice).
+        for _ in 0..3 {
+            receipts.add_block(id, feed(u16::MAX - 10)).expect("fits");
+        }
+        let view = receipts.view(id).expect("exists");
+        let blocks: u32 = view
+            .blocks
+            .iter()
+            .map(|block| u32::from(block.height()))
+            .sum();
+        assert_eq!(view.summary.height, blocks);
+        assert_eq!(view.summary.height, u32::from(u16::MAX));
     }
 
     #[test]

@@ -238,7 +238,8 @@ the receipt's bytes or text.
   replies read back from the socket.
 - `capture.rs` units: one receipt per cut, the same split for every chunking, status
   queries and bare cuts, a drawer pulse alone, text without `LF`, the store limit.
-- `receipts.rs` units: eviction, limits, finished receipts frozen. `classify` units in
+- `receipts.rs` units: eviction, limits, finished receipts frozen, height equal to the
+  sum of the blocks (merged feeds saturate per block). `classify` units in
   `listener.rs`.
 - Before trusting a change here, run the integration binary several times in parallel: it
   was 60/60 green when written.

@@ -197,6 +197,51 @@ fn image_commands_carry_their_data() {
 }
 
 #[test]
+fn gs_paren_l_ignores_a_header_bigger_than_its_data() {
+    // 65535 × 65535 dots announced, one byte sent.
+    assert_eq!(
+        one(b"\x1d(L\x0b\x000p0\x01\x01\x31\xff\xff\xff\xff\xaa"),
+        Command::Ignored
+    );
+}
+
+#[test]
+fn esc_d_ends_where_the_reference_says() {
+    assert_eq!(
+        commands(b"\x1bD\x08\x10\x09Total\n"),
+        vec![
+            Command::TabStops(vec![8, 16]),
+            Command::Tab,
+            Command::Text(b"Total".to_vec()),
+            Command::LineFeed,
+        ],
+        "a value that does not ascend ends the list and stays data"
+    );
+    let all: Vec<u8> = (1..=32).collect();
+    let mut bytes = b"\x1bD".to_vec();
+    bytes.extend(&all);
+    bytes.push(0);
+    assert_eq!(one(&bytes), Command::TabStops(all.clone()));
+    bytes.pop();
+    bytes.push(b'A');
+    assert_eq!(
+        commands(&bytes),
+        vec![Command::TabStops(all), Command::Text(b"A".to_vec())],
+        "32 values at most"
+    );
+}
+
+#[test]
+fn gs_k_function_a_without_nul_is_bounded() {
+    let mut bytes = b"\x1dk\x04".to_vec();
+    bytes.extend([b'A'; 300]);
+    assert_eq!(
+        commands(&bytes),
+        vec![Command::Ignored, Command::Text(vec![b'A'; 300])]
+    );
+}
+
+#[test]
 fn barcode_and_qr_commands() {
     assert_eq!(one(b"\x1dh\x50"), Command::BarcodeHeight(80));
     assert_eq!(one(b"\x1dw\x02"), Command::BarcodeWidth(2));

@@ -234,16 +234,9 @@ impl Printer {
                     line.x = x;
                 }
             }
+            // Ascending: the parser ends the list at the first value that doesn't.
             Command::TabStops(columns) => {
-                // Must ascend; the printer ignores the rest from the first one that doesn't.
-                let mut stops: Vec<u16> = Vec::new();
-                for column in columns.into_iter().map(u16::from) {
-                    if stops.last().is_some_and(|&last| column <= last) {
-                        break;
-                    }
-                    stops.push(column);
-                }
-                self.tab_stops = stops;
+                self.tab_stops = columns.into_iter().map(u16::from).collect();
             }
             Command::Cut { partial, feed } => {
                 self.end_line_if_started(out);
