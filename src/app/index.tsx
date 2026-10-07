@@ -19,6 +19,7 @@ import {
 import { getSettings } from '@/shared/api/settings';
 import { useSynced } from '@/shared/hooks/use-synced';
 import { useTestReceipt } from '@/shared/hooks/use-test-receipt';
+import { useUnseenBadge } from '@/shared/hooks/use-unseen-badge';
 import { setLocale, useTranslation } from '@/shared/hooks/use-translation';
 import type {
   IListenerStatus,
@@ -47,6 +48,7 @@ export function App() {
   const settingsButton = useRef<HTMLButtonElement>(null);
   const clearDialog = useRef<HTMLDialogElement>(null);
   const testReceipt = useTestReceipt();
+  useUnseenBadge(receipts);
 
   useEffect(() => {
     getSettings()

@@ -12,6 +12,7 @@ fn main() {
             "print_test_receipt",
             "clear_receipts",
             "export_receipt",
+            "set_unseen",
             "set_settings",
         ]),
     ))

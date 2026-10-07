@@ -131,6 +131,35 @@ pub fn export_receipt(app: AppHandle, id: u64) -> Result<String, UiError> {
     Ok(name)
 }
 
+/// Receipts that finished while the window was not in front: a badge on the Dock icon
+/// (macOS, some Linux docks), the count next to the menu bar icon (macOS: the Dock icon is
+/// hidden while the window is closed), and the tray tooltip everywhere. 0 clears them.
+#[tauri::command]
+pub fn set_unseen(app: AppHandle, count: u32) {
+    let badge = (count > 0).then_some(i64::from(count));
+    if let Some(window) = app.get_webview_window("main") {
+        // Unsupported on Windows (it has no badge count): nothing to do there.
+        let _ = window.set_badge_count(badge);
+    }
+    if let Some(tray) = app.tray_by_id("main") {
+        #[cfg(target_os = "macos")]
+        let _ = tray.set_title(badge.map(|count| count.to_string()));
+        let tooltip = match count {
+            0 => PRODUCT_NAME.to_owned(),
+            _ => {
+                let unseen = Locale::current()
+                    .strings()
+                    .unseen
+                    .replace("{count}", &count.to_string());
+                format!("{PRODUCT_NAME} · {unseen}")
+            }
+        };
+        if let Err(error) = tray.set_tooltip(Some(tooltip)) {
+            log::warn!("tray tooltip failed: {error}");
+        }
+    }
+}
+
 /// This computer's LAN IPv4 address (`network.rs`), `None` offline.
 #[tauri::command]
 pub fn get_lan_address() -> Option<String> {

@@ -14,6 +14,7 @@
     "allow-print-test-receipt",
     "allow-clear-receipts",
     "allow-export-receipt",
+    "allow-set-unseen",
     "allow-set-settings"
   ]
 }

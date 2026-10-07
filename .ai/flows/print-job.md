@@ -148,6 +148,15 @@ rendering.
   `Downloads/receipt-<started_at>-<id>.bin` and reveals the file (`opener`, Rust side).
   Useful for bug reports, or to replay a receipt: `nc 127.0.0.1 9100 < receipt.bin`.
 
+## Unseen receipts
+
+Receipts that finish while the window is not in front (`document.hasFocus()` false) are
+counted (`use-unseen-badge.ts`, same "newly finished" rule as the sounds) and shown with
+`set_unseen`: a badge on the Dock icon (macOS, some Linux docks), the count next to the
+menu bar icon on macOS (the Dock icon is hidden while the window is closed), and the tray
+tooltip ("Thermal Printer Emulator · 3 new") everywhere. Windows has no badge count. The
+count clears when the window gets focus.
+
 ## Sound
 
 When a receipt finishes and the `sound` setting is on, the webview plays

@@ -121,6 +121,8 @@ pub struct Strings {
     pub port_failed: &'static str,
     /// Tray item and the test receipt's own text.
     pub print_test: &'static str,
+    /// Receipts that arrived while the window was not in front. `{count}` is replaced.
+    pub unseen: &'static str,
     pub test_title: &'static str,
     pub test_working: &'static str,
     pub test_port: &'static str,
@@ -152,6 +154,7 @@ const EN: Strings = Strings {
     port_denied: "Port {port} is blocked",
     port_failed: "Can't open port {port}",
     print_test: "Print test receipt",
+    unseen: "{count} new",
     test_title: "TEST RECEIPT",
     test_working: "The emulator is working.",
     test_port: "Port:",
@@ -183,6 +186,7 @@ const ES: Strings = Strings {
     port_denied: "El puerto {port} está bloqueado",
     port_failed: "No se puede abrir el puerto {port}",
     print_test: "Imprimir recibo de prueba",
+    unseen: "{count} nuevos",
     test_title: "RECIBO DE PRUEBA",
     test_working: "El emulador funciona.",
     test_port: "Puerto:",
@@ -214,6 +218,7 @@ const PT_BR: Strings = Strings {
     port_denied: "A porta {port} está bloqueada",
     port_failed: "Não foi possível abrir a porta {port}",
     print_test: "Imprimir cupom de teste",
+    unseen: "{count} novos",
     test_title: "CUPOM DE TESTE",
     test_working: "O emulador está funcionando.",
     test_port: "Porta:",
