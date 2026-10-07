@@ -93,23 +93,24 @@ Changing one is a product decision: update this list.
    reference. Rust interprets, the webview only draws.
 7. **Windows installer**: asks for admin, so it can add the firewall rule. Trade-off
    accepted: every update shows UAC, and users without admin rights cannot install.
+   Lands with the installer work (see Next); today's bundle is per user.
 
 ## Tech stack
 
-| Category          | Technology                                                                                                                                                             |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shell             | **Tauri v2** (2.12): tray + one window, single process                                                                                                                 |
-| Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`                                                                                                     |
-| Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` (Rust side only)                                                                  |
-| Rust crates       | `tokio` (sockets, timers; Tauri's runtime), `qrcode` (QR encoding, no default features), `base64` (bitmaps to the webview), `sys-locale` (OS language), `serde`, `log` |
-| Webview           | **React 19** + **TypeScript 6** (strict, `noUncheckedIndexedAccess`)                                                                                                   |
-| Bundler           | **Vite 8** (dev server on fixed port 1420)                                                                                                                             |
-| UI                | **Tailwind CSS v4** via `@tailwindcss/vite`, neutral tokens that follow the OS theme                                                                                   |
-| Class composition | `clsx` + `tailwind-merge` via `cn()`                                                                                                                                   |
-| i18n              | Typed dictionaries (en, es, pt-BR) + `t()`, no library; the locale comes from Rust                                                                                     |
-| Tests             | **Vitest** (webview, colocated `*.test.ts`), `cargo test` (Rust)                                                                                                       |
-| Quality           | ESLint 9 flat config + Prettier + Husky + lint-staged; `cargo fmt` + `clippy -D warnings`                                                                              |
-| Package manager   | **Yarn 4** via Corepack, `nodeLinker: node-modules`                                                                                                                    |
+| Category          | Technology                                                                                                                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell             | **Tauri v2** (2.12): tray + one window, single process                                                                                                                                                                       |
+| Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`                                                                                                                                                           |
+| Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` (Rust side only)                                                                                                                        |
+| Rust crates       | `tokio` (sockets, timers; Tauri's runtime), `qrcode` (QR encoding, no default features), `base64` (bitmaps to the webview), `sys-locale` (OS language), `serde` + `serde_json` (settings file, merged field by field), `log` |
+| Webview           | **React 19** + **TypeScript 6** (strict, `noUncheckedIndexedAccess`)                                                                                                                                                         |
+| Bundler           | **Vite 8** (dev server on fixed port 1420)                                                                                                                                                                                   |
+| UI                | **Tailwind CSS v4** via `@tailwindcss/vite`, neutral tokens that follow the OS theme                                                                                                                                         |
+| Class composition | `clsx` + `tailwind-merge` via `cn()`                                                                                                                                                                                         |
+| i18n              | Typed dictionaries (en, es, pt-BR) + `t()`, no library; the locale comes from Rust                                                                                                                                           |
+| Tests             | **Vitest** (webview, colocated `*.test.ts`), `cargo test` (Rust)                                                                                                                                                             |
+| Quality           | ESLint 9 flat config + Prettier + Husky + lint-staged; `cargo fmt` + `clippy -D warnings`                                                                                                                                    |
+| Package manager   | **Yarn 4** via Corepack, `nodeLinker: node-modules`                                                                                                                                                                          |
 
 Husky is installed from `postinstall`, not `prepare`: Yarn 2+ does not run `prepare` on
 install. That is safe because the package is `private` and never published.

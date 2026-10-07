@@ -33,7 +33,7 @@ only through `get_settings` / `set_settings`, and Rust validates every value.
 ## `set_settings(settings)`
 
 ```
-validate ─ invalid ─▶ UiError { key: settings.errors.port | settings.errors.codePage }
+validate ─ invalid ─▶ UiError { key: settings.errors.port | .codePage | .zoom }
    │
 save ─ fails ─▶ UiError { key: settings.errors.save } (logged)
    │

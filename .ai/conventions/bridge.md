@@ -5,27 +5,27 @@ Nothing else: no plugin APIs, no direct OS access.
 
 ## Commands
 
-| Command                | Args           | Returns                   | Notes                                                                                                           |
-| ---------------------- | -------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `app_locale`           | none           | `'en' \| 'es' \| 'pt-BR'` | Resolved once per process from the OS (`conventions/i18n.md`). Called by `initLocale()` before the first render |
-| `get_receipts`         | none           | `IReceiptSummary[]`       | Printed receipts, oldest first. Same list as the `receipts` event                                               |
-| `get_receipt`          | `{ id }`       | `IReceiptView \| null`    | One receipt with its print model, to draw. `null` once dropped from memory                                      |
-| `get_listener_status`  | none           | `IListenerStatus`         | Same value as the `listener_status` event                                                                       |
-| `get_settings`         | none           | `ISettings`               |                                                                                                                 |
-| `get_lan_address`      | none           | `string \| null`          | This computer's LAN IPv4, `null` offline. Asked again whenever the listener (re)starts                          |
-| `print_test_receipt`   | none           | `()` or `UiError`         | Sends the test receipt to 127.0.0.1:port. `testReceipt.errors.notListening` / `.send`                           |
-| `clear_receipts`       | none           | `()`                      | Drops finished receipts; the new list goes out as a `receipts` event                                            |
-| `export_receipt`       | `{ id }`       | file name or `UiError`    | Raw bytes to `Downloads/receipt-<started_at>-<id>.bin`, revealed. `receipts.errors.gone` / `.export`            |
-| `get_receipt_commands` | `{ id }`       | `IInspection \| null`     | The receipt's commands re-parsed from its raw bytes (`conventions/escpos.md` § Inspect)                         |
-| `set_unseen`           | `{ count }`    | `()`                      | Dock badge, tray count and tooltip; 0 clears them                                                               |
-| `quit_app`             | none           | `()`                      | Quits (the Settings panel's Quit: the way out where no tray icon shows)                                         |
-| `set_settings`         | `{ settings }` | `ISettings` or `UiError`  | Validates, saves, applies (`flows/settings.md`)                                                                 |
+| Command                | Args           | Returns                   | Notes                                                                                                    |
+| ---------------------- | -------------- | ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `app_locale`           | none           | `'en' \| 'es' \| 'pt-BR'` | The UI language: the setting, or the OS for `system` (`conventions/i18n.md`). Asked again after a change |
+| `get_receipts`         | none           | `IReceiptSummary[]`       | Printed receipts, oldest first. Same list as the `receipts` event                                        |
+| `get_receipt`          | `{ id }`       | `IReceiptView \| null`    | One receipt with its print model, to draw. `null` once dropped from memory                               |
+| `get_listener_status`  | none           | `IListenerStatus`         | Same value as the `listener_status` event                                                                |
+| `get_settings`         | none           | `ISettings`               |                                                                                                          |
+| `get_lan_address`      | none           | `string \| null`          | This computer's LAN IPv4, `null` offline. Asked again whenever the listener (re)starts                   |
+| `print_test_receipt`   | none           | `()` or `UiError`         | Sends the test receipt to 127.0.0.1:port. `testReceipt.errors.notListening` / `.send`                    |
+| `clear_receipts`       | none           | `()`                      | Drops finished receipts; the new list goes out as a `receipts` event                                     |
+| `export_receipt`       | `{ id }`       | file name or `UiError`    | Raw bytes to `Downloads/receipt-<started_at>-<id>.bin`, revealed. `receipts.errors.gone` / `.export`     |
+| `get_receipt_commands` | `{ id }`       | `IInspection \| null`     | The receipt's commands re-parsed from its raw bytes (`conventions/escpos.md` § Inspect)                  |
+| `set_unseen`           | `{ count }`    | `()`                      | Dock badge, tray count and tooltip; 0 clears them                                                        |
+| `quit_app`             | none           | `()`                      | Quits (the Settings panel's Quit: the way out where no tray icon shows)                                  |
+| `set_settings`         | `{ settings }` | `ISettings` or `UiError`  | Validates, saves, applies (`flows/settings.md`)                                                          |
 
-Wrappers: `src/shared/api/app.ts` (`getAppLocale`, `quitApp`), `src/shared/api/settings.ts`
-(`getSettings`, `setSettings`), `src/shared/api/emulator.ts`
+Wrappers: `src/shared/api/app.ts` (`getAppLocale`, `setUnseen`, `quitApp`),
+`src/shared/api/settings.ts` (`getSettings`, `setSettings`), `src/shared/api/emulator.ts`
 (`getReceipts`, `onReceipts`, `getReceipt`, `getListenerStatus`, `onListenerStatus`,
-`getLanAddress`). Components never call
-`invoke` or `listen`.
+`getLanAddress`, `printTestReceipt`, `clearReceipts`, `exportReceipt`,
+`getReceiptCommands`). Components never call `invoke` or `listen`.
 
 Commands that may take long (`get_receipt`, `get_receipt_commands`, `export_receipt`) are
 `async`: Tauri runs a sync command on the main thread, and a receipt can be 16 MB. Their

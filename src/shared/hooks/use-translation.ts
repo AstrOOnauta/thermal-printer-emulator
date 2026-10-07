@@ -64,8 +64,8 @@ export function translate(
   );
 }
 
-// ponytail: the locale is fixed for the process (Rust reads the OS once), so no store or
-// re-render on change. Add a store when the UI gets a language picker.
+// ponytail: no store; a language change re-renders the whole tree from `App`
+// (`setLocaleTag`). Add one if a part of the UI must follow the language on its own.
 export function useTranslation() {
   return { t: translate };
 }

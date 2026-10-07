@@ -24,15 +24,19 @@ From the POS software, add a network (TCP/IP, "RAW" or "Socket") printer at:
 
 The window shows the exact address to use, and **Print test receipt** checks that
 everything works. In **Settings** you can change the port, allow only this computer,
-pick 80 or 58 mm paper, the default code page, the beep and the language.
+pick 80 or 58 mm paper, the default code page, the printing sound and beep, the paper
+zoom and the language.
 
 A job must open like ESC/POS, with `ESC @` (initialize), as every ESC/POS library does.
 Other traffic on port 9100, such as port scanners or plain text, is ignored. To try it
 from a terminal:
 
 ```bash
-printf '\x1b@Hello, printer!\n' | nc 127.0.0.1 9100
+printf '\x1b@Hello, printer!\n\x1dV\x00' | nc 127.0.0.1 9100
 ```
+
+`\x1dV\x00` (`GS V`) cuts the paper, which ends the receipt. On Linux, add `-N` to `nc` so
+it closes the connection when the input ends.
 
 ## Installation
 
@@ -98,15 +102,16 @@ yarn tauri dev
 
 ### Translations
 
-The UI ships in English (default), Spanish and Brazilian Portuguese, following the OS
-language. Rust resolves the language once (`src-tauri/src/locale.rs`) and the webview asks
-for it, so the window and the native tray menu always match.
+The UI ships in English (default), Spanish and Brazilian Portuguese. It follows the OS
+language unless one is picked in Settings. Rust resolves it (`src-tauri/src/locale.rs`) and
+the webview asks for it, so the window and the native tray menu always match.
 
 - Webview text: `src/shared/translations/`. `en.ts` is the source of truth; the other
   files are typed against it, so a missing key fails `yarn typecheck`.
 - Tray and macOS menu labels: the `Strings` tables in `src-tauri/src/locale.rs`.
 
-Adding a language means one file in each place, plus the mapping in `Locale::from_tag`.
+Adding a language touches a few more places (the language setting, the macOS and Windows
+installer lists): [`.ai/conventions/i18n.md`](.ai/conventions/i18n.md) has the checklist.
 
 ## Tech stack
 
@@ -121,11 +126,15 @@ Adding a language means one file in each place, plus the mapping in `Locale::fro
 ```
 .ai/                      # Project rules, stack, conventions and flows
 src/                      # Webview (React)
-├── app/                  # Root component
-└── shared/               # api (Tauri wrappers), hooks, styles, translations
+├── app/                  # Root component, top bar
+├── screens/              # receipts (the paper roll), settings (the panel)
+├── components/ui/        # Shared primitives and icons
+└── shared/               # api (Tauri wrappers), hooks, utils, styles, translations
 src-tauri/                # Rust core
-├── src/                  # lib.rs (builder, plugins), commands.rs, shell.rs (tray, window),
-│                         # locale.rs (UI language)
+├── src/                  # lib.rs (builder), commands.rs, shell.rs (tray, window),
+│                         # listener.rs, capture.rs, receipts.rs (TCP → receipts),
+│                         # settings.rs, locale.rs, escpos/ (the decoder)
+├── tests/                # The listener against real sockets
 ├── capabilities/         # What the webview may call
 ├── icons/source/         # Icon source: `yarn tauri icon src-tauri/icons/source/icon.svg`
 └── tauri.conf.json
