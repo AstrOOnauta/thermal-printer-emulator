@@ -8,7 +8,7 @@ Boot, window, tray, single instance, autostart and logs.
 main.rs → lib::run()
   Builder
     .menu(app_menu) + on_menu_event   # macOS only (see "macOS Dock and menu")
-    .plugin(single-instance)          # FIRST: a 2nd launch → show_main_window() on the 1st, then exits
+    .plugin(single-instance)          # FIRST: a 2nd launch → show_main_window() on the 1st (not for --autostart), then exits
     .plugin(log)                      # LogDir (+ Stdout in debug), 2 MB × 5
     .plugin(autostart)                # LaunchAgent / HKCU Run / XDG .desktop, arg --autostart
     .plugin(opener)                   # Rust side only
@@ -59,15 +59,15 @@ without a Dock icon, so a login launch with a hidden window never shows one.
 | Status (disabled)  | Listener status line: "Listening on port 9100", "Port 9100 is in use"… (`shell::status_label`) |
 | Open               | `show_main_window` (unminimize, show, focus)                                                   |
 | Print test receipt | Same as the window's button (`flows/print-job.md` § Test receipt); errors only logged          |
-| Launch at login    | Toggles autostart and reads the OS state back. Off by default                                  |
+| Launch at login    | Toggles autostart, then rebuilds the menu from the OS state (a failure shows). Off by default  |
 | Show logs          | Opens `app_log_dir()` in the file manager                                                      |
 | Quit               | `app.exit(0)`                                                                                  |
 
 Labels come from `locale.rs` (en/es/pt-BR), in the language setting. The tray icon is the
 app icon. The status item is held in `TrayStatus` and updated by `shell::forward_changes`
 whenever the status changes. When the language changes, `shell::refresh_menus` rebuilds the tray menu
-(`tray_menu`, with the current status line) and the macOS app menu. The autostart item
-reads the OS state on click, so it works with any rebuilt menu.
+(`tray_menu`, with the current status line), the macOS app menu and the tray tooltip.
+The autostart item reads the OS state on click, so it works with any rebuilt menu.
 
 Linux: the tray needs an AppIndicator host (GNOME requires an extension). Without one,
 launching the app again focuses the window, which is the way back in.

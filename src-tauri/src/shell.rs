@@ -1,6 +1,7 @@
 //! The app around the webview: tray, macOS app menu, window show/hide, and the forwarder
 //! that sends changes to the webview and the tray.
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -19,6 +20,32 @@ use crate::receipts::ReceiptSummary;
 
 /// The tray tooltip's name.
 pub(crate) const PRODUCT_NAME: &str = "Thermal Printer Emulator";
+
+/// The last count from `set_unseen`, to show it again in a new language.
+pub(crate) static UNSEEN: AtomicU32 = AtomicU32::new(0);
+
+/// The count next to the tray icon (macOS menu bar, Linux AppIndicator label; Windows has
+/// none) and in its tooltip, in the current language.
+pub(crate) fn show_unseen_in_tray(app: &AppHandle) {
+    let count = UNSEEN.load(Ordering::Relaxed);
+    if let Some(tray) = app.tray_by_id("main") {
+        #[cfg(not(target_os = "windows"))]
+        let _ = tray.set_title((count > 0).then(|| count.to_string()));
+        let tooltip = match count {
+            0 => PRODUCT_NAME.to_owned(),
+            _ => {
+                let unseen = Locale::current()
+                    .strings()
+                    .unseen
+                    .replace("{count}", &count.to_string());
+                format!("{PRODUCT_NAME} · {unseen}")
+            }
+        };
+        if let Err(error) = tray.set_tooltip(Some(tooltip)) {
+            log::warn!("tray_tooltip_failed error={error}");
+        }
+    }
+}
 
 /// The tray's first, disabled item: the listener status line. Replaced when the menu is
 /// rebuilt for a new language.
@@ -84,7 +111,7 @@ fn status_label(text: &Strings, status: &ListenerStatus) -> String {
 pub fn show_main_window(app: &AppHandle) {
     #[cfg(target_os = "macos")]
     if let Err(error) = app.set_dock_visibility(true) {
-        log::error!("dock show failed: {error}");
+        log::error!("dock_show_failed error={error}");
     }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -102,7 +129,7 @@ pub fn hide_main_window(app: &AppHandle) {
     // otherwise), so a very fast open/close keeps the icon until the next close.
     #[cfg(target_os = "macos")]
     if let Err(error) = app.set_dock_visibility(false) {
-        log::error!("dock hide failed: {error}");
+        log::error!("dock_hide_failed error={error}");
     }
 }
 
@@ -148,7 +175,7 @@ fn set_autostart(app: &AppHandle, enabled: bool) {
     };
     match result {
         Ok(()) => log::info!("autostart enabled={enabled}"),
-        Err(error) => log::error!("autostart enabled={enabled} failed: {error}"),
+        Err(error) => log::error!("autostart_failed enabled={enabled} error={error}"),
     }
 }
 
@@ -163,7 +190,7 @@ fn open_logs(app: &AppHandle) {
                 .map_err(|error| error.to_string())
         });
     if let Err(error) = opened {
-        log::error!("open log dir failed: {error}");
+        log::error!("open_logs_failed error={error}");
     }
 }
 
@@ -217,14 +244,20 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             "test" => {
                 let app = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    let _ = send_test_receipt(&app).await;
+                    // Connection failures are logged inside; this is the "not listening" case.
+                    if let Err(error) = send_test_receipt(&app).await {
+                        log::info!("test_receipt_skipped reason={}", error.key);
+                    }
                 });
             }
             // The OS flips the check mark on click; the new value is the opposite of the
-            // OS state. Read from the OS, so it works with any rebuilt menu.
+            // OS state. The menu is rebuilt after, so the mark shows what the OS really did.
             "autostart" => {
                 let enabled = !app.autolaunch().is_enabled().unwrap_or(false);
                 set_autostart(app, enabled);
+                if let Err(error) = refresh_menus(app) {
+                    log::error!("menus_refresh_failed error={error}");
+                }
             }
             "logs" => open_logs(app),
             "quit" => app.exit(0),
@@ -237,11 +270,13 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Rebuilds the native menus (tray, macOS app menu) in the current language.
+/// Rebuilds the native menus (tray, macOS app menu) and the tray tooltip in the current
+/// language.
 pub fn refresh_menus(app: &AppHandle) -> tauri::Result<()> {
     if let Some(tray) = app.tray_by_id("main") {
         tray.set_menu(Some(tray_menu(app)?))?;
     }
+    show_unseen_in_tray(app);
     #[cfg(target_os = "macos")]
     app.set_menu(app_menu(app)?)?;
     Ok(())

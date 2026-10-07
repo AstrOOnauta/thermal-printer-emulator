@@ -2,6 +2,7 @@
 //! with setup. Thin: the emulator's logic lives in `listener`, `receipts` and `settings`.
 
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -13,12 +14,12 @@ use crate::listener::{self, lock, Limits, ListenerStatus, Shared};
 use crate::locale::Locale;
 use crate::receipts::{CodePages, ReceiptSummary, ReceiptView};
 use crate::settings::{self, Settings};
-use crate::shell::{refresh_menus, PRODUCT_NAME};
+use crate::shell::{refresh_menus, show_unseen_in_tray, UNSEEN};
 
 /// A refused command: an i18n key the webview translates. Rust never sends a sentence.
 #[derive(Debug, Serialize)]
 pub struct UiError {
-    key: &'static str,
+    pub(crate) key: &'static str,
 }
 
 impl UiError {
@@ -174,28 +175,13 @@ pub async fn get_receipt_commands(
 /// hidden while the window is closed), and the tray tooltip everywhere. 0 clears them.
 #[tauri::command]
 pub fn set_unseen(app: AppHandle, count: u32) {
+    UNSEEN.store(count, Ordering::Relaxed);
     let badge = (count > 0).then_some(i64::from(count));
     if let Some(window) = app.get_webview_window("main") {
         // Unsupported on Windows (it has no badge count): nothing to do there.
         let _ = window.set_badge_count(badge);
     }
-    if let Some(tray) = app.tray_by_id("main") {
-        #[cfg(target_os = "macos")]
-        let _ = tray.set_title(badge.map(|count| count.to_string()));
-        let tooltip = match count {
-            0 => PRODUCT_NAME.to_owned(),
-            _ => {
-                let unseen = Locale::current()
-                    .strings()
-                    .unseen
-                    .replace("{count}", &count.to_string());
-                format!("{PRODUCT_NAME} · {unseen}")
-            }
-        };
-        if let Err(error) = tray.set_tooltip(Some(tooltip)) {
-            log::warn!("tray tooltip failed: {error}");
-        }
-    }
+    show_unseen_in_tray(&app);
 }
 
 /// This computer's LAN IPv4 address (`network.rs`), `None` offline.

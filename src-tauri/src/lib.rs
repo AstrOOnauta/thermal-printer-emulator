@@ -45,8 +45,11 @@ pub fn run() {
 
     builder
         // Must be first: a second launch focuses this instance and exits.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            shell::show_main_window(app);
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // A login item firing while the app already runs must not pop the window up.
+            if !args.iter().any(|arg| arg == AUTOSTART_ARG) {
+                shell::show_main_window(app);
+            }
         }))
         .plugin(log_plugin())
         .plugin(tauri_plugin_autostart::init(
@@ -117,7 +120,7 @@ pub fn run() {
             // macOS (so single-instance never fires): LaunchServices sends "reopen" instead.
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {
-                log::info!("reopen: show window");
+                log::info!("reopen action=show_window");
                 shell::show_main_window(_app);
             }
         });

@@ -204,9 +204,10 @@ rendering.
 Receipts that finish while the window is not in front (`document.hasFocus()` false) are
 counted (`use-unseen-badge.ts`, same "newly finished" rule as the sounds) and shown with
 `set_unseen`: a badge on the Dock icon (macOS, some Linux docks), the count next to the
-menu bar icon on macOS (the Dock icon is hidden while the window is closed), and the tray
-tooltip ("Thermal Printer Emulator · 3 new") everywhere. Windows has no badge count. The
-count clears when the window gets focus.
+tray icon (macOS menu bar: the Dock icon is hidden while the window is closed; the Linux
+AppIndicator label), and the tray tooltip ("Thermal Printer Emulator · 3 new")
+everywhere, shown again in the new language when it changes. Windows has no badge count
+and no label. The count clears when the window gets focus.
 
 ## Zoom
 
