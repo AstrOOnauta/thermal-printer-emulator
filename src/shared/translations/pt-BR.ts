@@ -139,6 +139,17 @@ const ptBR: TranslationKeys = {
       unknown: 'Comando desconhecido',
     },
   },
+  update: {
+    available: 'A versão %{version} está disponível.',
+    install: 'Reiniciar e atualizar',
+    installing: 'Atualizando…',
+    download: 'Baixar',
+    later: 'Depois',
+    errors: {
+      install:
+        'Não foi possível instalar a atualização. Tente mais tarde ou baixe pela página da versão.',
+    },
+  },
   testReceipt: {
     print: 'Imprimir cupom de teste',
     errors: {

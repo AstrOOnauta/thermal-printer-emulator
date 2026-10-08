@@ -17,6 +17,9 @@
     "allow-set-unseen",
     "allow-quit-app",
     "allow-open-repository",
+    "allow-get-update",
+    "allow-install-update",
+    "allow-open-release-page",
     "allow-get-receipt-commands",
     "allow-set-settings"
   ]

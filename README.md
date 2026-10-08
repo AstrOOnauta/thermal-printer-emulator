@@ -40,6 +40,7 @@ no paper, no hardware, no terminal.
   save its raw bytes as a `.bin` and replay them later.
 - **Stays out of the way**: keeps running in the system tray, can start at login, and
   counts new receipts on its icon.
+- **Updates itself**: checks for a new version once a day and installs it when you click.
 - **Light or dark**, paper zoom from 75 to 200 %, keyboard shortcuts, and an interface in
   English, Spanish and Brazilian Portuguese.
 
@@ -172,6 +173,12 @@ gone when the app quits. Save a receipt's `.bin` to keep it.
 
 **What are the limits?** Up to 16 MB per receipt and 16 connections at once. A connection
 that sends nothing for 5 minutes is closed.
+
+**How does it update?** Once a day it checks GitHub for a new version. When there is one,
+a banner shows at the top of the window (and an item in the tray menu): click **Restart
+and update** to install it. Updates are signed, and the app checks the signature before
+installing. With a `.deb` or `.rpm`, the button opens the download page instead, since
+your package manager owns the app; the AppImage updates itself.
 
 **Is it safe to leave running?** It only accepts ESC/POS print jobs, never runs or saves
 what it receives, and keeps nothing on disk but its settings and logs (which never hold

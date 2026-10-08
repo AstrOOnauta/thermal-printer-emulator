@@ -14,7 +14,8 @@ use crate::listener::{self, lock, Limits, ListenerStatus, Shared};
 use crate::locale::Locale;
 use crate::receipts::{CodePages, ReceiptSummary, ReceiptView};
 use crate::settings::{self, Settings};
-use crate::shell::{apply_theme, refresh_menus, show_unseen_in_tray, REPOSITORY, UNSEEN};
+use crate::shell::{apply_theme, refresh_menus, show_unseen_in_tray, RELEASES, REPOSITORY, UNSEEN};
+use crate::updates::{self, UpdateInfo};
 
 /// A refused command: an i18n key the webview translates. Rust never sends a sentence.
 #[derive(Debug, Serialize)]
@@ -198,6 +199,30 @@ pub fn quit_app(app: AppHandle) {
 pub fn open_repository(app: AppHandle) {
     if let Err(error) = app.opener().open_url(REPOSITORY, None::<&str>) {
         log::warn!("open_repository_failed error={error}");
+    }
+}
+
+/// The update the last daily check found, if any (`updates.rs`).
+#[tauri::command]
+pub fn get_update(app: AppHandle) -> Option<UpdateInfo> {
+    updates::available(&app)
+}
+
+/// Downloads, verifies and installs the update, then restarts into it. Refused for a
+/// `.deb` or `.rpm`, which update through the release page (`open_release_page`).
+#[tauri::command]
+pub async fn install_update(app: AppHandle) -> Result<(), UiError> {
+    updates::install(&app).await.map_err(|error| {
+        log::error!("update_install_failed error={error}");
+        UiError::new("update.errors.install")
+    })
+}
+
+/// Opens the newest release on GitHub (a fixed URL): how a `.deb` or `.rpm` updates.
+#[tauri::command]
+pub fn open_release_page(app: AppHandle) {
+    if let Err(error) = app.opener().open_url(RELEASES, None::<&str>) {
+        log::warn!("open_release_page_failed error={error}");
     }
 }
 

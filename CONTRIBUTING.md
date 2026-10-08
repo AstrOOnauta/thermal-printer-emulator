@@ -79,7 +79,7 @@ src/                      # Webview (React)
 src-tauri/                # Rust core
 ├── src/                  # lib.rs (builder), commands.rs, shell.rs (tray, window),
 │                         # listener.rs, capture.rs, receipts.rs (TCP → receipts),
-│                         # settings.rs, locale.rs, escpos/ (the decoder)
+│                         # settings.rs, locale.rs, updates.rs, escpos/ (the decoder)
 ├── tests/                # The listener against real sockets
 ├── capabilities/         # What the webview may call
 ├── icons/source/         # Icon source: `yarn tauri icon src-tauri/icons/source/icon.svg`
@@ -88,7 +88,7 @@ src-tauri/                # Rust core
 
 ## Tech stack
 
-- **Tauri v2**: shell, tray, IPC; plugins `single-instance`, `log`, `autostart`, `opener`
+- **Tauri v2**: shell, tray, IPC; plugins `single-instance`, `log`, `autostart`, `opener`, `updater`
 - **Rust**: networking, the ESC/POS decoder and every OS integration
 - **React 19 + TypeScript (strict)**: the webview
 - **Vite**, **Tailwind CSS v4**, **Vitest**

@@ -20,9 +20,13 @@ Nothing else: no plugin APIs, no direct OS access.
 | `set_unseen`           | `{ count }`    | `()`                      | Dock badge, tray count and tooltip; 0 clears them                                                        |
 | `quit_app`             | none           | `()`                      | Quits (Ctrl+Q off macOS: the way out where no tray icon shows)                                           |
 | `open_repository`      | none           | `()`                      | Opens the GitHub page in the browser (the Settings panel's credits). The URL is fixed in Rust            |
+| `get_update`           | none           | `IUpdateInfo \| null`     | The update the last check found (`flows/app-lifecycle.md` § Updates). Same value as `update_available`   |
+| `install_update`       | none           | `()` or `UiError`         | Downloads, verifies, installs, restarts. `update.errors.install`                                         |
+| `open_release_page`    | none           | `()`                      | Opens the latest GitHub release (`.deb`/`.rpm` updates). The URL is fixed in Rust                        |
 | `set_settings`         | `{ settings }` | `ISettings` or `UiError`  | Validates, saves, applies (`flows/settings.md`)                                                          |
 
-Wrappers: `src/shared/api/app.ts` (`getAppLocale`, `setUnseen`, `quitApp`, `openRepository`),
+Wrappers: `src/shared/api/app.ts` (`getAppLocale`, `setUnseen`, `quitApp`, `openRepository`,
+`getUpdate`, `onUpdate`, `installUpdate`, `openReleasePage`),
 `src/shared/api/settings.ts` (`getSettings`, `setSettings`), `src/shared/api/emulator.ts`
 (`getReceipts`, `onReceipts`, `getReceipt`, `getListenerStatus`, `onListenerStatus`,
 `getLanAddress`, `printTestReceipt`, `clearReceipts`, `exportReceipt`,
@@ -34,10 +38,11 @@ heavy part (parse, file write) runs on `spawn_blocking`.
 
 ## Events
 
-| Event             | Payload             | Fires when                                                                                                                                     |
-| ----------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `receipts`        | `IReceiptSummary[]` | A receipt starts or ends. The **whole list**, oldest first (≤ 100 small items): the webview replaces its copy, so it can never drift from Rust |
-| `listener_status` | `IListenerStatus`   | The listener starts, fails to bind or recovers (only on change)                                                                                |
+| Event              | Payload             | Fires when                                                                                                                                     |
+| ------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `receipts`         | `IReceiptSummary[]` | A receipt starts or ends. The **whole list**, oldest first (≤ 100 small items): the webview replaces its copy, so it can never drift from Rust |
+| `listener_status`  | `IListenerStatus`   | The listener starts, fails to bind or recovers (only on change)                                                                                |
+| `update_available` | `IUpdateInfo`       | An update check found a newer version (`updates.rs`)                                                                                           |
 
 `IReceiptSummary` (`src/shared/interfaces/emulator.ts`) mirrors `receipts::ReceiptSummary`:
 `{ id, peer: "ip:port", started_at, ended_at: number | null, state, cut, drawer, beeps,
@@ -49,6 +54,9 @@ exact size before drawing it). Never the raw bytes.
 `IReceiptView` (from `get_receipt`) adds `blocks: IBlock[]`, the print model of
 `conventions/escpos.md` (`IBlock`, `ISegment`, `IPlaced` mirror `model.rs`); bitmaps
 are base64 1-bit rows.
+
+`IUpdateInfo` mirrors `updates::UpdateInfo`: `{ version, installable }`, `installable`
+false for a `.deb` / `.rpm` (link to the release page instead).
 
 `IListenerStatus` mirrors `listener::ListenerStatus`, tagged by `state`:
 `{ state: 'starting' } | { state: 'listening', port } | { state: 'failed', port, error }`,

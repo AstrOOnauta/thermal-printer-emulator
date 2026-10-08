@@ -139,6 +139,17 @@ const es: TranslationKeys = {
       unknown: 'Comando desconocido',
     },
   },
+  update: {
+    available: 'La versión %{version} está disponible.',
+    install: 'Reiniciar y actualizar',
+    installing: 'Actualizando…',
+    download: 'Descargar',
+    later: 'Más tarde',
+    errors: {
+      install:
+        'No se pudo instalar la actualización. Inténtalo más tarde o descárgala desde la página de la versión.',
+    },
+  },
   testReceipt: {
     print: 'Imprimir recibo de prueba',
     errors: {

@@ -132,3 +132,10 @@ export interface IInspection {
   rows: ICommandRow[];
   truncated: boolean;
 }
+
+/** Mirrors `updates::UpdateInfo`: a newer version found by the daily check. */
+export interface IUpdateInfo {
+  version: string;
+  /** False for a .deb or .rpm: the window links to the release page instead. */
+  installable: boolean;
+}

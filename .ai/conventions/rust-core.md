@@ -16,6 +16,7 @@ that waits on the network runs on `tauri::async_runtime` (Tokio).
 | `receipts.rs`        | Receipts in memory: limits, eviction, `ReceiptSummary` / `ReceiptView`, raw bytes (`flows/print-job.md`)                      |
 | `capture.rs`         | One connection's bytes → receipts: start on visible output, split on cut (`flows/print-job.md`)                               |
 | `settings.rs`        | `Settings`: defaults, validation, load (field by field), atomic save (`flows/settings.md`)                                    |
+| `updates.rs`         | Update checks (launch, then daily), the found update, install + restart (`flows/app-lifecycle.md`)                            |
 | `network.rs`         | This computer's LAN IPv4 (UDP "connect" to TEST-NET-1, nothing sent)                                                          |
 | `test_receipt.rs`    | The test receipt's bytes (UI language, configured code page and paper) and sending them to our own port                       |
 | `escpos/mod.rs`      | `Decoder`: parser + printer for one connection, outputs tagged with stream offsets                                            |
@@ -38,7 +39,8 @@ The crate is `thermal-printer-emulator` and the lib is `thermal_printer_emulator
 | `single-instance` | **Registered first**. A second launch calls `show_main_window` on the running instance and exits |
 | `log`             | `LogDir` target (+ `Stdout` in debug builds), Info level, 2 MB × 5 files, local timezone         |
 | `autostart`       | `MacosLauncher::LaunchAgent`, arg `--autostart` (starts hidden)                                  |
-| `opener`          | Rust side only (`open_logs`). The webview has no opener permission                               |
+| `opener`          | Rust side only (logs, repository, release page). The webview has no opener permission            |
+| `updater`         | Rust side only (`updates.rs`). Endpoint and public key in `tauri.conf.json`                      |
 
 ## Security rules
 

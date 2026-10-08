@@ -8,6 +8,7 @@ pub mod receipts;
 pub mod settings;
 mod shell;
 mod test_receipt;
+mod updates;
 
 use std::sync::Arc;
 
@@ -57,6 +58,7 @@ pub fn run() {
             Some(vec![AUTOSTART_ARG]),
         ))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let handle = app.handle();
             let settings_path = commands::settings_path(handle)?;
@@ -72,11 +74,13 @@ pub fn run() {
                 settings,
             )));
             app.manage(shell::TrayStatus::default());
+            app.manage(updates::Available::default());
             shell::build_tray(handle)?;
             // The macOS app menu was built by `Builder::menu`, before the settings loaded.
             #[cfg(target_os = "macos")]
             app.set_menu(shell::app_menu(handle)?)?;
             tauri::async_runtime::spawn(shell::forward_changes(handle.clone()));
+            tauri::async_runtime::spawn(updates::watch(handle.clone()));
             app.manage(commands::ListenerTask::default());
             let starter = handle.clone();
             tauri::async_runtime::spawn(async move { commands::restart_listener(&starter).await });
@@ -115,6 +119,9 @@ pub fn run() {
             commands::set_unseen,
             commands::quit_app,
             commands::open_repository,
+            commands::get_update,
+            commands::install_update,
+            commands::open_release_page,
             commands::get_receipt_commands,
             commands::set_settings
         ])

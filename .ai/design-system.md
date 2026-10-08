@@ -52,6 +52,10 @@ the printer's cells (see Receipt rendering below).
   right Print test receipt and Clear (when there are receipts) and the settings gear. The
   window title already names the app: no in-app title or tagline. While the port fails,
   the hint banner sits under the bar.
+- **Update banner** (`app/update-banner`): one line under the bar, `bg-accent/10` with a
+  bottom border, "Version X is available" (`role="status"`), the action as an accent text
+  button (Restart and update / Download) and "Later" in `text-muted`. Install errors show
+  below in `text-error` (`role="alert"`). Shown above the port hint when both apply.
 - **Settings is a panel**, not a screen: 22 rem wide, sliding in from the right over the
   receipts (`translate`, 200 ms, `ease-out-quart`, none with reduced motion), closed by Esc
   or ✕, focus moves to ✕ on open and back to the gear on close. Closed, it is `inert`

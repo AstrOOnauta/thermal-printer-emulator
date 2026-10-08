@@ -7,7 +7,7 @@ use std::time::Duration;
 
 #[cfg(target_os = "macos")]
 use tauri::menu::{AboutMetadataBuilder, Submenu};
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt as _;
@@ -25,6 +25,8 @@ pub(crate) const PRODUCT_NAME: &str = "Thermal Printer Emulator";
 #[cfg(target_os = "macos")]
 const AUTHOR: &str = "AstrOOnauta";
 pub(crate) const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
+/// Where a `.deb` or `.rpm` gets its update: the newest release's page.
+pub(crate) const RELEASES: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/releases/latest");
 
 /// The last count from `set_unseen`, to show it again in a new language.
 pub(crate) static UNSEEN: AtomicU32 = AtomicU32::new(0);
@@ -253,19 +255,34 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     )?;
     let logs = MenuItem::with_id(app, "logs", text.logs, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", text.quit, true, None::<&str>)?;
-    let menu = Menu::with_items(
-        app,
-        &[
-            &status,
-            &PredefinedMenuItem::separator(app)?,
-            &open,
-            &test,
-            &autostart,
-            &logs,
-            &PredefinedMenuItem::separator(app)?,
-            &quit,
-        ],
-    )?;
+    // Under the status line while a daily check has found a newer version.
+    let update = crate::updates::available(app)
+        .map(|update| {
+            let template = if update.installable {
+                text.update_install
+            } else {
+                text.update_download
+            };
+            let label = template.replace("{version}", &update.version);
+            MenuItem::with_id(app, "update", label, true, None::<&str>)
+        })
+        .transpose()?;
+    let top_separator = PredefinedMenuItem::separator(app)?;
+    let bottom_separator = PredefinedMenuItem::separator(app)?;
+    let mut items: Vec<&dyn IsMenuItem<tauri::Wry>> = vec![&status];
+    if let Some(update) = &update {
+        items.push(update);
+    }
+    items.extend([
+        &top_separator as &dyn IsMenuItem<tauri::Wry>,
+        &open,
+        &test,
+        &autostart,
+        &logs,
+        &bottom_separator,
+        &quit,
+    ]);
+    let menu = Menu::with_items(app, &items)?;
     if let Some(tray_status) = app.try_state::<TrayStatus>() {
         *lock(&tray_status.0) = Some(status);
     }
@@ -278,6 +295,18 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&tray_menu(app)?)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main_window(app),
+            "update" => {
+                if crate::updates::installable() {
+                    let app = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(error) = crate::updates::install(&app).await {
+                            log::error!("update_install_failed error={error}");
+                        }
+                    });
+                } else {
+                    crate::commands::open_release_page(app.clone());
+                }
+            }
             "test" => {
                 let app = app.clone();
                 tauri::async_runtime::spawn(async move {

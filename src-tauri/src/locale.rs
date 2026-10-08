@@ -117,6 +117,10 @@ pub struct Strings {
     pub print_test: &'static str,
     /// Receipts that arrived while the window was not in front. `{count}` is replaced.
     pub unseen: &'static str,
+    /// Tray item for a found update. `{version}` is replaced. `update_install` when the app
+    /// can update itself, `update_download` for a `.deb` or `.rpm` (opens the release page).
+    pub update_install: &'static str,
+    pub update_download: &'static str,
     pub test_title: &'static str,
     pub test_working: &'static str,
     pub test_port: &'static str,
@@ -171,6 +175,8 @@ const EN: Strings = Strings {
     port_failed: "Can't open port {port}",
     print_test: "Print test receipt",
     unseen: "{count} new",
+    update_install: "Restart to update to {version}",
+    update_download: "Download version {version}",
     test_title: "TEST RECEIPT",
     test_working: "The emulator is working.",
     test_port: "Port:",
@@ -208,6 +214,8 @@ const ES: Strings = Strings {
     port_failed: "No se puede abrir el puerto {port}",
     print_test: "Imprimir recibo de prueba",
     unseen: "{count} nuevos",
+    update_install: "Reiniciar y actualizar a la {version}",
+    update_download: "Descargar la versión {version}",
     test_title: "RECIBO DE PRUEBA",
     test_working: "El emulador funciona.",
     test_port: "Puerto:",
@@ -245,6 +253,8 @@ const PT_BR: Strings = Strings {
     port_failed: "Não foi possível abrir a porta {port}",
     print_test: "Imprimir cupom de teste",
     unseen: "{count} novos",
+    update_install: "Reiniciar e atualizar para a {version}",
+    update_download: "Baixar a versão {version}",
     test_title: "CUPOM DE TESTE",
     test_working: "O emulador está funcionando.",
     test_port: "Porta:",

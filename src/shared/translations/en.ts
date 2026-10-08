@@ -141,6 +141,17 @@ const en = {
       unknown: 'Unknown command',
     },
   },
+  update: {
+    available: 'Version %{version} is available.',
+    install: 'Restart and update',
+    installing: 'Updating…',
+    download: 'Download',
+    later: 'Later',
+    errors: {
+      install:
+        "Couldn't install the update. Try again later, or download it from the release page.",
+    },
+  },
   testReceipt: {
     print: 'Print test receipt',
     errors: {

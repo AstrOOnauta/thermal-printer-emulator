@@ -64,6 +64,8 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
 - Settings: port, who can print, paper width, default code page, sound, language.
 - English, Spanish and Brazilian Portuguese, following the OS or chosen in settings.
 - Runs from the tray, starts at login if asked, one instance only, rotating logs.
+- Checks for a new version at launch and daily, and installs it when asked (a `.deb` or
+  `.rpm` gets a link to the release page instead).
 
 **Distribution**
 
@@ -72,8 +74,6 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
 
 ## Next
 
-- **Automatic updates** (`tauri-plugin-updater`, signed with Tauri's own key, no paid
-  certificate): Windows, macOS and AppImage; `.deb`/`.rpm` only get a "new version" link.
 - A release checklist, the final icon; per-OS direct download links in the README (needs
   asset names without the version).
 
@@ -99,6 +99,13 @@ Changing one is a product decision: update this list.
 7. **Windows installer**: per machine (`C:\Program Files`), asking for admin, so it can add
    the firewall rule (`src-tauri/windows/hooks.nsh`). Trade-off accepted: every update
    shows UAC, and users without admin rights cannot install.
+8. **Updates**: `tauri-plugin-updater`, checked at launch and once a day against the
+   newest GitHub Release's `latest.json`, signed with a key of our own (no paid
+   certificate), installed only when the user asks (`flows/app-lifecycle.md` § Updates).
+   Windows, macOS and the AppImage update in place; a `.deb` or `.rpm` belongs to the
+   system's package manager, so it gets a link to the release page. Release files keep the
+   version in their name, without spaces (`thermal-printer-emulator_0.1.0_x64-setup.exe`),
+   and the README links to the release page.
 
 ## Tech stack
 
@@ -106,7 +113,7 @@ Changing one is a product decision: update this list.
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shell             | **Tauri v2** (2.12): tray + one window, single process                                                                                                                                                                       |
 | Core              | **Rust** (edition 2021), toolchain pinned in `rust-toolchain.toml`                                                                                                                                                           |
-| Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` (Rust side only)                                                                                                                        |
+| Tauri plugins     | `single-instance`, `log` (rotating files), `autostart` (`--autostart` arg), `opener` and `updater` (Rust side only)                                                                                                          |
 | Rust crates       | `tokio` (sockets, timers; Tauri's runtime), `qrcode` (QR encoding, no default features), `base64` (bitmaps to the webview), `sys-locale` (OS language), `serde` + `serde_json` (settings file, merged field by field), `log` |
 | Webview           | **React 19** + **TypeScript 6** (strict, `noUncheckedIndexedAccess`)                                                                                                                                                         |
 | Bundler           | **Vite 8** (dev server on fixed port 1420)                                                                                                                                                                                   |
@@ -160,6 +167,7 @@ src/                         # Webview (React)
   app/index.tsx              # top bar (status, actions, gear), failure hint, receipts, settings panel
   app/status-bar/            # status + address + copy, in one line
   app/listener-status/       # failure hint banner
+  app/update-banner/         # "Version X is available": install or download
   screens/receipts/          # receipts on paper: receipt-card/, receipt-paper/, toolbar buttons
   screens/settings/          # settings panel (slides in; saved and applied at once)
   components/ui/             # icon-button, icons (gear, trash, close)
@@ -184,6 +192,7 @@ src-tauri/                   # Rust core
   src/settings.rs            # settings.json: defaults, validation, load/save
   src/network.rs             # LAN IPv4 for "point your POS at…"
   src/test_receipt.rs        # sample receipt sent to our own port
+  src/updates.rs             # daily update check, install on request
   src/escpos/                # our ESC/POS decoder: parser → command → printer → model;
                              # codepage, bitmap, barcode, inspect; tests in parser/, printer/
   scripts/codepages.py       # generates escpos/codepage_tables.rs

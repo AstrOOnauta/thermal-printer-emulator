@@ -21,6 +21,8 @@ it data. By design:
 - Memory and connections are bounded: at most 16 connections, 16 MB per receipt, 32 MB
   of receipts, and idle connections are closed.
 - The window cannot reach the network or the file system: only the Rust core does.
+- The only outgoing request is the daily update check to GitHub. Updates are signed,
+  and the app refuses one whose signature doesn't match its built-in public key.
 - On Windows, the installer's firewall rule allows the app on private and domain
   networks, never public ones.
 

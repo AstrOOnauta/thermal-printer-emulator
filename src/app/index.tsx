@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ListenerFailureHint } from '@/app/listener-status';
 import { StatusBar } from '@/app/status-bar';
+import { UpdateBanner } from '@/app/update-banner';
 import { IconButton } from '@/components/ui/icon-button';
 import { GearIcon } from '@/components/ui/icons';
 import { ReceiptsScreen } from '@/screens/receipts';
@@ -257,6 +258,7 @@ export function App() {
           )}
         </div>
       </header>
+      <UpdateBanner />
       <ListenerFailureHint status={status} />
       <p role="status" className="sr-only">
         {announced &&

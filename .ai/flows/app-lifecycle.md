@@ -1,6 +1,6 @@
 # App lifecycle
 
-Boot, window, tray, single instance, autostart, installers and logs.
+Boot, window, tray, single instance, autostart, updates, installers and logs.
 
 ## Boot
 
@@ -12,8 +12,10 @@ main.rs → lib::run()
     .plugin(log)                      # LogDir (+ Stdout in debug), 2 MB × 5
     .plugin(autostart)                # LaunchAgent / HKCU Run / XDG .desktop, arg --autostart
     .plugin(opener)                   # Rust side only
+    .plugin(updater)                  # Rust side only (see "Updates")
     .setup:
        build_tray()
+       spawn forward_changes, updates::watch
        show_main_window() unless launched with --autostart   # tauri.conf has visible: false
        log "started version=… locale=… autostart=…"
   webview: main.tsx → initLocale() (app_locale) → render App
@@ -56,14 +58,15 @@ without a Dock icon, so a login launch with a hidden window never shows one.
 
 ## Tray
 
-| Item               | Behaviour                                                                                      |
-| ------------------ | ---------------------------------------------------------------------------------------------- |
-| Status (disabled)  | Listener status line: "Listening on port 9100", "Port 9100 is in use"… (`shell::status_label`) |
-| Open               | `show_main_window` (unminimize, show, focus)                                                   |
-| Print test receipt | Same as the window's button (`flows/print-job.md` § Test receipt); errors only logged          |
-| Launch at login    | Toggles autostart, then rebuilds the menu from the OS state (a failure shows). Off by default  |
-| Show logs          | Opens `app_log_dir()` in the file manager                                                      |
-| Quit               | `app.exit(0)`                                                                                  |
+| Item               | Behaviour                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------- |
+| Status (disabled)  | Listener status line: "Listening on port 9100", "Port 9100 is in use"… (`shell::status_label`)    |
+| Update (if found)  | "Restart to update to 0.2.0" (installs) or "Download version 0.2.0" (`.deb`/`.rpm`: release page) |
+| Open               | `show_main_window` (unminimize, show, focus)                                                      |
+| Print test receipt | Same as the window's button (`flows/print-job.md` § Test receipt); errors only logged             |
+| Launch at login    | Toggles autostart, then rebuilds the menu from the OS state (a failure shows). Off by default     |
+| Show logs          | Opens `app_log_dir()` in the file manager                                                         |
+| Quit               | `app.exit(0)`                                                                                     |
 
 Labels come from `locale.rs` (en/es/pt-BR), in the language setting. The tray icon is the
 app icon. The status item is held in `TrayStatus` and updated by `shell::forward_changes`
@@ -87,6 +90,27 @@ dialog, not the settings panel behind it). ⌘, ⌘T ⌘⌫ act once per press, 
 repeat, and ⌘T waits for the test receipt in flight. Tooltips show them ("Ctrl+Backspace"
 off macOS); `aria-keyshortcuts` gets the spec's names (`Meta+,`, `Control+Backspace`).
 
+## Updates
+
+`updates.rs`, decision 8 in `stack.md`. `updates::watch` checks 30 s after launch, then
+wakes hourly and checks once the last check is a day old by the wall clock (a laptop that
+slept checks on wake). The updater plugin fetches `latest.json` from the newest **published**
+GitHub release (`plugins.updater.endpoints` in `tauri.conf.json`) and verifies the
+download's signature with the public key there. A failed check (offline, no release yet)
+only logs `update_check_failed`; the next one retries.
+
+- **Found**: the update is kept in `updates::Available`, the `update_available` event
+  reaches the window (the banner at the top, `app/update-banner`) and `refresh_menus` adds
+  the tray item. A window opened later asks `get_update`.
+- **Install only on click** (banner or tray): `download_and_install`, then `app.restart()`.
+  On Windows the installer runs `passive` (progress bar, UAC prompt because the app is
+  per machine) and the app exits by itself.
+- **`.deb` / `.rpm`**: the package manager owns those files, so `installable` is false
+  (Linux without `APPIMAGE`) and both places link to the release page
+  (`open_release_page`). The AppImage replaces itself.
+- "Later" hides the banner for that version until the app restarts (a newer one shows
+  it again); the tray item stays.
+
 ## Installers
 
 - **Windows**: NSIS, **per machine** (`Program Files`, asks for admin once). The hooks in
@@ -96,7 +120,7 @@ off macOS); `aria-keyshortcuts` gets the spec's names (`Meta+,`, `Control+Backsp
   the rule; Tauri's own template likewise keeps the login entry through updates and
   removes it on a real uninstall.
 - **macOS**: `.dmg` with a universal `.app`.
-- **Linux**: `.deb`, `.rpm`, `.AppImage`.
+- **Linux**: `.deb`, `.rpm`, `.AppImage`. Only the AppImage updates itself.
 - Not code-signed: the OS asks for confirmation on first launch (README § Installation).
 
 ## Logs
