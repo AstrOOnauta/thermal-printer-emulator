@@ -214,7 +214,8 @@ src-tauri/                   # Rust core
   Info.plist                 # macOS: LSUIElement, localizations, permission strings
   macos/<lang>.lproj/        # the permission strings in es and pt-BR
   windows/hooks.nsh          # NSIS hooks: the firewall rule
-  icons/                     # generated; source in icons/source/icon.svg
+  icons/                     # generated (source in icons/source/icon.svg), plus
+                             # tray-template.png: the macOS menu bar icon
 .github/                     # workflows (ci.yml, build.yml, release.yml), dependabot.yml, issue
                              # templates (ISSUE_TEMPLATE/), README images (assets/)
 README.md                    # for people who use the app: install, quick start, FAQ

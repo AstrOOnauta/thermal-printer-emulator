@@ -69,7 +69,8 @@ without a Dock icon, so a login launch with a hidden window never shows one.
 | Quit               | `app.exit(0)`                                                                                     |
 
 Labels come from `locale.rs` (en/es/pt-BR), in the language setting. The tray icon is the
-app icon. The status item is held in `TrayStatus` and updated by `shell::forward_changes`
+app icon, except on macOS: a black template glyph (`icons/tray-template.png`,
+`icon_as_template`) that the menu bar tints for light and dark. The status item is held in `TrayStatus` and updated by `shell::forward_changes`
 whenever the status changes. When the language changes, `shell::refresh_menus` rebuilds the tray menu
 (`tray_menu`, with the current status line), the macOS app menu and the tray tooltip.
 The autostart item reads the OS state on click, so it works with any rebuilt menu.

@@ -329,6 +329,15 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             "quit" => app.exit(0),
             _ => {}
         });
+    // macOS: a black-and-transparent template image, which the menu bar tints for light
+    // and dark mode (the full-color app icon would clash). Elsewhere: the app icon.
+    #[cfg(target_os = "macos")]
+    {
+        let template =
+            tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
+        tray = tray.icon(template).icon_as_template(true);
+    }
+    #[cfg(not(target_os = "macos"))]
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
     }
