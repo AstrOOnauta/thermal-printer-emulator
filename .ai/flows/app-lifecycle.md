@@ -119,7 +119,8 @@ only logs `update_check_failed`; the next one retries.
   on uninstall. An update runs the uninstaller in update mode (`$UpdateMode`), which keeps
   the rule; Tauri's own template likewise keeps the login entry through updates and
   removes it on a real uninstall.
-- **macOS**: `.dmg` with a universal `.app`.
+- **macOS**: `.dmg` with a universal `.app`. The permission prompts (local network,
+  Downloads) are translated by `macos/<lang>.lproj/InfoPlist.strings` (`bundle.macOS.files`).
 - **Linux**: `.deb`, `.rpm`, `.AppImage`. Only the AppImage updates itself.
 - Not code-signed: the OS asks for confirmation on first launch (README § Installation).
 

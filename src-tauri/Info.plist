@@ -14,5 +14,7 @@
   </array>
   <key>NSLocalNetworkUsageDescription</key>
   <string>Receives print jobs from point-of-sale apps on your local network.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Saves a receipt's raw bytes to your Downloads folder when you save it as a .bin file.</string>
 </dict>
 </plist>

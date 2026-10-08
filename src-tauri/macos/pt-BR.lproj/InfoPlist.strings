@@ -1,0 +1,3 @@
+/* The Info.plist permission texts, in pt-BR (bundle.macOS.files in tauri.conf.json). */
+"NSLocalNetworkUsageDescription" = "Recebe trabalhos de impressão de apps de ponto de venda na sua rede local.";
+"NSDownloadsFolderUsageDescription" = "Salva na pasta Downloads os bytes de um cupom quando você o salva como arquivo .bin.";
