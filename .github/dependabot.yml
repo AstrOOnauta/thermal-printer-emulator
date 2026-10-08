@@ -12,9 +12,16 @@ updates:
       prefix: build
       include: scope
     groups:
+      # Released together and only work together: one PR, majors included.
+      eslint:
+        patterns: ['eslint', '@eslint/*']
       npm:
         patterns: ['*']
         update-types: [minor, patch]
+    ignore:
+      # The types follow the Node major the project runs on (24, in CI), not the newest one.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: cargo
     directory: /src-tauri
@@ -38,3 +45,4 @@ updates:
     groups:
       actions:
         patterns: ['*']
+        update-types: [minor, patch]
