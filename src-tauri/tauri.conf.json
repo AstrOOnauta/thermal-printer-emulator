@@ -32,7 +32,7 @@
     "category": "DeveloperTool",
     "shortDescription": "Virtual thermal printer for ESC/POS",
     "longDescription": "A thermal printer emulator: a virtual thermal printer that receives ESC/POS print jobs on TCP port 9100, like a network receipt printer, and renders the receipt on screen. Test point-of-sale printing without a physical printer.",
-    "publisher": "Willian Barbosa Lima do Nascimento",
+    "publisher": "AstrOOnauta",
     "copyright": "© 2026 Willian Barbosa Lima do Nascimento. MIT License.",
     "homepage": "https://github.com/AstrOOnauta/thermal-printer-emulator",
     "license": "MIT",
@@ -46,7 +46,8 @@
     "windows": {
       "webviewInstallMode": { "type": "embedBootstrapper" },
       "nsis": {
-        "installMode": "currentUser",
+        "installMode": "perMachine",
+        "installerHooks": "./windows/hooks.nsh",
         "languages": ["English", "Spanish", "PortugueseBR"]
       }
     },

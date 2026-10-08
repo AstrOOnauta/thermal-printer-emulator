@@ -21,6 +21,8 @@ it data. By design:
 - Memory and connections are bounded: at most 16 connections, 16 MB per receipt, 32 MB
   of receipts, and idle connections are closed.
 - The window cannot reach the network or the file system: only the Rust core does.
+- On Windows, the installer's firewall rule allows the app on private and domain
+  networks, never public ones.
 
 To keep it off the network entirely, pick **"only this computer"** in Settings: it then
 listens on `127.0.0.1` only.

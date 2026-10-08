@@ -72,8 +72,9 @@ paid), so your system asks for confirmation the first time you open it:
 <summary><b>Windows</b></summary>
 
 1. On the "Windows protected your PC" screen, click **More info → Run anyway**.
-2. When the firewall asks, allow access on **private networks**, so other devices can
-   print to the emulator.
+2. Allow the installer to make changes. It installs the app for all users and lets it
+   through the Windows firewall on **private networks**, so other devices can print to
+   the emulator. Public networks stay closed.
 
 </details>
 
@@ -186,9 +187,9 @@ pick "only this computer" in **Settings**. See [SECURITY.md](SECURITY.md).
   computer".
 - Both devices must be on the same network, and the POS must use the address shown in
   the window.
-- **Windows**: if the firewall prompt was dismissed, Windows blocks the app silently.
-  Open **Windows Security → Firewall & network protection → Allow an app through
-  firewall** and tick **Private** for Thermal Printer Emulator.
+- **Windows**: the installer allows the app on private networks only. If your network
+  is set to **Public**, switch it to **Private** (Settings → Network & internet → your
+  network → Network profile type).
 - **macOS**: if asked to allow incoming connections, choose **Allow**.
 
 </details>

@@ -65,10 +65,13 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
 - English, Spanish and Brazilian Portuguese, following the OS or chosen in settings.
 - Runs from the tray, starts at login if asked, one instance only, rotating logs.
 
+**Distribution**
+
+- Windows installer for the whole machine, with a Windows Firewall rule for private and
+  domain networks only; macOS universal disk image; Linux `.deb`, `.rpm` and AppImage.
+
 ## Next
 
-- **Windows installer with admin** (NSIS `perMachine`, UAC at install) that adds a Windows
-  Firewall rule for private and domain networks only, removed on uninstall.
 - **Automatic updates** (`tauri-plugin-updater`, signed with Tauri's own key, no paid
   certificate): Windows, macOS and AppImage; `.deb`/`.rpm` only get a "new version" link.
 - A release checklist, the final icon; per-OS direct download links in the README (needs
@@ -93,9 +96,9 @@ Changing one is a product decision: update this list.
    a job that opens with an ESC/POS command (`ESC` except `ESC %`, `DLE`, `FS`, `GS`).
 6. **Decoder**: written from scratch in **Rust** from Epson's public ESC/POS command
    reference. Rust interprets, the webview only draws.
-7. **Windows installer**: asks for admin, so it can add the firewall rule. Trade-off
-   accepted: every update shows UAC, and users without admin rights cannot install.
-   Lands with the installer work (see Next); today's bundle is per user.
+7. **Windows installer**: per machine (`C:\Program Files`), asking for admin, so it can add
+   the firewall rule (`src-tauri/windows/hooks.nsh`). Trade-off accepted: every update
+   shows UAC, and users without admin rights cannot install.
 
 ## Tech stack
 
@@ -189,6 +192,7 @@ src-tauri/                   # Rust core
   capabilities/main.json     # what the `main` window may call
   tauri.conf.json            # window, CSP, bundle targets, version source
   Info.plist                 # macOS: LSUIElement, localizations, Local Network string
+  windows/hooks.nsh          # NSIS hooks: the firewall rule
   icons/                     # generated; source in icons/source/icon.svg
 .github/                     # workflows (ci.yml, build.yml, release.yml), dependabot.yml, issue
                              # templates (ISSUE_TEMPLATE/), README images (assets/)

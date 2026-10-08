@@ -1,6 +1,6 @@
 # App lifecycle
 
-Boot, window, tray, single instance, autostart and logs.
+Boot, window, tray, single instance, autostart, installers and logs.
 
 ## Boot
 
@@ -86,6 +86,18 @@ receipt, ⌘⌫ clear (the same confirmation dialog; ignored while typing in a f
 dialog, not the settings panel behind it). ⌘, ⌘T ⌘⌫ act once per press, not on key
 repeat, and ⌘T waits for the test receipt in flight. Tooltips show them ("Ctrl+Backspace"
 off macOS); `aria-keyshortcuts` gets the spec's names (`Meta+,`, `Control+Backspace`).
+
+## Installers
+
+- **Windows**: NSIS, **per machine** (`Program Files`, asks for admin once). The hooks in
+  `windows/hooks.nsh` add an inbound firewall rule for the app on **private and domain
+  networks only** (so Windows never prompts, and public Wi-Fi stays closed) and delete it
+  on uninstall. An update runs the uninstaller in update mode (`$UpdateMode`), which keeps
+  the rule; Tauri's own template likewise keeps the login entry through updates and
+  removes it on a real uninstall.
+- **macOS**: `.dmg` with a universal `.app`.
+- **Linux**: `.deb`, `.rpm`, `.AppImage`.
+- Not code-signed: the OS asks for confirmation on first launch (README § Installation).
 
 ## Logs
 
