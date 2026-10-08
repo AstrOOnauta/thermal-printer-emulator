@@ -1,0 +1,7 @@
+# LF everywhere, whatever the OS: Prettier and rustfmt expect it, and a Windows checkout
+# with core.autocrlf would otherwise fail `yarn check` on untouched files.
+* text=auto eol=lf
+# Binary: never touch.
+*.png binary
+*.ico binary
+*.icns binary

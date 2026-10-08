@@ -22,22 +22,25 @@ env:
 jobs:
   checks:
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - run: corepack enable
       # Installs the toolchain pinned in rust-toolchain.toml (clippy + rustfmt included).
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
           # A red run still saves the compiled crates: the next one does not start cold.
           cache-on-failure: true
       - run: yarn install --immutable
       - run: yarn check
+      # The webview bundle too, so a Vite or Tailwind break shows up here, not at release.
+      - run: yarn build
 
   # `checks` only compiles the Linux code. `#[cfg(target_os = "macos")]` (Dock, app menu) and
   # `#[cfg(windows)]` code gets its clippy and test run here, on every push and PR.
@@ -48,10 +51,11 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
           cache-on-failure: true

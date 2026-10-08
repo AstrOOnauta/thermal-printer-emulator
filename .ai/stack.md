@@ -149,8 +149,10 @@ install. That is safe because the package is `private` and never published.
   (never Variables: those are plain text in logs). A local `tauri build` needs no key.
   File names: `[mainBinaryName]_[version]_[arch][setup][ext]`. Only the release job may
   write to the repository.
-- Actions are on v7 (`checkout`, `setup-node`, `upload-artifact`); `rust-cache` keeps the
-  cache on failure, so a red run does not make the next one start cold.
+- `ci.yml` also runs `yarn build` (the webview bundle). Every job has a timeout. Actions
+  are pinned by commit SHA (the version in a comment; Dependabot updates both);
+  `rust-cache` keeps the cache on failure, so a red run does not make the next one start
+  cold. `.gitattributes` keeps LF everywhere, so a Windows checkout passes `yarn check`.
 - **Dependabot** (`.github/dependabot.yml`): weekly; minor + patch grouped into one PR per
   ecosystem (npm, cargo, actions), majors alone; titles `build(deps): …` / `ci(deps): …`.
   Exceptions: `eslint` and `@eslint/*` always come in one PR (they only work together), and
