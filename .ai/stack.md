@@ -135,7 +135,8 @@ install. That is safe because the package is `private` and never published.
 - **Dependabot** (`.github/dependabot.yml`): weekly; minor + patch grouped into one PR per
   ecosystem (npm, cargo, actions), majors alone; titles `build(deps): …` / `ci(deps): …`.
   Exceptions: `eslint` and `@eslint/*` always come in one PR (they only work together), and
-  `@types/node` gets no majors (it follows the Node major CI runs, 24). The Tauri npm
+  `@types/node` gets no majors (it follows the Node major CI runs, 24). TypeScript majors
+  are ignored until typescript-eslint supports them: check it before removing the rule. The Tauri npm
   packages and crates must stay on matching versions: merge their PRs together.
   `rust-toolchain.toml` is bumped by hand.
 - **Version**: `package.json` is the single source (`tauri.conf.json` has

@@ -22,6 +22,10 @@ updates:
       # The types follow the Node major the project runs on (24, in CI), not the newest one.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # Waiting on typescript-eslint, which supports TypeScript < 6.1: remove this once it
+      # supports the next major (a Dependabot PR would only fail until then).
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: cargo
     directory: /src-tauri
