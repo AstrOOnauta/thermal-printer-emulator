@@ -143,7 +143,7 @@ pub fn hide_main_window(app: &AppHandle) {
 /// The Edit menu is what makes ⌘C/⌘V work in the webview, so it must stay.
 #[cfg(target_os = "macos")]
 pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
-    let text = Locale::current().strings();
+    let text = &Locale::current().strings().menu;
     let close = MenuItem::with_id(app, "close_window", text.close_window, true, Some("Cmd+Q"))?;
     // The native About panel: name, version and credits.
     let about = PredefinedMenuItem::about(

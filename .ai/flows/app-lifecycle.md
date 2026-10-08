@@ -44,7 +44,7 @@ without a Dock icon, so a login launch with a hidden window never shows one.
   goes straight to `RunEvent::Exit`, which **cannot be cancelled**. So the app menu is
   replaced: ⌘Q = "Close window" (hides) and ⌘W = close. Dock › Quit still quits for real.
   It starts with "About Thermal Printer Emulator": the native About panel with the
-  version and the credits (`made_by` in `locale.rs`, the repository URL from `Cargo.toml`).
+  version and the credits (`MenuStrings::made_by` in `locale.rs`, the repository URL from `Cargo.toml`).
   That is acceptable because the icon is only there while someone is looking at the
   window, and logout/shutdown are never blocked.
 - The **Edit** menu (undo/redo/cut/copy/paste/select all) must stay: without it ⌘C/⌘V
