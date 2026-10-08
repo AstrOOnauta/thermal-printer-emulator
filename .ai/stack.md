@@ -144,7 +144,7 @@ install. That is safe because the package is `private` and never published.
   commit), fails unless the tag equals `v` + the `package.json` version, then
   `tauri-action` builds the installers and attaches them, with the signed update bundles
   and `latest.json`, to a **draft** GitHub Release, published by hand. Update bundles are
-  made only there (`TAURI_CONFIG` turns on `createUpdaterArtifacts`), signed with the
+  made only there (`--config` turns on `createUpdaterArtifacts`), signed with the
   repository Secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
   (never Variables: those are plain text in logs). A local `tauri build` needs no key.
   File names: `[mainBinaryName]_[version]_[arch][setup][ext]`. Only the release job may

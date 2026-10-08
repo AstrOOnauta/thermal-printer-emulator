@@ -69,8 +69,6 @@ jobs:
           # in tauri.conf.json. Repository Secrets, never Variables (`.ai/stack.md`).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Updater bundles only here, so a local `tauri build` needs no private key.
-          TAURI_CONFIG: '{"bundle":{"createUpdaterArtifacts":true}}'
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Thermal Printer Emulator ${{ github.ref_name }}
@@ -82,4 +80,6 @@ jobs:
           releaseDraft: true
           # No spaces, version kept: thermal-printer-emulator_0.1.0_x64-setup.exe.
           releaseAssetNamePattern: '[mainBinaryName]_[version]_[arch][setup][ext]'
-          args: ${{ matrix.args }}
+          # Updater bundles only here, so a local `tauri build` needs no private key. Tauri 2
+          # reads extra config only from --config (TAURI_CONFIG was Tauri 1).
+          args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
