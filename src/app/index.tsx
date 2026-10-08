@@ -54,14 +54,16 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // `undefined` until known, `null` offline.
   const [lanAddress, setLanAddress] = useState<string | null | undefined>();
-  // Bumped when the language changes: re-rendering the tree re-runs every `t()`.
+  // Bumped when the language changes: re-rendering the tree re-runs every `t()`. Only the
+  // setter is needed, the value is never read.
+  // eslint-disable-next-line @eslint-react/use-state
   const [, setLocaleTag] = useState('');
-  const settingsButton = useRef<HTMLButtonElement>(null);
-  const clearDialog = useRef<HTMLDialogElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const clearDialogRef = useRef<HTMLDialogElement>(null);
   // The latest saved settings and the save in flight: changes run one after the other,
   // each on top of the previous one, so a quick second change never undoes the first.
-  const latestSettings = useRef<ISettings | null>(null);
-  const savesInFlight = useRef<Promise<unknown>>(Promise.resolve());
+  const latestSettingsRef = useRef<ISettings | null>(null);
+  const savesInFlightRef = useRef<Promise<unknown>>(Promise.resolve());
   const testReceipt = useTestReceipt();
   useUnseenBadge(receipts);
   // Receipts that finish from now on are announced to screen readers.
@@ -73,7 +75,7 @@ export function App() {
   useEffect(() => {
     getSettings()
       .then((loaded) => {
-        latestSettings.current = loaded;
+        latestSettingsRef.current = loaded;
         setSettings(loaded);
       })
       .catch(() => {
@@ -107,9 +109,9 @@ export function App() {
   }, [listening, status]);
 
   const updateSettings = useCallback((change: ISettingsChange) => {
-    const save = savesInFlight.current
+    const save = savesInFlightRef.current
       .then(() => {
-        const current = latestSettings.current;
+        const current = latestSettingsRef.current;
         if (!current) throw new Error('settings not loaded');
         const fields = typeof change === 'function' ? change(current) : change;
         const keys = Object.keys(fields) as (keyof ISettings)[];
@@ -119,8 +121,8 @@ export function App() {
       })
       .then((next) => {
         // In the chain, so the next queued change builds on this one.
-        const previous = latestSettings.current;
-        latestSettings.current = next;
+        const previous = latestSettingsRef.current;
+        latestSettingsRef.current = next;
         setSettings(next);
         if (next.language !== previous?.language) {
           // Rust resolved `system` to the OS language; ask it, so window and tray agree.
@@ -135,7 +137,7 @@ export function App() {
         }
         return next;
       });
-    savesInFlight.current = save.catch(() => {
+    savesInFlightRef.current = save.catch(() => {
       // The caller shows the error; the next change still runs.
     });
     return save;
@@ -143,21 +145,21 @@ export function App() {
 
   const closeSettings = useCallback(() => {
     setSettingsOpen(false);
-    settingsButton.current?.focus();
+    settingsButtonRef.current?.focus();
   }, []);
 
   const hasReceipts = (receipts?.length ?? 0) > 0;
   const printTest = testReceipt.print;
 
   // Clearing removes the trash button that had focus: keep focus in the toolbar.
-  const hadReceipts = useRef(false);
+  const hadReceiptsRef = useRef(false);
   useEffect(() => {
-    if (hadReceipts.current && !hasReceipts) {
+    if (hadReceiptsRef.current && !hasReceipts) {
       if (document.activeElement === document.body) {
-        settingsButton.current?.focus();
+        settingsButtonRef.current?.focus();
       }
     }
-    hadReceipts.current = hasReceipts;
+    hadReceiptsRef.current = hasReceipts;
   }, [hasReceipts]);
 
   // ⌘, settings · ⌘T test receipt · ⌘⌫ clear · ⌘+ ⌘− ⌘0 zoom (Ctrl on Windows and Linux).
@@ -209,7 +211,7 @@ export function App() {
         !isTyping(event.target)
       ) {
         event.preventDefault();
-        clearDialog.current?.showModal();
+        clearDialogRef.current?.showModal();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -240,10 +242,10 @@ export function App() {
         <StatusBar status={status} address={address} kind={kind} />
         <div className="flex shrink-0 items-center gap-2">
           {listening && hasReceipts && <TestReceiptButton test={testReceipt} />}
-          {hasReceipts && <ClearButton dialogRef={clearDialog} />}
+          {hasReceipts && <ClearButton dialogRef={clearDialogRef} />}
           {settings && (
             <IconButton
-              ref={settingsButton}
+              ref={settingsButtonRef}
               label={t('nav.settings')}
               shortcut=","
               aria-expanded={settingsOpen}

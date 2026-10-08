@@ -1,4 +1,4 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 
 import { cn } from '@/shared/styles/cn';
 import { INTERACTIVE } from '@/shared/styles/patterns';
@@ -10,11 +10,19 @@ interface IIconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Its shortcut's key with ⌘ / Ctrl, e.g. "," or "⌫": in the tooltip, announced. */
   shortcut?: string;
   children: ReactNode;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /** A square button with only an icon: the label is the tooltip and the accessible name. */
-export const IconButton = forwardRef<HTMLButtonElement, IIconButtonProps>(
-  ({ label, shortcut, children, className, ...props }, ref) => (
+export function IconButton({
+  label,
+  shortcut,
+  children,
+  className,
+  ref,
+  ...props
+}: IIconButtonProps) {
+  return (
     <button
       ref={ref}
       type="button"
@@ -30,5 +38,5 @@ export const IconButton = forwardRef<HTMLButtonElement, IIconButtonProps>(
     >
       {children}
     </button>
-  ),
-);
+  );
+}

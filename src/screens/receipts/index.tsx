@@ -44,7 +44,7 @@ export function ReceiptsScreen({
       node.focus({ preventScroll: true });
     }
   }, []);
-  const heard = useRef<Set<number> | null>(null);
+  const heardRef = useRef<Set<number> | null>(null);
   const { unseen, jumpToEnd } = useFollowBottom(
     scrollerRef,
     scroller,
@@ -66,8 +66,8 @@ export function ReceiptsScreen({
   // come out), then the beeps it asked for with `ESC B`.
   useEffect(() => {
     if (receipts === null) return;
-    const { printed, beeps, seen } = pendingSounds(heard.current, receipts);
-    heard.current = seen;
+    const { printed, beeps, seen } = pendingSounds(heardRef.current, receipts);
+    heardRef.current = seen;
     if (!sound || printed.length === 0) return;
     const longest = Math.max(
       ...printed.map((receipt) => feedDuration(receipt.height)),

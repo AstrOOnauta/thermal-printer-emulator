@@ -111,7 +111,7 @@ Changing one is a product decision: update this list.
 | Class composition | `clsx` + `tailwind-merge` via `cn()`                                                                                                                                                                                         |
 | i18n              | Typed dictionaries (en, es, pt-BR) + `t()`, no library; the locale comes from Rust                                                                                                                                           |
 | Tests             | **Vitest** (webview, colocated `*.test.ts`), `cargo test` (Rust)                                                                                                                                                             |
-| Quality           | ESLint 9 flat config + Prettier + Husky + lint-staged; `cargo fmt` + `clippy -D warnings`                                                                                                                                    |
+| Quality           | ESLint 9 flat config (typescript-eslint, `@eslint-react`, React Hooks, React Refresh) + Prettier + Husky + lint-staged; `cargo fmt` + `clippy -D warnings`                                                                   |
 | Package manager   | **Yarn 4** via Corepack, `nodeLinker: node-modules`                                                                                                                                                                          |
 
 Husky is installed from `postinstall`, not `prepare`: Yarn 2+ does not run `prepare` on

@@ -36,21 +36,21 @@ export function useFollowBottom(
   /** Paper zoom: CSS pixels per dot. The feed's speed is in printer dots. */
   scale: number,
 ) {
-  const atEnd = useRef(true);
+  const atEndRef = useRef(true);
   /** Newest id seen: ids only grow, so arrivals are counted right at the 100 limit too. */
-  const newestId = useRef(-1);
+  const newestIdRef = useRef(-1);
   /** Each receipt's offsetTop after the last change, to see what moved. */
-  const tops = useRef(new Map<number, number>());
-  const loaded = useRef(false);
+  const topsRef = useRef(new Map<number, number>());
+  const loadedRef = useRef(false);
   /** scrollTop as of the last scroll event: from before the browser clamps it to a shorter
    * list (scroll events come after layout). */
-  const lastScrollTop = useRef(0);
-  const frame = useRef<number | null>(null);
+  const lastScrollTopRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
   const [unseen, setUnseen] = useState(0);
 
   const stopFeed = useCallback(() => {
-    if (frame.current !== null) cancelAnimationFrame(frame.current);
-    frame.current = null;
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
   }, []);
 
   /** Scrolls to the end, animated unless `instant` or reduced motion. */
@@ -73,9 +73,9 @@ export function useFollowBottom(
         // Re-read the end every frame: more paper may arrive while feeding.
         const end = element.scrollHeight - element.clientHeight;
         element.scrollTop = from + (end - from) * easeOutCubic(progress);
-        frame.current = progress < 1 ? requestAnimationFrame(step) : null;
+        frameRef.current = progress < 1 ? requestAnimationFrame(step) : null;
       };
-      frame.current = requestAnimationFrame(step);
+      frameRef.current = requestAnimationFrame(step);
     },
     [scrollerRef, stopFeed, scale],
   );
@@ -84,13 +84,13 @@ export function useFollowBottom(
     const element = scrollerRef.current;
     if (!element) return;
     const onScroll = () => {
-      lastScrollTop.current = element.scrollTop;
+      lastScrollTopRef.current = element.scrollTop;
       // Our own feed scrolls too: it is at the end by definition.
-      if (frame.current !== null) return;
-      atEnd.current =
+      if (frameRef.current !== null) return;
+      atEndRef.current =
         element.scrollHeight - element.scrollTop - element.clientHeight <
         NEAR_END;
-      if (atEnd.current) setUnseen(0);
+      if (atEndRef.current) setUnseen(0);
     };
     // The user takes over: stop feeding, then the scroll position decides again.
     const onUserScroll = () => stopFeed();
@@ -121,16 +121,16 @@ export function useFollowBottom(
     if (!receipts) return;
     if (receipts.length === 0 || !element) {
       // Cleared (the list unmounts): the next receipt starts at the end, nothing unseen.
-      atEnd.current = true;
-      tops.current = new Map();
+      atEndRef.current = true;
+      topsRef.current = new Map();
       setUnseen(0);
       return;
     }
     const added = receipts.filter(
-      (receipt) => receipt.id > newestId.current,
+      (receipt) => receipt.id > newestIdRef.current,
     ).length;
-    newestId.current = Math.max(
-      newestId.current,
+    newestIdRef.current = Math.max(
+      newestIdRef.current,
       ...receipts.map((receipt) => receipt.id),
     );
     const nextTops = new Map<number, number>();
@@ -139,29 +139,29 @@ export function useFollowBottom(
     )) {
       nextTops.set(Number(item.dataset.receiptId), item.offsetTop);
     }
-    if (!atEnd.current) {
+    if (!atEndRef.current) {
       // The oldest receipts were dropped (memory limits): what is left moved up by their
       // height. Scroll by as much, so the receipt being read stays in place.
-      const kept = receipts.find((receipt) => tops.current.has(receipt.id));
-      const before = kept && tops.current.get(kept.id);
+      const kept = receipts.find((receipt) => topsRef.current.has(receipt.id));
+      const before = kept && topsRef.current.get(kept.id);
       const after = kept && nextTops.get(kept.id);
       // From the scrollTop before the list got shorter: the browser has clamped it since.
       if (before !== undefined && after !== undefined && after !== before) {
-        element.scrollTop = lastScrollTop.current + (after - before);
+        element.scrollTop = lastScrollTopRef.current + (after - before);
       }
     }
-    tops.current = nextTops;
-    if (atEnd.current) {
+    topsRef.current = nextTops;
+    if (atEndRef.current) {
       // The list opens at the end without motion; later paper feeds.
-      feed(!loaded.current);
+      feed(!loadedRef.current);
     } else if (added > 0) {
       setUnseen((previous) => previous + added);
     }
-    loaded.current = true;
+    loadedRef.current = true;
   }, [scrollerRef, attached, receipts, feed]);
 
   const jumpToEnd = useCallback(() => {
-    atEnd.current = true;
+    atEndRef.current = true;
     setUnseen(0);
     feed(false);
   }, [feed]);

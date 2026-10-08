@@ -62,11 +62,11 @@ export function SettingsPanel({
   onClose,
 }: ISettingsPanelProps) {
   const { t } = useTranslation();
-  const closeButton = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    closeButton.current?.focus();
+    closeButtonRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       // Esc in the clear dialog closes only the dialog.
       if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
@@ -109,7 +109,7 @@ export function SettingsPanel({
           {t('settings.title')}
         </h2>
         <IconButton
-          ref={closeButton}
+          ref={closeButtonRef}
           label={t('settings.close')}
           onClick={onClose}
         >
@@ -333,7 +333,7 @@ function Choice<T extends string>({
   options,
   onChange,
 }: IChoiceProps<T>) {
-  const name = useId();
+  const nameId = useId();
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-2 text-sm font-semibold text-ink">{label}</legend>
@@ -344,7 +344,7 @@ function Choice<T extends string>({
         >
           <input
             type="radio"
-            name={name}
+            name={nameId}
             checked={value === option.value}
             onChange={() => onChange(option.value)}
           />

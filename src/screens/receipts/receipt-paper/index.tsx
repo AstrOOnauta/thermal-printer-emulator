@@ -64,7 +64,7 @@ export function ReceiptPaper({
           <Slice
             // By index: slices are positions, not items that move. A zoom changes every
             // slice's range, and a remount would start "not near" and paint a blank frame.
-            // eslint-disable-next-line react/no-array-index-key
+            // eslint-disable-next-line @eslint-react/no-array-index-key
             key={index}
             positioned={layout.positioned}
             width={view.width}

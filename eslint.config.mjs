@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import prettierConfig from 'eslint-config-prettier';
-import react from 'eslint-plugin-react';
+import eslintReact from '@eslint-react/eslint-plugin';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
@@ -19,8 +19,9 @@ export default defineConfig([
 
   js.configs.recommended,
   tseslint.configs.recommended,
-  react.configs.flat.recommended,
-  react.configs.flat['jsx-runtime'],
+  eslintReact.configs['recommended-typescript'],
+  // Hooks rules come from the official plugin (React Compiler rules) below, not twice.
+  eslintReact.configs['disable-conflict-eslint-plugin-react-hooks'],
   reactHooks.configs.flat['recommended-latest'],
   reactRefresh.configs.vite,
   prettierConfig,
@@ -29,7 +30,6 @@ export default defineConfig([
     languageOptions: {
       globals: { ...globals.browser },
     },
-    settings: { react: { version: 'detect' } },
   },
 
   {
@@ -59,13 +59,8 @@ export default defineConfig([
       ],
 
       // React
-      'react/prop-types': 'off',
-      'react/jsx-boolean-value': ['error', 'never'],
-      'react/jsx-no-useless-fragment': 'error',
-      'react/self-closing-comp': 'error',
-      'react/jsx-pascal-case': 'error',
-      'react/no-array-index-key': 'warn',
-      'react/display-name': 'off',
+      '@eslint-react/jsx-no-useless-fragment': 'error',
+      '@eslint-react/no-array-index-key': 'warn',
 
       // Best Practices
       eqeqeq: ['error', 'always', { null: 'ignore' }],

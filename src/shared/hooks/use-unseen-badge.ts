@@ -9,14 +9,14 @@ import { pendingSounds } from '@/shared/utils/sounds';
  * Dock icon / menu bar / tray (`set_unseen`); it clears when the window gets focus.
  */
 export function useUnseenBadge(receipts: IReceiptSummary[] | null) {
-  const heard = useRef<Set<number> | null>(null);
+  const heardRef = useRef<Set<number> | null>(null);
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     if (receipts === null) return;
     // Same "finished since last time" rule as the sounds.
-    const { printed, seen } = pendingSounds(heard.current, receipts);
-    heard.current = seen;
+    const { printed, seen } = pendingSounds(heardRef.current, receipts);
+    heardRef.current = seen;
     if (printed.length > 0 && !document.hasFocus()) {
       setCount((previous) => previous + printed.length);
     }

@@ -65,7 +65,9 @@ export function translate(
 }
 
 // ponytail: no store; a language change re-renders the whole tree from `App`
-// (`setLocaleTag`). Add one if a part of the UI must follow the language on its own.
+// (`setLocaleTag`). Add one if a part of the UI must follow the language on its own. It keeps
+// the hook name so that change stays local.
+// eslint-disable-next-line @eslint-react/no-unnecessary-use-prefix
 export function useTranslation() {
   return { t: translate };
 }
