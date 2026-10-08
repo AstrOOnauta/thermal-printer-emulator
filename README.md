@@ -22,7 +22,7 @@ no paper, no hardware, no terminal.
 </p>
 
 > **Status: early development.** The emulator already receives and draws real ESC/POS
-> jobs. Next: installers with a firewall rule, automatic updates and the first release.
+> jobs. Bug reports and feedback are welcome.
 
 ## Features
 
@@ -54,6 +54,9 @@ Download the installer for your system from the
 | Windows 10/11         | `*_x64-setup.exe`                                                |
 | macOS 11+ (Intel/ARM) | `*_universal.dmg`                                                |
 | Linux                 | `*.deb` (Debian/Ubuntu), `*.rpm` (Fedora/openSUSE), `*.AppImage` |
+
+The files are named `thermal-printer-emulator_<version>_…`, for example
+`thermal-printer-emulator_0.1.0_x64-setup.exe`.
 
 The app is free and open source, and it is **not code-signed** (signing certificates are
 paid), so your system asks for confirmation the first time you open it:

@@ -71,11 +71,14 @@ POS ─TCP 9100─▶ listener ─▶ capture ─▶ decoder ─▶ receipts ─
 
 - Windows installer for the whole machine, with a Windows Firewall rule for private and
   domain networks only; macOS universal disk image; Linux `.deb`, `.rpm` and AppImage.
+- Signed update bundles and `latest.json` attached to each GitHub Release.
 
 ## Next
 
-- A release checklist, the final icon; per-OS direct download links in the README (needs
-  asset names without the version).
+- The first release (v0.1.0): installers tried on real Windows, macOS and Linux machines
+  from `build.yml`, then a draft release (`CONTRIBUTING.md` § Releasing).
+- The final app icon.
+- Packages in winget, Homebrew and Flathub.
 
 ## Product decisions
 
@@ -137,9 +140,15 @@ install. That is safe because the package is `private` and never published.
 - `build.yml`, only from "Run workflow" (`workflow_dispatch`): unsigned installers for
   the three OSes as workflow artifacts, to try one before tagging. A macOS bundle takes
   ~15 min, so it never runs on push; and on its own, a push can no longer cancel it.
-- `release.yml`, on a `v*` tag: fails unless the tag equals `v` + the `package.json`
-  version, then `tauri-action` builds the installers and attaches them to a **draft**
-  GitHub Release, which is published by hand.
+- `release.yml`, on a `v*` tag: runs `ci.yml` first (`workflow_call`: no release from a red
+  commit), fails unless the tag equals `v` + the `package.json` version, then
+  `tauri-action` builds the installers and attaches them, with the signed update bundles
+  and `latest.json`, to a **draft** GitHub Release, published by hand. Update bundles are
+  made only there (`TAURI_CONFIG` turns on `createUpdaterArtifacts`), signed with the
+  repository Secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+  (never Variables: those are plain text in logs). A local `tauri build` needs no key.
+  File names: `[mainBinaryName]_[version]_[arch][setup][ext]`. Only the release job may
+  write to the repository.
 - Actions are on v7 (`checkout`, `setup-node`, `upload-artifact`); `rust-cache` keeps the
   cache on failure, so a red run does not make the next one start cold.
 - **Dependabot** (`.github/dependabot.yml`): weekly; minor + patch grouped into one PR per

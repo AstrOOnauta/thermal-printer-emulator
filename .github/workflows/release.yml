@@ -1,19 +1,29 @@
 name: Release
 
-# Pushing a tag `vX.Y.Z` builds the installers on the three OSes and attaches them to a
-# draft GitHub Release. Review the draft, then publish it by hand.
+# Pushing a tag `vX.Y.Z` runs the CI checks, then builds signed installers on the three OSes
+# and attaches them, with the updater's latest.json, to a draft GitHub Release. Review the
+# draft, then publish it by hand: only a published release reaches installed apps.
 on:
   push:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   LINUX_DEPS: libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
 
 jobs:
+  # The same checks as every push: no release from a red commit.
+  checks:
+    uses: ./.github/workflows/ci.yml
+
   release:
+    needs: checks
+    # Only this job writes: it creates the release and uploads the files.
+    permissions:
+      contents: write
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -55,6 +65,12 @@ jobs:
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the updater bundles (.sig) that installed apps verify with the public key
+          # in tauri.conf.json. Repository Secrets, never Variables (`.ai/stack.md`).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Updater bundles only here, so a local `tauri build` needs no private key.
+          TAURI_CONFIG: '{"bundle":{"createUpdaterArtifacts":true}}'
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Thermal Printer Emulator ${{ github.ref_name }}
@@ -64,4 +80,6 @@ jobs:
             The app is not code-signed, so the OS asks for confirmation on first launch.
             See [Installation](https://github.com/AstrOOnauta/thermal-printer-emulator#installation).
           releaseDraft: true
+          # No spaces, version kept: thermal-printer-emulator_0.1.0_x64-setup.exe.
+          releaseAssetNamePattern: '[mainBinaryName]_[version]_[arch][setup][ext]'
           args: ${{ matrix.args }}

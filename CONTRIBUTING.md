@@ -122,10 +122,16 @@ Use the bug report template. The log (tray → **Show logs**) and the receipt's 
 
 ## Releasing (maintainers)
 
-1. Bump `version` in `package.json` (the app reads its version from there).
-2. Commit, then tag and push the tag: `git tag -a v0.2.0 -m v0.2.0 && git push origin v0.2.0`.
-3. The `Release` workflow builds the installers and attaches them to a **draft** release.
-   Review it on GitHub and publish.
+Updates are signed with the updater key. Its public half is in `tauri.conf.json`
+(`plugins.updater.pubkey`); the private key and its password are the repository Secrets
+`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Lose the key and
+installed apps can no longer update: keep a backup.
 
-To try the installers before a release: **Actions → Build → Run workflow**. They come out
-as workflow artifacts, unsigned, for the three OSes.
+1. Try the installers first: **Actions → Build → Run workflow**. They come out as workflow
+   artifacts for the three OSes. Install, print, quit, uninstall.
+2. Bump `version` in `package.json` (the app reads its version from there) and commit.
+3. Tag and push the tag: `git tag -a v0.2.0 -m v0.2.0 && git push origin v0.2.0`.
+4. The `Release` workflow runs the CI checks, then builds the installers and attaches them
+   to a **draft** release. Check that it has every installer
+   (`thermal-printer-emulator_0.2.0_…`), their `.sig` files and `latest.json`.
+5. Publish the draft. Installed apps only see published releases, within a day.
